@@ -21,6 +21,7 @@ export default function WordSetup() {
   const [playerName, setPlayerName] = useState('');
   const [players, setPlayers] = useState(['MAX', 'ORLANDO', 'JOHN', 'POUYA']);
   const [selectedTheme, setSelectedTheme] = useState('Hobbies');
+  const [numCards, setNumCards] = useState(8)
 
   const themes = ['Drinks', 'Hobbies', 'Room', 'Vegetables', 'Sports'];
 
@@ -68,6 +69,26 @@ export default function WordSetup() {
 
       <View style={layoutStyles.content}>
 
+        {/* Number of Terms Section */}
+        <View style={layoutStyles.section}>
+          <Text style={textStyles.h4}>Number Of Cards: {numCards}</Text>
+          <View style={styles.playerCountControls}>
+            <TouchableOpacity 
+              style={styles.countButton}
+              onPress={() => setNumCards(numCards - 1)}
+            >
+              <Text style={styles.countButtonText}>−</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.countButton}
+              onPress={() => setNumCards(numCards + 1)}
+            >
+              <Text style={styles.countButtonText}>+</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+
         {/* Add Players Section */}
         <View style={layoutStyles.section}>
           <Text style={textStyles.h4}>ADD PLAYERS</Text>
@@ -113,36 +134,7 @@ export default function WordSetup() {
           </View>
         </View>
 
-        {/* Theme Selection */}
-        <View style={layoutStyles.section}>
-          <Text style={textStyles.h4}>Choose Theme</Text>
-          <View style={styles.themeList}>
-            {themes.map((theme) => (
-              <TouchableOpacity
-                key={theme}
-                style={combineStyles(
-                  styles.themeItem,
-                  selectedTheme === theme && styles.themeItemSelected
-                )}
-                onPress={() => setSelectedTheme(theme)}
-              >
-                <Text style={combineStyles(
-                  textStyles.body,
-                  selectedTheme === theme && styles.themeTextSelected
-                )}>
-                  {theme}
-                </Text>
-                {selectedTheme === theme && (
-                  <Ionicons 
-                    name="checkmark" 
-                    size={layout.iconSize.sm} 
-                    color={colors.secondary} 
-                  />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+        
 
         {/* Start Button using our Button component */}
         <Button

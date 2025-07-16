@@ -42,35 +42,36 @@ export default function WordTheme() {
                 </TouchableOpacity>
             </View>
 
-
-            {/* Theme Section */}
-            <View style={layoutStyles.section}>
-                <Text style={textStyles.h4}>Choose Theme</Text>
-                <View style={styles.themeList}>
-                {themes.map((theme) => (
-                    <TouchableOpacity
-                    key={theme}
-                    style={combineStyles(
-                        styles.themeItem,
-                        selectedTheme === theme && styles.themeItemSelected
-                    )}
-                    onPress={() => setSelectedTheme(theme)}
-                    >
-                    <Text style={combineStyles(
-                        textStyles.body,
-                        selectedTheme === theme && styles.themeTextSelected
-                    )}>
-                        {theme}
-                    </Text>
-                    {selectedTheme === theme && (
-                        <Ionicons 
-                        name="checkmark" 
-                        size={layout.iconSize.sm} 
-                        color={colors.secondary} 
-                        />
-                    )}
-                    </TouchableOpacity>
-                ))}
+            <View style={layoutStyles.content}>
+                {/* Theme Section */}
+                <View style={layoutStyles.section}>
+                    <Text style={textStyles.h4}>Choose Theme</Text>
+                    <View style={styles.themeList}>
+                    {themes.map((theme) => (
+                        <TouchableOpacity
+                        key={theme}
+                        style={combineStyles(
+                            styles.themeItem,
+                            selectedTheme === theme && styles.themeItemSelected
+                        )}
+                        onPress={() => setSelectedTheme(theme)}
+                        >
+                        <Text style={combineStyles(
+                            textStyles.body,
+                            selectedTheme === theme && styles.themeTextSelected
+                        )}>
+                            {theme}
+                        </Text>
+                        {selectedTheme === theme && (
+                            <Ionicons 
+                            name="checkmark" 
+                            size={layout.iconSize.sm} 
+                            color={colors.secondary} 
+                            />
+                        )}
+                        </TouchableOpacity>
+                    ))}
+                    </View>
                 </View>
             </View> 
         </ScrollView>
