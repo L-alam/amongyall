@@ -24,9 +24,14 @@ export default function WordSetup() {
 
   const themes = ['Drinks', 'Hobbies', 'Room', 'Vegetables', 'Sports'];
 
+  // Go back to the home screen
   const handleBack = () => {
     router.back();
   };
+
+  const handleTheme = () => {
+    router.push('/word/word-theme')
+  }
 
   const handleAddPlayer = () => {
     if (playerName.trim() && players.length < 8) {
@@ -47,7 +52,6 @@ export default function WordSetup() {
   };
 
   return (
-    <SafeAreaProvider>
     <ScrollView style={layoutStyles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -142,15 +146,14 @@ export default function WordSetup() {
 
         {/* Start Button using our Button component */}
         <Button
-          title="START"
+          title="NEXT"
           variant="primary"
           size="lg"
-          onPress={handleStart}
+          onPress={handleTheme}
           style={styles.startButton}
         />
       </View>
     </ScrollView>
-    </SafeAreaProvider>
   );
 }
 
