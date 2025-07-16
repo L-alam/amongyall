@@ -4,6 +4,5 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 export default function QuestionSetup() {
-  return ( <Text> Question Setup </Text>
-  );
+  return ( <Text>Question Setup</Text> );
 }

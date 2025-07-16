@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { colors, spacing, layout, typography } from '../constants/theme';
+import { colors, spacing, layout, typography } from '../../constants/theme';
 import { 
   textStyles, 
   layoutStyles, 
@@ -11,8 +12,8 @@ import {
   createButtonTextStyle,
   createInputStyle,
   combineStyles 
-} from '../utils/styles';
-import { Button } from '../components/Button';
+} from '../../utils/styles';
+import { Button } from '../../components/Button';
 
 
 export default function WordSetup() {
@@ -46,6 +47,7 @@ export default function WordSetup() {
   };
 
   return (
+    <SafeAreaProvider>
     <ScrollView style={layoutStyles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -53,7 +55,7 @@ export default function WordSetup() {
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
         
-        <Text style={textStyles.h4}>Word Chameleon</Text>
+        <Text style={textStyles.h2}>Word Chameleon</Text>
         
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
           <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
@@ -61,28 +63,6 @@ export default function WordSetup() {
       </View>
 
       <View style={layoutStyles.content}>
-        <Text style={combineStyles(textStyles.bodySmall, styles.subtitle)}>
-          How to play
-        </Text>
-
-        {/* Player Count Section */}
-        <View style={layoutStyles.section}>
-          <Text style={textStyles.h4}>Players: {playerCount}</Text>
-          <View style={styles.playerCountControls}>
-            <TouchableOpacity 
-              style={styles.countButton}
-              onPress={() => setPlayerCount(Math.max(3, playerCount - 1))}
-            >
-              <Text style={styles.countButtonText}>−</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.countButton}
-              onPress={() => setPlayerCount(Math.min(8, playerCount + 1))}
-            >
-              <Text style={styles.countButtonText}>+</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
         {/* Add Players Section */}
         <View style={layoutStyles.section}>
@@ -170,6 +150,7 @@ export default function WordSetup() {
         />
       </View>
     </ScrollView>
+    </SafeAreaProvider>
   );
 }
 
@@ -179,28 +160,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: spacing['3xl'], // Was: paddingTop: 60
-    paddingHorizontal: spacing.lg, // Was: paddingHorizontal: 20
-    paddingBottom: spacing.lg, // Was: paddingBottom: 20
+    paddingTop: spacing['3xl'],
+    paddingHorizontal: spacing.lg, 
+    paddingBottom: spacing.lg, 
   },
   
   headerButton: {
-    padding: spacing.sm, // Was: padding: 8
+    padding: spacing.sm,
   },
   
   subtitle: {
     textAlign: 'center',
-    marginBottom: spacing.xl, // Was: marginBottom: 30
+    marginBottom: spacing.xl, 
   },
   
   playerCountControls: {
     flexDirection: 'row',
-    gap: spacing.sm, // Was: gap: 10
-    marginTop: spacing.md, // Added for better spacing
+    gap: spacing.sm,
+    marginTop: spacing.md, 
   },
   
   countButton: {
-    backgroundColor: colors.gray100, // Was: backgroundColor: '#f0f0f0'
+    backgroundColor: colors.gray100, 
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -209,16 +190,16 @@ const styles = StyleSheet.create({
   },
   
   countButtonText: {
-    fontSize: typography.fontSize.xl, // Was: fontSize: 20
-    fontWeight: typography.fontWeight.bold, // Was: fontWeight: 'bold'
-    color: colors.primary, // Was: color: '#333'
+    fontSize: typography.fontSize.xl, 
+    fontWeight: typography.fontWeight.bold, 
+    color: colors.primary, 
   },
   
   playerInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.lg, // Was: marginBottom: 20
-    marginTop: spacing.md, // Added for consistency
+    marginBottom: spacing.lg, 
+    marginTop: spacing.md,
   },
   
   playerInput: {
@@ -227,53 +208,53 @@ const styles = StyleSheet.create({
   },
   
   addButton: {
-    marginLeft: spacing.sm, // Was: marginLeft: 10
-    padding: spacing.sm, // Was: padding: 8
+    marginLeft: spacing.sm, 
+    padding: spacing.sm, 
   },
   
   playerList: {
-    gap: spacing.sm, // Was: gap: 12
+    gap: spacing.sm, 
   },
   
   playerItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm, // Was: gap: 12
-    paddingVertical: spacing.xs, // Added for better touch targets
+    gap: spacing.sm, 
+    paddingVertical: spacing.xs, 
   },
   
   playerName: {
     flex: 1,
-    // fontSize and color now come from textStyles.body
+    
   },
   
   themeList: {
-    gap: spacing.sm, // Was: gap: 12
-    marginTop: spacing.md, // Added for consistency
+    gap: spacing.sm, 
+    marginTop: spacing.md, 
   },
   
   themeItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.md, // Was: paddingVertical: 15
-    paddingHorizontal: spacing.lg, // Was: paddingHorizontal: 20
+    paddingVertical: spacing.md, 
+    paddingHorizontal: spacing.lg, 
     borderWidth: 1,
-    borderColor: colors.gray300, // Was: borderColor: '#ddd'
+    borderColor: colors.gray300, 
     borderRadius: 8,
   },
   
   themeItemSelected: {
-    borderColor: colors.secondary, // Was: borderColor: '#007AFF'
-    backgroundColor: colors.secondary + '10', // Was: backgroundColor: '#f0f8ff'
+    borderColor: colors.secondary, 
+    backgroundColor: colors.secondary + '10', 
   },
   
   themeTextSelected: {
-    color: colors.secondary, // Was: color: '#007AFF'
-    fontWeight: typography.fontWeight.semibold, // Was: fontWeight: '600'
+    color: colors.secondary, 
+    fontWeight: typography.fontWeight.semibold, 
   },
   
   startButton: {
-    marginTop: spacing.lg, // Was: marginTop: 20
+    marginTop: spacing.lg, 
   },
 });

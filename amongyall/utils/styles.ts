@@ -1,6 +1,8 @@
 import { StyleSheet, TextStyle, ViewStyle } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows} from '../constants/theme';
+import { Dimensions } from 'react-native';
 
+const screenWidth = Dimensions.get('window').width;
 
 // Common text styles
 export const textStyles = StyleSheet.create({
@@ -164,8 +166,6 @@ export const createInputStyle = (
   const baseStyle: ViewStyle = {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    fontSize: typography.fontSize.base,
-    color: colors.gray900,
   };
 
   const variantStyles = {

@@ -12,13 +12,13 @@ export default function Index() {
   const handleGameModePress = (gameMode: string) => {
     switch (gameMode) {
       case 'Word Chameleon':
-        router.push('/word-setup');
+        router.push('/word/word-setup');
         break;
       case 'Question Chameleon':
-        router.push('/question-setup');
+        router.push('/question/question-setup');
         break;
       case 'WaveLength':
-        router.push('/wavelength-setup');
+        router.push('/wavelength/wavelength-setup');
         break;
       default:
         console.log(`Selected game mode: ${gameMode}`);
@@ -119,7 +119,7 @@ const styles = {
     textAlign: 'center' as const,
   },
   buttonContainer: {
-    width: '100%',
+    width: "100%" as const,
     gap: spacing.lg,
   },
   gameButton: {
