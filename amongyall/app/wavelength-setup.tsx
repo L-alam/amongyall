@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-export default function WordSetup() {
-  return ( <Text> Word Setup </Text>
+export default function WavelengthSetup() {
+  return ( <Text> Wavelength Setup </Text>
   );
 }

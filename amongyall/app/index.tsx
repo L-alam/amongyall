@@ -9,28 +9,28 @@ import { Button } from '../components/Button';
 
 export default function Index() {
 
-  // const handleGameModePress = (gameMode: string) => {
-  //   switch (gameMode) {
-  //     case 'Word Chameleon':
-  //       router.push('/word-setup');
-  //       break;
-  //     case 'Question Chameleon':
-  //       router.push('/question-setup');
-  //       break;
-  //     case 'WaveLength':
-  //       router.push('/wavelength-setup');
-  //       break;
-  //     default:
-  //       console.log(`Selected game mode: ${gameMode}`);
-  //   }
-  // };
+  const handleGameModePress = (gameMode: string) => {
+    switch (gameMode) {
+      case 'Word Chameleon':
+        router.push('/word-setup');
+        break;
+      case 'Question Chameleon':
+        router.push('/question-setup');
+        break;
+      case 'WaveLength':
+        router.push('/wavelength-setup');
+        break;
+      default:
+        console.log(`Selected game mode: ${gameMode}`);
+    }
+  };
 
   
   // GAME MODE
-  const handleGameModePress = (gameMode: string) => {
-    // TODO: Navigate to game setup screen
-    console.log(`Selected game mode: ${gameMode}`);
-  };
+  // const handleGameModePress = (gameMode: string) => {
+  //   // TODO: Navigate to game setup screen
+  //   console.log(`Selected game mode: ${gameMode}`);
+  // };
 
   // SETTINGS
   const handleSettingsPress = () => {
