@@ -1,15 +1,38 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, TouchableOpacity, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+
+import { colors, spacing, layout } from '../constants/theme';
+import { textStyles, layoutStyles, gameStyles, combineStyles } from '../utils/styles';
+import { Button } from '../components/Button';
 
 export default function Index() {
 
+  // const handleGameModePress = (gameMode: string) => {
+  //   switch (gameMode) {
+  //     case 'Word Chameleon':
+  //       router.push('/word-setup');
+  //       break;
+  //     case 'Question Chameleon':
+  //       router.push('/question-setup');
+  //       break;
+  //     case 'WaveLength':
+  //       router.push('/wavelength-setup');
+  //       break;
+  //     default:
+  //       console.log(`Selected game mode: ${gameMode}`);
+  //   }
+  // };
+
+  
   // GAME MODE
   const handleGameModePress = (gameMode: string) => {
     // TODO: Navigate to game setup screen
     console.log(`Selected game mode: ${gameMode}`);
   };
 
+  // SETTINGS
   const handleSettingsPress = () => {
     // TODO: Navigate to settings screen
     console.log('Settings pressed');
@@ -18,54 +41,64 @@ export default function Index() {
 
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+    <View style={layoutStyles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       
-      {/* Header with settings icon */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.settingsButton} onPress={handleSettingsPress}>
-          <Ionicons name="settings-outline" size={24} color="#333" />
+      {/* Header with settings */}
+      <View style={layoutStyles.header}>
+        <View /> {/* Spacer for center alignment */}
+        <TouchableOpacity 
+          style={styles.settingsButton} 
+          onPress={handleSettingsPress}
+        >
+          <Ionicons name="settings-outline" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
       {/* Main content */}
-      <View style={styles.content}>
+      <View style={combineStyles(layoutStyles.content, layoutStyles.centered)}>
         {/* Logo */}
         <View style={styles.logoContainer}>
-          <Ionicons name="person-circle-outline" size={80} color="#333" />
+          <Ionicons 
+            name="person-circle-outline" 
+            size={80} 
+            color={colors.primary} 
+          />
         </View>
 
         {/* App title */}
-        <Text style={styles.title}>AMONGYALL</Text>
+        <Text style={textStyles.appTitle}>AMONGYALL</Text>
 
-        {/* Game mode selection text */}
-        <Text style={styles.subtitle}>Select a game mode:</Text>
+        {/* Subtitle */}
+        <Text style={combineStyles(textStyles.subtitle, styles.subtitle)}>
+          Select a game mode:
+        </Text>
 
         {/* Game mode buttons */}
         <View style={styles.buttonContainer}>
-          <TouchableOpacity 
-            style={styles.gameButton} 
+          <Button
+            title="Word Chameleon"
+            icon="chatbox-outline"
+            size="lg"
             onPress={() => handleGameModePress('Word Chameleon')}
-          >
-            <Ionicons name="chatbox-outline" size={20} color="white" style={styles.buttonIcon} />
-            <Text style={styles.buttonText}>Word Chameleon</Text>
-          </TouchableOpacity>
+            style={styles.gameButton}
+          />
 
-          <TouchableOpacity 
-            style={styles.gameButton} 
+          <Button
+            title="Question Chameleon"
+            icon="help-circle-outline"
+            size="lg"
             onPress={() => handleGameModePress('Question Chameleon')}
-          >
-            <Ionicons name="help-circle-outline" size={20} color="white" style={styles.buttonIcon} />
-            <Text style={styles.buttonText}>Question Chameleon</Text>
-          </TouchableOpacity>
+            style={styles.gameButton}
+          />
 
-          <TouchableOpacity 
-            style={styles.gameButton} 
+          <Button
+            title="WaveLength"
+            icon="radio-outline"
+            size="lg"
             onPress={() => handleGameModePress('WaveLength')}
-          >
-            <Ionicons name="radio-outline" size={20} color="white" style={styles.buttonIcon} />
-            <Text style={styles.buttonText}>WaveLength</Text>
-          </TouchableOpacity>
+            style={styles.gameButton}
+          />
         </View>
       </View>
     </View>
@@ -73,71 +106,23 @@ export default function Index() {
 }
 
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingTop: 60, // Account for status bar
-    paddingHorizontal: 20,
-    paddingBottom: 10,
-  },
+// Component-specific styles (only what's unique to this screen)
+const styles = {
   settingsButton: {
-    padding: 8,
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-    paddingBottom: 80, // Give some space at bottom
+    padding: spacing.sm,
   },
   logoContainer: {
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333333',
-    marginBottom: 60,
-    letterSpacing: 2,
+    marginBottom: spacing.lg,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666666',
-    marginBottom: 40,
-    textAlign: 'center',
+    marginBottom: spacing['2xl'],
+    textAlign: 'center' as const,
   },
   buttonContainer: {
     width: '100%',
-    gap: 20,
+    gap: spacing.lg,
   },
   gameButton: {
-    backgroundColor: '#333333',
-    paddingVertical: 18,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    width: '100%',
   },
-  buttonIcon: {
-    marginRight: 10,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
+};
