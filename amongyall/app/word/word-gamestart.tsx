@@ -1,13 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   TouchableOpacity, 
-  Animated, 
   Alert,
-  Dimensions 
+  Dimensions,
+  Pressable 
 } from 'react-native';
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -30,6 +36,107 @@ interface PlayerCard {
   hasConfirmed: boolean;
 }
 
+// Front of card component (before revealing)
+const RegularContent = ({ onPress }: { onPress: () => void }) => {
+  return (
+    <Pressable style={styles.cardFront} onPress={onPress}>
+      <Ionicons 
+        name="eye-outline" 
+        size={48} 
+        color={colors.gray400} 
+        style={styles.cardIcon}
+      />
+      <Text style={styles.cardFrontText}>
+        Click here to reveal{'\n'}your word
+      </Text>
+    </Pressable>
+  );
+};
+
+// Back of card component (after revealing)
+const FlippedContent = ({ isSpy, word }: { isSpy: boolean; word: string }) => {
+  return (
+    <View style={styles.cardBack}>
+      {isSpy ? (
+        <>
+          <Text style={styles.spyText}>YOU ARE THE</Text>
+          <Text style={styles.spyTitle}>SPY</Text>
+          <Text style={styles.spyInstruction}>
+            Try to blend in with the group{'\n'}
+            Guess the word to win
+          </Text>
+        </>
+      ) : (
+        <>
+          <Text style={styles.wordLabel}>The WORD is:</Text>
+          <Text style={styles.wordText}>{word}</Text>
+          <Text style={styles.wordInstruction}>
+            Make sure to keep this{'\n'}word to yourself
+          </Text>
+        </>
+      )}
+    </View>
+  );
+};
+
+// Reanimated Flip Card Component
+const FlipCard = ({
+  isFlipped,
+  cardStyle,
+  direction = 'y',
+  duration = 600,
+  RegularContent,
+  FlippedContent,
+}: {
+  isFlipped: Animated.SharedValue<boolean>;
+  cardStyle: any;
+  direction?: 'x' | 'y';
+  duration?: number;
+  RegularContent: React.ReactNode;
+  FlippedContent: React.ReactNode;
+}) => {
+  const isDirectionX = direction === 'x';
+  
+  const regularCardAnimatedStyle = useAnimatedStyle(() => {
+    const spinValue = interpolate(Number(isFlipped.value), [0, 1], [0, 180]);
+    const rotateValue = withTiming(`${spinValue}deg`, { duration });
+    return {
+      transform: [
+        isDirectionX ? { rotateX: rotateValue } : { rotateY: rotateValue },
+      ],
+    };
+  });
+
+  const flippedCardAnimatedStyle = useAnimatedStyle(() => {
+    const spinValue = interpolate(Number(isFlipped.value), [0, 1], [180, 360]);
+    const rotateValue = withTiming(`${spinValue}deg`, { duration });
+    return {
+      transform: [
+        isDirectionX ? { rotateX: rotateValue } : { rotateY: rotateValue },
+      ],
+    };
+  });
+
+  return (
+    <View style={cardStyle}>
+      <Animated.View
+        style={[
+          styles.regularCard,
+          regularCardAnimatedStyle,
+        ]}>
+        {RegularContent}
+      </Animated.View>
+      <Animated.View
+        style={[
+          styles.flippedCard,
+          flippedCardAnimatedStyle,
+        ]}>
+        {FlippedContent}
+      </Animated.View>
+    </View>
+  );
+};
+
 export default function WordGameStart() {
   const params = useLocalSearchParams();
   const theme = params.theme as string || 'Countries';
@@ -43,9 +150,8 @@ export default function WordGameStart() {
   const [spyIndex, setSpyIndex] = useState(-1);
   const [allPlayersRevealed, setAllPlayersRevealed] = useState(false);
 
-  // Animation refs
-  const flipAnim = useRef(new Animated.Value(0)).current;
-  const [isFlipped, setIsFlipped] = useState(false);
+  // Reanimated shared value for flip state
+  const isFlipped = useSharedValue(false);
 
   // Initialize game setup
   useEffect(() => {
@@ -94,29 +200,22 @@ export default function WordGameStart() {
   };
 
   const flipCard = () => {
-    Animated.timing(flipAnim, {
-      toValue: isFlipped ? 0 : 1,
-      duration: 600,
-      useNativeDriver: true,
-    }).start(() => {
-      setIsFlipped(!isFlipped);
-      
-      // Mark current player as revealed
-      setPlayerCards(prev => 
-        prev.map((card, index) => 
-          index === currentPlayerIndex 
-            ? { ...card, isRevealed: true, hasConfirmed: true }
-            : card
-        )
-      );
-    });
+    isFlipped.value = true;
+    
+    // Mark current player as revealed
+    setPlayerCards(prev => 
+      prev.map((card, index) => 
+        index === currentPlayerIndex 
+          ? { ...card, isRevealed: true, hasConfirmed: true }
+          : card
+      )
+    );
   };
 
   const proceedToNextPlayer = () => {
     if (currentPlayerIndex < players.length - 1) {
       // Reset flip animation for next player
-      setIsFlipped(false);
-      flipAnim.setValue(0);
+      isFlipped.value = false;
       setCurrentPlayerIndex(currentPlayerIndex + 1);
     } else {
       // All players have seen their cards
@@ -138,29 +237,6 @@ export default function WordGameStart() {
 
   const handleBack = () => {
     router.back();
-  };
-
-  // Animation interpolations
-  const frontAnimatedStyle = {
-    transform: [
-      {
-        rotateY: flipAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: ['0deg', '180deg'],
-        }),
-      },
-    ],
-  };
-
-  const backAnimatedStyle = {
-    transform: [
-      {
-        rotateY: flipAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: ['180deg', '360deg'],
-        }),
-      },
-    ],
   };
 
   const currentPlayer = players[currentPlayerIndex];
@@ -246,68 +322,21 @@ export default function WordGameStart() {
           Player {currentPlayerIndex + 1} of {players.length}
         </Text>
 
-        {/* Card container */}
-        <View style={styles.cardContainer}>
-          {/* Front of card */}
-          <Animated.View 
-            style={[
-              styles.card, 
-              styles.cardFront, 
-              frontAnimatedStyle,
-              isFlipped && styles.cardHidden
-            ]}
-          >
-            <TouchableOpacity 
-              style={styles.cardTouchable} 
-              onPress={confirmPlayer}
-              disabled={isFlipped}
-            >
-              <Ionicons 
-                name="eye-outline" 
-                size={48} 
-                color={colors.gray400} 
-                style={styles.cardIcon}
-              />
-              <Text style={styles.cardFrontText}>
-                Click here to reveal{'\n'}your word
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* Back of card */}
-          <Animated.View 
-            style={[
-              styles.card, 
-              styles.cardBack, 
-              backAnimatedStyle,
-              !isFlipped && styles.cardHidden
-            ]}
-          >
-            <View style={styles.cardTouchable}>
-              {currentCard?.isSpy ? (
-                <>
-                  <Text style={styles.spyText}>YOU ARE THE</Text>
-                  <Text style={styles.spyTitle}>SPY</Text>
-                  <Text style={styles.spyInstruction}>
-                    Try to blend in with the group{'\n'}
-                    Guess the word to win
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.wordLabel}>The WORD is:</Text>
-                  <Text style={styles.wordText}>{currentCard?.word}</Text>
-                  <Text style={styles.wordInstruction}>
-                    Make sure to keep this{'\n'}word to yourself
-                  </Text>
-                </>
-              )}
-            </View>
-          </Animated.View>
-        </View>
+        {/* Flip Card */}
+        <FlipCard
+          isFlipped={isFlipped}
+          cardStyle={styles.flipCard}
+          RegularContent={<RegularContent onPress={confirmPlayer} />}
+          FlippedContent={
+            <FlippedContent 
+              isSpy={currentCard?.isSpy || false} 
+              word={currentCard?.word || ''} 
+            />
+          }
+        />
 
         {/* Next button - only show after card is flipped */}
-        {isFlipped && (
+        {isFlipped.value && (
           <Button
             title={currentPlayerIndex === players.length - 1 ? "FINISH SETUP" : "NEXT PLAYER"}
             variant="primary"
@@ -354,18 +383,38 @@ const styles = StyleSheet.create({
     color: colors.gray500,
   },
 
-  cardContainer: {
+  flipCard: {
     width: screenWidth - spacing.lg * 2,
     height: 300,
     marginBottom: spacing.xl,
+    backfaceVisibility: 'hidden',
   },
 
-  card: {
+  regularCard: {
     position: 'absolute',
     width: '100%',
     height: '100%',
-    borderRadius: 16,
+    zIndex: 1,
     backfaceVisibility: 'hidden',
+  },
+
+  flippedCard: {
+    width: '100%',
+    height: '100%',
+    zIndex: 2,
+    backfaceVisibility: 'hidden',
+  },
+
+  cardFront: {
+    flex: 1,
+    backgroundColor: colors.gray100,
+    borderWidth: 2,
+    borderColor: colors.gray300,
+    borderStyle: 'dashed',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -373,26 +422,18 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
 
-  cardFront: {
-    backgroundColor: colors.gray100,
-    borderWidth: 2,
-    borderColor: colors.gray300,
-    borderStyle: 'dashed',
-  },
-
   cardBack: {
-    backgroundColor: colors.primary,
-  },
-
-  cardHidden: {
-    opacity: 0,
-  },
-
-  cardTouchable: {
     flex: 1,
+    backgroundColor: colors.primary,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.lg,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
   },
 
   cardIcon: {
