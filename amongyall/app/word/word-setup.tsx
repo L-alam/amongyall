@@ -37,7 +37,10 @@ export default function WordSetup() {
   const handleTheme = () => {
     router.push({
       pathname: '/word/word-theme',
-      params: { numCards: numCards.toString() }
+      params: { 
+        numCards: numCards.toString(),
+        players: JSON.stringify(players),
+      }
     });
   };
 

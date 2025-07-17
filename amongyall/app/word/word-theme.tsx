@@ -21,6 +21,7 @@ export default function WordTheme() {
   // Get initial numCards from the previous screen (word-setup)
   const params = useLocalSearchParams();
   const initialNumCards = parseInt(params.numCards as string) || 8;
+  const players = JSON.parse(params.players as string || '[]');
   
   const [selectedTheme, setSelectedTheme] = useState('Countries');
   const [numCards, setNumCards] = useState(initialNumCards);
@@ -45,10 +46,11 @@ export default function WordTheme() {
   const handleStartGame = () => {
     // Navigate to game screen with selected theme and words
     router.push({
-      pathname: '/word/word-game',
+      pathname: '/word/word-gamestart',
       params: {
         theme: selectedTheme,
         numCards: numCards.toString(),
+        players: JSON.stringify(players),
         words: JSON.stringify(previewWords)
       }
     });
@@ -91,7 +93,7 @@ export default function WordTheme() {
       </View>
 
       <View style={layoutStyles.content}>
-        
+
         {/* Theme Selection Section */}
         <View style={layoutStyles.section}>
           <Text style={textStyles.h4}>Choose Theme</Text>
