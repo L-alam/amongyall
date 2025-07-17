@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Pressable, SafeAreaView, } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Pressable, SafeAreaView, Alert, } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -299,41 +299,108 @@ export default function WordGameplay() {
     const currentPlayer = players[currentPlayerIndex];
     const currentCard = playerCards[currentPlayerIndex];
 
+
+    if (allPlayersRevealed) {
+        return (
+          <View style={layoutStyles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+              <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
+              </TouchableOpacity>
+              
+              <Text style={textStyles.h2}>Word Chameleon</Text>
+              
+              <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
+    
+            <View style={combineStyles(layoutStyles.content, layoutStyles.centered)}>
+              <Text style={combineStyles(textStyles.h1, styles.readyTitle)}>
+                Ready to Play!
+              </Text>
+              
+              <Text style={combineStyles(textStyles.body, styles.readySubtitle)}>
+                Everyone has seen their word. The discussion can begin!
+              </Text>
+    
+              <View style={styles.playerSummary}>
+                <Text style={textStyles.h4}>Players:</Text>
+                {players.map((player, index) => (
+                  <View key={index} style={styles.playerSummaryItem}>
+                    <Ionicons 
+                      name="person-circle-outline" 
+                      size={layout.iconSize.sm} 
+                      color={colors.primary} 
+                    />
+                    <Text style={textStyles.body}>{player}</Text>
+                  </View>
+                ))}
+              </View>
+    
+              <Button
+                title="START DISCUSSION"
+                variant="primary"
+                size="lg"
+                onPress={startGameplay}
+                style={styles.startButton}
+              />
+            </View>
+          </View>
+        );
+      }
+    
     return (
         <View style={layoutStyles.container}>
             {/* Header */}
             <View style={styles.header}>
-            <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-                <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
-            </TouchableOpacity>
-            
-            <Text style={textStyles.h2}>Word Chameleon</Text>
-            
-            <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-                <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
-            </TouchableOpacity>
+                <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                    <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
+                </TouchableOpacity>
+                
+                <Text style={textStyles.h2}>Word Chameleon</Text>
+                
+                <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                    <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
+                </TouchableOpacity>
             </View>
 
+            <View style={combineStyles(layoutStyles.content, layoutStyles.centered)}>
+                {/* Player instruction */}
+                <Text style={combineStyles(textStyles.h1, styles.playerInstruction)}>
+                    Give the phone to:
+                </Text>
+                <Text style={combineStyles(textStyles.h1, styles.playerName)}>
+                    {currentPlayer}
+                </Text>
+
+                {/* Progress indicator */}
+                <Text style={combineStyles(textStyles.caption, styles.progressText)}>
+                    Player {currentPlayerIndex + 1} of {players.length}
+                </Text>
+            </View>
+
+            {/* Flip Card */}
             <SafeAreaView style={styles.container}>
-                <FlipCard
+                <FlipCard                                               
                 isFlipped={isFlipped}
                 cardStyle={styles.flipCard}
                 FlippedContent={<FlippedContent />}
                 RegularContent={<RegularContent />}
-                onPress={handleCardPress} // Pass the press handler
+                onPress={confirmPlayer} // Pass the press handler
                 />
-                
-                {/* Optional: Keep this button for other actions or remove it entirely */}
-                <View style={styles.buttonContainer}>
+
+                {/* Next button - only show after card is flipped */}
+                {isFlipped.value && (
                 <Button
-                title="END ROUND"
-                variant="secondary"
-                size="sm"
-                onPress={() => {/* handle end round */}}
-                style={styles.startButton}
+                    title={currentPlayerIndex === players.length - 1 ? "FINISH SETUP" : "NEXT PLAYER"}
+                    variant="primary"
+                    size="sm"
+                    onPress={proceedToNextPlayer}
+                    style={styles.nextButton}
                 />
-                </View>
-                
+                )}
             </SafeAreaView>
 
         </View>
