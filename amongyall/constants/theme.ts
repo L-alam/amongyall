@@ -183,3 +183,137 @@ export const zIndex = {
   tooltip: 1050,
   overlay: 1060,
 } as const;
+
+
+// ############################## Example Themes ########################
+
+
+export interface Theme {
+  name: string;
+  words: string[];
+}
+
+export const themes: Theme[] = [
+  {
+    name: "Countries",
+    words: [
+      "U.K",
+      "France", 
+      "Germany",
+      "Canada",
+      "Spain",
+      "U.S.A",
+      "Mexico",
+      "China",
+      "Japan",
+      "Italy",
+      "India",
+      "Russia",
+      "Brazil",
+      "Australia",
+      "Egypt",
+      "Nigeria"
+    ]
+  },
+  {
+    name: "Musical Instruments",
+    words: [
+      "Electric Guitar",
+      "Bass Guitar",
+      "Clarinet",
+      "Harp",
+      "Piano",
+      "Saxophone",
+      "Trumpet",
+      "Bagpipes",
+      "Violin",
+      "Cello",
+      "Voice",
+      "Harmonica",
+      "Drums",
+      "Flute",
+      "Ukulele",
+      "Banjo"
+    ]
+  },
+  {
+    name: "Under the Sea",
+    words: [
+      "Octopus",
+      "Lobster",
+      "Crab",
+      "Sea turtle",
+      "Starfish",
+      "Seal",
+      "Giant Squid",
+      "Clownfish",
+      "Shark",
+      "Dolphin",
+      "Seahorse",
+      "Swordfish",
+      "Jellyfish",
+      "Killer Whale",
+      "Stingray",
+      "Mermaid"
+    ]
+  },
+  {
+    name: "Music",
+    words: [
+      "Rock",
+      "Hip Hop",
+      "Rap",
+      "Country",
+      "Heavy Metal",
+      "Pop",
+      "Punk",
+      "House",
+      "Classical",
+      "Techno",
+      "Indie",
+      "Disco",
+      "Funk",
+      "Blues",
+      "Christmas",
+      "Reggae"
+    ]
+  },
+  {
+    name: "Cities",
+    words: [
+      "New York City",
+      "Moscow",
+      "Delhi",
+      "London",
+      "Paris",
+      "Rome",
+      "Rio de Janeiro",
+      "Sydney",
+      "Tokyo",
+      "Athens",
+      "Cairo",
+      "Hong Kong",
+      "Chicago",
+      "L.A.",
+      "San Francisco",
+      "Barcelona"
+    ]
+  }
+];
+
+// Utility functions
+export const getThemeByName = (name: string): Theme | undefined => {
+  return themes.find(theme => theme.name === name);
+};
+
+export const getRandomWordsFromTheme = (themeName: string, count: number): string[] => {
+  const theme = getThemeByName(themeName);
+  if (!theme) return [];
+  
+  const shuffled = [...theme.words].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, Math.min(count, theme.words.length));
+};
+
+export const getAllThemeNames = (): string[] => {
+  return themes.map(theme => theme.name);
+};

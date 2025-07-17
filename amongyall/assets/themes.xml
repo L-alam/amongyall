@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<themes>
+  <theme name="Countries">
+    <word>U.K</word>
+    <word>France</word>
+    <word>Germany</word>
+    <word>Canada</word>
+    <word>Spain</word>
+    <word>U.S.A</word>
+    <word>Mexico</word>
+    <word>China</word>
+    <word>Japan</word>
+    <word>Italy</word>
+    <word>India</word>
+    <word>Russia</word>
+    <word>Brazil</word>
+    <word>Australia</word>
+    <word>Egypt</word>
+    <word>Nigeria</word>
+  </theme>
+  
+  <theme name="Musical Instruments">
+    <word>Electric Guitar</word>
+    <word>Bass Guitar</word>
+    <word>Clarinet</word>
+    <word>Harp</word>
+    <word>Piano</word>
+    <word>Saxophone</word>
+    <word>Trumpet</word>
+    <word>Bagpipes</word>
+    <word>Violin</word>
+    <word>Cello</word>
+    <word>Voice</word>
+    <word>Harmonica</word>
+    <word>Drums</word>
+    <word>Flute</word>
+    <word>Ukulele</word>
+    <word>Banjo</word>
+  </theme>
+  
+  <theme name="Under the Sea">
+    <word>Octopus</word>
+    <word>Lobster</word>
+    <word>Crab</word>
+    <word>Sea turtle</word>
+    <word>Starfish</word>
+    <word>Seal</word>
+    <word>Giant Squid</word>
+    <word>Clownfish</word>
+    <word>Shark</word>
+    <word>Dolphin</word>
+    <word>Seahorse</word>
+    <word>Swordfish</word>
+    <word>Jellyfish</word>
+    <word>Killer Whale</word>
+    <word>Stingray</word>
+    <word>Mermaid</word>
+  </theme>
+  
+  <theme name="Music">
+    <word>Rock</word>
+    <word>Hip Hop</word>
+    <word>Rap</word>
+    <word>Country</word>
+    <word>Heavy Metal</word>
+    <word>Pop</word>
+    <word>Punk</word>
+    <word>House</word>
+    <word>Classical</word>
+    <word>Techno</word>
+    <word>Indie</word>
+    <word>Disco</word>
+    <word>Funk</word>
+    <word>Blues</word>
+    <word>Christmas</word>
+    <word>Reggae</word>
+  </theme>
+  
+  <theme name="Cities">
+    <word>New York City</word>
+    <word>Moscow</word>
+    <word>Delhi</word>
+    <word>London</word>
+    <word>Paris</word>
+    <word>Rome</word>
+    <word>Rio de Janeiro</word>
+    <word>Sydney</word>
+    <word>Tokyo</word>
+    <word>Athens</word>
+    <word>Cairo</word>
+    <word>Hong Kong</word>
+    <word>Chicago</word>
+    <word>L.A.</word>
+    <word>San Francisco</word>
+    <word>Barcelona</word>
+  </theme>
+</themes>
