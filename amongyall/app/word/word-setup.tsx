@@ -21,7 +21,11 @@ export default function WordSetup() {
   const [playerName, setPlayerName] = useState('');
   const [players, setPlayers] = useState(['MAX', 'ORLANDO', 'JOHN', 'POUYA']);
   const [selectedTheme, setSelectedTheme] = useState('Hobbies');
-  const [numCards, setNumCards] = useState(8)
+  const [numCards, setNumCards] = useState(8);
+
+  // Constraints for numCards
+  const MIN_CARDS = 4;
+  const MAX_CARDS = 16;
 
   const themes = ['Drinks', 'Hobbies', 'Room', 'Vegetables', 'Sports'];
 
@@ -31,8 +35,11 @@ export default function WordSetup() {
   };
 
   const handleTheme = () => {
-    router.push('/word/word-theme')
-  }
+    router.push({
+      pathname: '/word/word-theme',
+      params: { numCards: numCards.toString() }
+    });
+  };
 
   const handleAddPlayer = () => {
     if (playerName.trim() && players.length < 8) {
@@ -46,6 +53,18 @@ export default function WordSetup() {
     const newPlayers = players.filter((_, i) => i !== index);
     setPlayers(newPlayers);
     setPlayerCount(newPlayers.length);
+  };
+
+  const increaseCards = () => {
+    if (numCards < MAX_CARDS) {
+      setNumCards(numCards + 1);
+    }
+  };
+
+  const decreaseCards = () => {
+    if (numCards > MIN_CARDS) {
+      setNumCards(numCards - 1);
+    }
   };
 
   const handleStart = () => {
@@ -74,16 +93,30 @@ export default function WordSetup() {
           <Text style={textStyles.h4}>Number Of Cards: {numCards}</Text>
           <View style={styles.playerCountControls}>
             <TouchableOpacity 
-              style={styles.countButton}
-              onPress={() => setNumCards(numCards - 1)}
+              style={[
+                styles.countButton,
+                numCards <= MIN_CARDS && styles.countButtonDisabled
+              ]}
+              onPress={decreaseCards}
+              disabled={numCards <= MIN_CARDS}
             >
-              <Text style={styles.countButtonText}>−</Text>
+              <Text style={[
+                styles.countButtonText,
+                numCards <= MIN_CARDS && styles.countButtonTextDisabled
+              ]}>−</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={styles.countButton}
-              onPress={() => setNumCards(numCards + 1)}
+              style={[
+                styles.countButton,
+                numCards >= MAX_CARDS && styles.countButtonDisabled
+              ]}
+              onPress={increaseCards}
+              disabled={numCards >= MAX_CARDS}
             >
-              <Text style={styles.countButtonText}>+</Text>
+              <Text style={[
+                styles.countButtonText,
+                numCards >= MAX_CARDS && styles.countButtonTextDisabled
+              ]}>+</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -104,7 +137,7 @@ export default function WordSetup() {
             <TouchableOpacity style={styles.addButton} onPress={handleAddPlayer}>
               <Ionicons 
                 name="add-circle-outline" 
-                size={layout.iconSize.lg} 
+                size={layout.iconSize.md} 
                 color={colors.gray500} 
               />
             </TouchableOpacity>
@@ -183,11 +216,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  countButtonDisabled: {
+    backgroundColor: colors.gray200,
+    opacity: 0.5,
+  },
   
   countButtonText: {
     fontSize: typography.fontSize.xl, 
     fontWeight: typography.fontWeight.bold, 
     color: colors.primary, 
+  },
+
+  countButtonTextDisabled: {
+    color: colors.gray400,
   },
   
   playerInputContainer: {

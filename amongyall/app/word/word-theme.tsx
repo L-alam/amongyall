@@ -18,13 +18,18 @@ import { themes, getRandomWordsFromTheme, getAllThemeNames } from '../../constan
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function WordTheme() {
-  // Get numCards from the previous screen (word-setup)
+  // Get initial numCards from the previous screen (word-setup)
   const params = useLocalSearchParams();
-  const numCards = parseInt(params.numCards as string) || 8;
+  const initialNumCards = parseInt(params.numCards as string) || 8;
   
   const [selectedTheme, setSelectedTheme] = useState('Countries');
+  const [numCards, setNumCards] = useState(initialNumCards);
   const [previewWords, setPreviewWords] = useState<string[]>([]);
   const themeNames = getAllThemeNames();
+
+  // Constraints for numCards
+  const MIN_CARDS = 4;
+  const MAX_CARDS = 16;
 
   // Update preview words when theme changes
   useEffect(() => {
@@ -54,6 +59,18 @@ export default function WordTheme() {
     setPreviewWords(words);
   };
 
+  const increaseCards = () => {
+    if (numCards < MAX_CARDS) {
+      setNumCards(numCards + 1);
+    }
+  };
+
+  const decreaseCards = () => {
+    if (numCards > MIN_CARDS) {
+      setNumCards(numCards - 1);
+    }
+  };
+
   // Calculate grid layout
   const cardWidth = (screenWidth - spacing.lg * 2 - spacing.md) / 2;
   const cardHeight = 60;
@@ -74,6 +91,7 @@ export default function WordTheme() {
       </View>
 
       <View style={layoutStyles.content}>
+        
         {/* Theme Selection Section */}
         <View style={layoutStyles.section}>
           <Text style={textStyles.h4}>Choose Theme</Text>
@@ -218,6 +236,36 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.medium,
     color: colors.gray700,
     textAlign: 'center',
+  },
+
+  cardCountControls: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md, 
+  },
+  
+  countButton: {
+    backgroundColor: colors.gray100, 
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  countButtonDisabled: {
+    backgroundColor: colors.gray200,
+    opacity: 0.5,
+  },
+  
+  countButtonText: {
+    fontSize: typography.fontSize.xl, 
+    fontWeight: typography.fontWeight.bold, 
+    color: colors.primary, 
+  },
+
+  countButtonTextDisabled: {
+    color: colors.gray400,
   },
   
   startButton: {
