@@ -1,19 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Alert,
-  Dimensions,
-  Pressable 
-} from 'react-native';
-import Animated, {
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Pressable, SafeAreaView, Alert, } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -21,511 +7,544 @@ import { colors, spacing, layout, typography } from '../../constants/theme';
 import { 
   textStyles, 
   layoutStyles, 
-  combineStyles 
+  createButtonStyle, 
+  createButtonTextStyle,
+  createInputStyle,
+  combineStyles,
 } from '../../utils/styles';
 import { Button } from '../../components/Button';
+import { themes, getRandomWordsFromTheme, getAllThemeNames } from '../../constants/theme';
+
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 interface PlayerCard {
-  playerId: number;
-  playerName: string;
-  isRevealed: boolean;
-  isSpy: boolean;
-  word: string;
-  hasConfirmed: boolean;
+    playerId: number;
+    playerName: string;
+    isRevealed: boolean;
+    isSpy: boolean;
+    word: string;
+    hasConfirmed: boolean;
 }
 
-// Front of card component (before revealing)
-const RegularContent = ({ onPress }: { onPress: () => void }) => {
-  return (
-    <Pressable style={styles.cardFront} onPress={onPress}>
-      <Ionicons 
-        name="eye-outline" 
-        size={48} 
-        color={colors.gray400} 
-        style={styles.cardIcon}
-      />
-      <Text style={styles.cardFrontText}>
-        Click here to reveal{'\n'}your word
-      </Text>
-    </Pressable>
-  );
+// FRONT of the card
+const RegularContent = () => {
+    return (
+      <View style={styles.cardFront}>
+        <Ionicons 
+            name="eye-outline" 
+            size={48} 
+            color={colors.gray400} 
+            style={styles.cardIcon}
+        />
+        <Text style={styles.cardFrontText}>
+            Click here to reveal{'\n'}your word
+        </Text>
+      </View>
+    );
 };
 
-// Back of card component (after revealing)
+// BACK of the card  
 const FlippedContent = ({ isSpy, word }: { isSpy: boolean; word: string }) => {
-  return (
-    <View style={styles.cardBack}>
-      {isSpy ? (
-        <>
-          <Text style={styles.spyText}>YOU ARE THE</Text>
-          <Text style={styles.spyTitle}>SPY</Text>
-          <Text style={styles.spyInstruction}>
-            Try to blend in with the group{'\n'}
-            Guess the word to win
-          </Text>
-        </>
-      ) : (
-        <>
-          <Text style={styles.wordLabel}>The WORD is:</Text>
-          <Text style={styles.wordText}>{word}</Text>
-          <Text style={styles.wordInstruction}>
-            Make sure to keep this{'\n'}word to yourself
-          </Text>
-        </>
-      )}
-    </View>
-  );
+    return (
+        <View style={styles.cardBack}>
+        {isSpy ? (
+          <>
+            <Text style={styles.spyText}>YOU ARE THE</Text>
+            <Text style={styles.spyTitle}>SPY</Text>
+            <Text style={styles.spyInstruction}>
+              Try to blend in with the group{'\n'}
+              Guess the word to win
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.wordLabel}>The WORD is:</Text>
+            <Text style={styles.wordText}>{word}</Text>
+            <Text style={styles.wordInstruction}>
+              Make sure to keep this{'\n'}word to yourself
+            </Text>
+          </>
+        )}
+      </View>
+    );
 };
 
-// Reanimated Flip Card Component
+// Flip Card Component
 const FlipCard = ({
-  isFlipped,
-  cardStyle,
-  direction = 'y',
-  duration = 600,
-  RegularContent,
-  FlippedContent,
+    isFlipped,
+    cardStyle,
+    direction = 'y',
+    duration = 600,
+    RegularContent,
+    FlippedContent,
+    onPress,
 }: {
-  isFlipped: Animated.SharedValue<boolean>;
-  cardStyle: any;
-  direction?: 'x' | 'y';
-  duration?: number;
-  RegularContent: React.ReactNode;
-  FlippedContent: React.ReactNode;
+    isFlipped: Animated.SharedValue<boolean>;
+    cardStyle: any;
+    direction?: 'x' | 'y';
+    duration?: number;
+    RegularContent: React.ReactNode;
+    FlippedContent: React.ReactNode;
+    onPress: () => void;
 }) => {
-  const isDirectionX = direction === 'x';
-  
-  const regularCardAnimatedStyle = useAnimatedStyle(() => {
-    const spinValue = interpolate(Number(isFlipped.value), [0, 1], [0, 180]);
-    const rotateValue = withTiming(`${spinValue}deg`, { duration });
-    return {
-      transform: [
-        isDirectionX ? { rotateX: rotateValue } : { rotateY: rotateValue },
-      ],
-    };
-  });
+    const isDirectionX = direction === 'x';
 
-  const flippedCardAnimatedStyle = useAnimatedStyle(() => {
-    const spinValue = interpolate(Number(isFlipped.value), [0, 1], [180, 360]);
-    const rotateValue = withTiming(`${spinValue}deg`, { duration });
-    return {
-      transform: [
-        isDirectionX ? { rotateX: rotateValue } : { rotateY: rotateValue },
-      ],
-    };
-  });
+    const regularCardAnimatedStyle = useAnimatedStyle(() => {
+      const spinValue = interpolate(Number(isFlipped.value), [0, 1], [0, 180]);
+      // Use no animation duration when resetting to 0, normal duration when flipping to 1
+      const animationDuration = isFlipped.value ? duration : 0;
+      const rotateValue = withTiming(`${spinValue}deg`, { duration: animationDuration });
 
-  return (
-    <View style={cardStyle}>
-      <Animated.View
-        style={[
-          styles.regularCard,
-          regularCardAnimatedStyle,
-        ]}>
-        {RegularContent}
-      </Animated.View>
-      <Animated.View
-        style={[
-          styles.flippedCard,
-          flippedCardAnimatedStyle,
-        ]}>
-        {FlippedContent}
-      </Animated.View>
-    </View>
-  );
+      return {
+        transform: [
+          isDirectionX ? { rotateX: rotateValue } : { rotateY: rotateValue },
+        ],
+      };
+    });
+
+    const flippedCardAnimatedStyle = useAnimatedStyle(() => {
+      const spinValue = interpolate(Number(isFlipped.value), [0, 1], [180, 360]);
+      // Use no animation duration when resetting to 180, normal duration when flipping to 360
+      const animationDuration = isFlipped.value ? duration : 0;
+      const rotateValue = withTiming(`${spinValue}deg`, { duration: animationDuration });
+
+      return {
+        transform: [
+          isDirectionX ? { rotateX: rotateValue } : { rotateY: rotateValue },
+        ],
+      };
+    });
+
+    return (
+      <Pressable onPress={onPress} style={[cardStyle, styles.pressableContainer]}>
+        <Animated.View
+          style={[
+            styles.regularCard,
+            regularCardAnimatedStyle,
+          ]}>
+          {RegularContent}
+        </Animated.View>
+        <Animated.View
+          style={[
+            styles.flippedCard,
+            flippedCardAnimatedStyle,
+          ]}>
+          {FlippedContent}
+        </Animated.View>
+      </Pressable>
+    );
 };
 
 export default function WordGameStart() {
-  const params = useLocalSearchParams();
-  const theme = params.theme as string || 'Countries';
-  const numCards = parseInt(params.numCards as string) || 8;
-  const players = JSON.parse(params.players as string || '[]') as string[];
-  const words = JSON.parse(params.words as string || '[]') as string[];
+    const params = useLocalSearchParams();
+    const theme = params.theme as string || 'Countries';
+    const numCards = parseInt(params.numCards as string) || 8;
+    const players = JSON.parse(params.players as string || '[]') as string[];
+    const words = JSON.parse(params.words as string || '[]') as string[];
 
-  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
-  const [playerCards, setPlayerCards] = useState<PlayerCard[]>([]);
-  const [gameWord, setGameWord] = useState('');
-  const [spyIndex, setSpyIndex] = useState(-1);
-  const [allPlayersRevealed, setAllPlayersRevealed] = useState(false);
+    const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
+    const [playerCards, setPlayerCards] = useState<PlayerCard[]>([]);
+    const [gameWord, setGameWord] = useState('');
+    const [spyIndex, setSpyIndex] = useState(-1);
+    const [allPlayersRevealed, setAllPlayersRevealed] = useState(false);
+    const [currentCardFlipped, setCurrentCardFlipped] = useState(false);
 
-  // Reanimated shared value for flip state
-  const isFlipped = useSharedValue(false);
+    // Reanimated shared value for flip state
+    const isFlipped = useSharedValue(false);
 
-  // Initialize game setup
-  useEffect(() => {
-    setupGame();
-  }, []);
+    // Initialize game setup
+    useEffect(() => {
+        setupGame();
+    }, []);
 
-  const setupGame = () => {
-    // Select random word for this round
-    const selectedWord = words[Math.floor(Math.random() * words.length)];
-    setGameWord(selectedWord);
+    const setupGame = () => {
+        // Select random word for this round
+        const selectedWord = words[Math.floor(Math.random() * words.length)];
+        setGameWord(selectedWord);
 
-    // Randomly select spy
-    const randomSpyIndex = Math.floor(Math.random() * players.length);
-    setSpyIndex(randomSpyIndex);
+        // Randomly select spy
+        const randomSpyIndex = Math.floor(Math.random() * players.length);
+        setSpyIndex(randomSpyIndex);
 
-    // Initialize player cards
-    const cards: PlayerCard[] = players.map((playerName, index) => ({
-      playerId: index,
-      playerName,
-      isRevealed: false,
-      isSpy: index === randomSpyIndex,
-      word: index === randomSpyIndex ? '' : selectedWord,
-      hasConfirmed: false,
-    }));
+        // Initialize player cards
+        const cards: PlayerCard[] = players.map((playerName, index) => ({
+        playerId: index,
+        playerName,
+        isRevealed: false,
+        isSpy: index === randomSpyIndex,
+        word: index === randomSpyIndex ? '' : selectedWord,
+        hasConfirmed: false,
+        }));
 
-    setPlayerCards(cards);
-  };
+        setPlayerCards(cards);
+    };
 
-  const confirmPlayer = () => {
+    const confirmPlayer = () => {
+        const currentPlayer = players[currentPlayerIndex];
+        
+        Alert.alert(
+        'Confirm Player',
+        `Are you really ${currentPlayer}?`,
+        [
+            {
+            text: 'No',
+            style: 'cancel',
+            },
+            {
+            text: 'Yes',
+            onPress: () => flipCard(),
+            },
+        ]
+        );
+    };
+
+    const flipCard = () => {
+        isFlipped.value = true;
+        setCurrentCardFlipped(true);
+        
+        // Mark current player as revealed
+        setPlayerCards(prev => 
+        prev.map((card, index) => 
+            index === currentPlayerIndex 
+            ? { ...card, isRevealed: true, hasConfirmed: true }
+            : card
+        )
+        );
+    };
+
+    const proceedToNextPlayer = () => {
+        if (currentPlayerIndex < players.length - 1) {
+        // First instantly reset the card without animation
+        isFlipped.value = false;
+        setCurrentCardFlipped(false);
+        // Then update the player index
+        setTimeout(() => {
+            setCurrentPlayerIndex(currentPlayerIndex + 1);
+        }, 50); // Small delay to ensure the reset takes effect
+        } else {
+        // All players have seen their cards
+        setAllPlayersRevealed(true);
+        }
+    };
+
+    const startGameplay = () => {
+        router.push({
+        pathname: '/word/word-gameplay',
+        params: {
+            theme,
+            gameWord,
+            spyIndex: spyIndex.toString(),
+            players: JSON.stringify(players),
+        }
+        });
+    };
+
+    const handleBack = () => {
+        router.back();
+    };
+
     const currentPlayer = players[currentPlayerIndex];
+    const currentCard = playerCards[currentPlayerIndex];
+
+    if (allPlayersRevealed) {
+        return (
+          <View style={layoutStyles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+              <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
+              </TouchableOpacity>
+              
+              <Text style={textStyles.h2}>Word Chameleon</Text>
+              
+              <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
     
-    Alert.alert(
-      'Confirm Player',
-      `Are you really ${currentPlayer}?`,
-      [
-        {
-          text: 'No',
-          style: 'cancel',
-        },
-        {
-          text: 'Yes',
-          onPress: () => flipCard(),
-        },
-      ]
-    );
-  };
-
-  const flipCard = () => {
-    isFlipped.value = true;
+            <View style={combineStyles(layoutStyles.content, layoutStyles.centered)}>
+              <Text style={combineStyles(textStyles.h1, styles.readyTitle)}>
+                Ready to Play!
+              </Text>
+              
+              <Text style={combineStyles(textStyles.body, styles.readySubtitle)}>
+                Everyone has seen their word. The discussion can begin!
+              </Text>
     
-    // Mark current player as revealed
-    setPlayerCards(prev => 
-      prev.map((card, index) => 
-        index === currentPlayerIndex 
-          ? { ...card, isRevealed: true, hasConfirmed: true }
-          : card
-      )
-    );
-  };
-
-  const proceedToNextPlayer = () => {
-    if (currentPlayerIndex < players.length - 1) {
-      // Reset flip animation for next player
-      isFlipped.value = false;
-      setCurrentPlayerIndex(currentPlayerIndex + 1);
-    } else {
-      // All players have seen their cards
-      setAllPlayersRevealed(true);
-    }
-  };
-
-  const startGameplay = () => {
-    router.push({
-      pathname: '/word/word-gameplay',
-      params: {
-        theme,
-        gameWord,
-        spyIndex: spyIndex.toString(),
-        players: JSON.stringify(players),
-      }
-    });
-  };
-
-  const handleBack = () => {
-    router.back();
-  };
-
-  const currentPlayer = players[currentPlayerIndex];
-  const currentCard = playerCards[currentPlayerIndex];
-
-  if (allPlayersRevealed) {
-    return (
-      <View style={layoutStyles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-            <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
-          </TouchableOpacity>
-          
-          <Text style={textStyles.h2}>Word Chameleon</Text>
-          
-          <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-            <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={combineStyles(layoutStyles.content, layoutStyles.centered)}>
-          <Text style={combineStyles(textStyles.h1, styles.readyTitle)}>
-            Ready to Play!
-          </Text>
-          
-          <Text style={combineStyles(textStyles.body, styles.readySubtitle)}>
-            Everyone has seen their word. The discussion can begin!
-          </Text>
-
-          <View style={styles.playerSummary}>
-            <Text style={textStyles.h4}>Players:</Text>
-            {players.map((player, index) => (
-              <View key={index} style={styles.playerSummaryItem}>
-                <Ionicons 
-                  name="person-circle-outline" 
-                  size={layout.iconSize.sm} 
-                  color={colors.primary} 
-                />
-                <Text style={textStyles.body}>{player}</Text>
+              <View style={styles.playerSummary}>
+                <Text style={textStyles.h4}>Players:</Text>
+                {players.map((player, index) => (
+                  <View key={index} style={styles.playerSummaryItem}>
+                    <Ionicons 
+                      name="person-circle-outline" 
+                      size={layout.iconSize.sm} 
+                      color={colors.primary} 
+                    />
+                    <Text style={textStyles.body}>{player}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
+    
+              <Button
+                title="START DISCUSSION"
+                variant="primary"
+                size="lg"
+                onPress={startGameplay}
+                style={styles.startButton}
+              />
+            </View>
           </View>
+        );
+    }
+    
+    return (
+        <View style={layoutStyles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                    <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
+                </TouchableOpacity>
+                
+                <Text style={textStyles.h2}>Word Chameleon</Text>
+                
+                <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                    <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
+                </TouchableOpacity>
+            </View>
 
-          <Button
-            title="START DISCUSSION"
-            variant="primary"
-            size="lg"
-            onPress={startGameplay}
-            style={styles.startButton}
-          />
+            <View style={combineStyles(layoutStyles.content, layoutStyles.centered)}>
+                {/* Player instruction */}
+                <Text style={combineStyles(textStyles.h1, styles.playerInstruction)}>
+                    Give the phone to:
+                </Text>
+                <Text style={combineStyles(textStyles.h1, styles.playerName)}>
+                    {currentPlayer}
+                </Text>
+
+                {/* Progress indicator */}
+                <Text style={combineStyles(textStyles.caption, styles.progressText)}>
+                    Player {currentPlayerIndex + 1} of {players.length}
+                </Text>
+
+                {/* Flip Card */}
+                <FlipCard                                               
+                    isFlipped={isFlipped}
+                    cardStyle={styles.flipCard}
+                    FlippedContent={
+                        <FlippedContent 
+                            isSpy={currentCard?.isSpy || false} 
+                            word={currentCard?.word || ''} 
+                        />
+                    }
+                    RegularContent={<RegularContent />}
+                    onPress={currentCardFlipped ? () => {} : confirmPlayer}
+                />
+
+                {/* Next button - only show after card is flipped */}
+                {currentCardFlipped && (
+                    <Button
+                        title={currentPlayerIndex === players.length - 1 ? "FINISH SETUP" : "NEXT PLAYER"}
+                        variant="primary"
+                        size="lg"
+                        onPress={proceedToNextPlayer}
+                        style={styles.nextButton}
+                    />
+                )}
+            </View>
         </View>
-      </View>
     );
-  }
-
-  return (
-    <View style={layoutStyles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
-        </TouchableOpacity>
-        
-        <Text style={textStyles.h2}>Word Chameleon</Text>
-        
-        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-          <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={combineStyles(layoutStyles.content, layoutStyles.centered)}>
-        {/* Player instruction */}
-        <Text style={combineStyles(textStyles.h1, styles.playerInstruction)}>
-          Give the phone to:
-        </Text>
-        <Text style={combineStyles(textStyles.h1, styles.playerName)}>
-          {currentPlayer}
-        </Text>
-
-        {/* Progress indicator */}
-        <Text style={combineStyles(textStyles.caption, styles.progressText)}>
-          Player {currentPlayerIndex + 1} of {players.length}
-        </Text>
-
-        {/* Flip Card */}
-        <FlipCard
-          isFlipped={isFlipped}
-          cardStyle={styles.flipCard}
-          RegularContent={<RegularContent onPress={confirmPlayer} />}
-          FlippedContent={
-            <FlippedContent 
-              isSpy={currentCard?.isSpy || false} 
-              word={currentCard?.word || ''} 
-            />
-          }
-        />
-
-        {/* Next button - only show after card is flipped */}
-        {isFlipped.value && (
-          <Button
-            title={currentPlayerIndex === players.length - 1 ? "FINISH SETUP" : "NEXT PLAYER"}
-            variant="primary"
-            size="lg"
-            onPress={proceedToNextPlayer}
-            style={styles.nextButton}
-          />
-        )}
-      </View>
-    </View>
-  );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: spacing['3xl'],
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-  },
-  
-  headerButton: {
-    padding: spacing.sm,
-  },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingTop: spacing['3xl'],
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
+    },
+    
+    headerButton: {
+      padding: spacing.sm,
+    },
 
-  playerInstruction: {
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-    color: colors.gray600,
-  },
+    playerInstruction: {
+        textAlign: 'center',
+        marginBottom: spacing.sm,
+        color: colors.gray600,
+    },
 
-  playerName: {
-    textAlign: 'center',
-    marginBottom: spacing.md,
-    color: colors.primary,
-    fontWeight: typography.fontWeight.bold,
-  },
+    playerName: {
+        textAlign: 'center',
+        marginBottom: spacing.md,
+        color: colors.primary,
+        fontWeight: typography.fontWeight.bold,
+    },
 
-  progressText: {
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-    color: colors.gray500,
-  },
+    progressText: {
+        textAlign: 'center',
+        marginBottom: spacing.xl,
+        color: colors.gray500,
+    },
 
-  flipCard: {
-    width: screenWidth - spacing.lg * 2,
-    height: 300,
-    marginBottom: spacing.xl,
-    backfaceVisibility: 'hidden',
-  },
+    // Flip card container
+    flipCard: {
+        width: screenWidth - spacing.lg * 2,
+        height: 300,
+        marginBottom: spacing.xl,
+    },
 
-  regularCard: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    zIndex: 1,
-    backfaceVisibility: 'hidden',
-  },
+    pressableContainer: {
+        // Ensure the pressable area covers the entire card
+    },
 
-  flippedCard: {
-    width: '100%',
-    height: '100%',
-    zIndex: 2,
-    backfaceVisibility: 'hidden',
-  },
+    regularCard: {
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+        zIndex: 1,
+        backfaceVisibility: 'hidden',
+    },
 
-  cardFront: {
-    flex: 1,
-    backgroundColor: colors.gray100,
-    borderWidth: 2,
-    borderColor: colors.gray300,
-    borderStyle: 'dashed',
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-  },
+    flippedCard: {
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+        zIndex: 2,
+        backfaceVisibility: 'hidden',
+    },
 
-  cardBack: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-  },
+    // Card front styling
+    cardFront: {
+        flex: 1,
+        backgroundColor: colors.gray100,
+        borderWidth: 2,
+        borderColor: colors.gray300,
+        borderStyle: 'dashed',
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: spacing.lg,
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 5,
+    },
 
-  cardIcon: {
-    marginBottom: spacing.md,
-  },
+    cardIcon: {
+        marginBottom: spacing.md,
+    },
 
-  cardFrontText: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.medium,
-    color: colors.gray600,
-    textAlign: 'center',
-    lineHeight: typography.fontSize.lg * 1.4,
-  },
+    cardFrontText: {
+        fontSize: typography.fontSize.lg,
+        fontWeight: typography.fontWeight.medium,
+        color: colors.gray600,
+        textAlign: 'center',
+        lineHeight: typography.fontSize.lg * 1.4,
+    },
 
-  wordLabel: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.medium,
-    color: colors.gray300,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
+    // Card back styling
+    cardBack: {
+        flex: 1,
+        backgroundColor: colors.primary,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: spacing.lg,
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 5,
+    },
 
-  wordText: {
-    fontSize: typography.fontSize['3xl'],
-    fontWeight: typography.fontWeight.bold,
-    color: colors.white,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
-  },
+    wordLabel: {
+        fontSize: typography.fontSize.sm,
+        fontWeight: typography.fontWeight.medium,
+        color: colors.gray300,
+        textAlign: 'center',
+        marginBottom: spacing.sm,
+    },
 
-  wordInstruction: {
-    fontSize: typography.fontSize.sm,
-    color: colors.gray300,
-    textAlign: 'center',
-    lineHeight: typography.fontSize.sm * 1.4,
-  },
+    wordText: {
+        fontSize: typography.fontSize['3xl'],
+        fontWeight: typography.fontWeight.bold,
+        color: colors.white,
+        textAlign: 'center',
+        marginBottom: spacing.lg,
+    },
 
-  spyText: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.medium,
-    color: colors.error,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
+    wordInstruction: {
+        fontSize: typography.fontSize.sm,
+        color: colors.gray300,
+        textAlign: 'center',
+        lineHeight: typography.fontSize.sm * 1.4,
+    },
 
-  spyTitle: {
-    fontSize: typography.fontSize['4xl'],
-    fontWeight: typography.fontWeight.bold,
-    color: colors.error,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
-  },
+    spyText: {
+        fontSize: typography.fontSize.lg,
+        fontWeight: typography.fontWeight.medium,
+        color: colors.error,
+        textAlign: 'center',
+        marginBottom: spacing.xs,
+    },
 
-  spyInstruction: {
-    fontSize: typography.fontSize.sm,
-    color: colors.gray300,
-    textAlign: 'center',
-    lineHeight: typography.fontSize.sm * 1.4,
-  },
+    spyTitle: {
+        fontSize: typography.fontSize['4xl'],
+        fontWeight: typography.fontWeight.bold,
+        color: colors.error,
+        textAlign: 'center',
+        marginBottom: spacing.lg,
+    },
 
-  nextButton: {
-    width: '100%',
-  },
+    spyInstruction: {
+        fontSize: typography.fontSize.sm,
+        color: colors.gray300,
+        textAlign: 'center',
+        lineHeight: typography.fontSize.sm * 1.4,
+    },
 
-  readyTitle: {
-    textAlign: 'center',
-    marginBottom: spacing.md,
-    color: colors.primary,
-  },
+    nextButton: {
+        width: '100%',
+    },
 
-  readySubtitle: {
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-    color: colors.gray600,
-  },
+    readyTitle: {
+        textAlign: 'center',
+        marginBottom: spacing.md,
+        color: colors.primary,
+    },
 
-  playerSummary: {
-    width: '100%',
-    backgroundColor: colors.gray100,
-    borderRadius: 12,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-  },
+    readySubtitle: {
+        textAlign: 'center',
+        marginBottom: spacing.xl,
+        color: colors.gray600,
+    },
 
-  playerSummaryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
+    playerSummary: {
+        width: '100%',
+        backgroundColor: colors.gray100,
+        borderRadius: 12,
+        padding: spacing.lg,
+        marginBottom: spacing.xl,
+    },
 
-  startButton: {
-    width: '100%',
-  },
+    playerSummaryItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+        paddingVertical: spacing.xs,
+    },
+
+    startButton: {
+        width: '100%',
+    },
 });

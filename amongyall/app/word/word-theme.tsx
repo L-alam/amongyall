@@ -46,7 +46,7 @@ export default function WordTheme() {
   const handleStartGame = () => {
     // Navigate to game screen with selected theme and words
     router.push({
-      pathname: '/word/word-gameplay',
+      pathname: '/word/word-gamestart',
       params: {
         theme: selectedTheme,
         numCards: numCards.toString(),
