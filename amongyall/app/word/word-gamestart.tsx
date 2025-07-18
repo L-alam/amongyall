@@ -236,15 +236,16 @@ export default function WordGameStart() {
 
     const startGameplay = () => {
         router.push({
-        pathname: '/word/word-gameplay',
-        params: {
+          pathname: '/word/word-gameplay',
+          params: {
             theme,
             gameWord,
             spyIndex: spyIndex.toString(),
             players: JSON.stringify(players),
-        }
+            words: JSON.stringify(words) // This should be the preview words
+          }
         });
-    };
+      };
 
     const handleBack = () => {
         router.back();
