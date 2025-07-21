@@ -407,12 +407,12 @@ export const getQuestionsByCategory = (category: string): Questions | undefined 
   return questions.find(q => q.category === category);
 };
 
-export const getRandomQuestion = (category: string): { normal: string; spy: string } | null => {
+export const getRandomPreviewQuestions = (category: string): { normal: string; spy: string }[] => {
   const questionSet = getQuestionsByCategory(category);
-  if (!questionSet || questionSet.pairs.length === 0) return null;
+  if (!questionSet || questionSet.pairs.length === 0) return [];
   
-  const randomIndex = Math.floor(Math.random() * questionSet.pairs.length);
-  return questionSet.pairs[randomIndex];
+  const shuffled = [...questionSet.pairs].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 3);
 };
 
 export const getAllCategories = (): string[] => {
