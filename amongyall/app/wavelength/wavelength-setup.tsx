@@ -14,7 +14,6 @@ import {
 } from '../../utils/styles';
 import { Button } from '../../components/Button';
 
-
-export default function WavelengthSetup() {
+export default function QuestionSetup() {
   return ( <Text>Wavelength Setup</Text> );
 }
