@@ -1,0 +1,176 @@
+<GameQuestions>
+    <Category name="Sports">
+        <QuestionPair>
+            <Normal>What sport did you play most as a kid?</Normal>
+            <Spy>What sport did you watch most as a kid?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What's your favorite sport to watch?</Normal>
+            <Spy>What's your least favorite sport to watch?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>Who’s your favorite athlete?</Normal>
+            <Spy>Who’s the most overrated athlete?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What's your favorite Olympic event?</Normal>
+            <Spy>What's your favorite winter Olympic event?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>How often do you play sports?</Normal>
+            <Spy>How often do you go to sporting events?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What's your favorite team sport?</Normal>
+            <Spy>What's your favorite solo sport?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What's a sport you’ve tried and liked?</Normal>
+            <Spy>What's a sport you’ve never tried but want to?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>Who’s a great coach in sports?</Normal>
+            <Spy>Who’s a controversial coach in sports?</Spy>
+        </QuestionPair>
+    </Category>
+
+    <Category name="Food">
+        <QuestionPair>
+            <Normal>What's your go-to comfort food?</Normal>
+            <Spy>What’s your go-to cheat meal?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What's a food you can eat every day?</Normal>
+            <Spy>What's a food you wish you ate more often?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What's your favorite cuisine?</Normal>
+            <Spy>What cuisine do you eat most often?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>Do you prefer sweet or savory snacks?</Normal>
+            <Spy>Do you prefer salty or spicy snacks?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What do you usually eat for breakfast?</Normal>
+            <Spy>What’s your ideal breakfast?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What's your favorite pizza topping?</Normal>
+            <Spy>What's a pizza topping you don't like?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What’s your favorite restaurant type?</Normal>
+            <Spy>What kind of restaurant do you go to most often?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What drink do you usually have with meals?</Normal>
+            <Spy>What drink do you have when eating out?</Spy>
+        </QuestionPair>
+    </Category>
+
+    <Category name="Music">
+        <QuestionPair>
+            <Normal>What’s your favorite music genre?</Normal>
+            <Spy>What’s a genre you recently started liking?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>Who’s your favorite singer?</Normal>
+            <Spy>Who’s a singer you listen to often?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What's the last song you played?</Normal>
+            <Spy>What’s a song you hear often?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What’s your favorite band or artist?</Normal>
+            <Spy>What’s a band or artist you’ve seen live?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What’s your favorite song to sing along to?</Normal>
+            <Spy>What’s a song you often get stuck in your head?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What kind of music do you like when working?</Normal>
+            <Spy>What kind of music do you like while driving?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What was your first concert?</Normal>
+            <Spy>What was your last concert?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What music do you listen to when you're sad?</Normal>
+            <Spy>What music do you listen to when you're bored?</Spy>
+        </QuestionPair>
+    </Category>
+
+    <Category name="Movies">
+        <QuestionPair>
+            <Normal>What's your all-time favorite movie?</Normal>
+            <Spy>What's a movie you've watched multiple times?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>Who’s your favorite movie actor?</Normal>
+            <Spy>Who’s an actor you've recently seen in a film?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What’s your favorite movie genre?</Normal>
+            <Spy>What’s your most-watched movie genre?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What's the last movie you saw?</Normal>
+            <Spy>What's the last movie you saw in theaters?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What movie made you cry?</Normal>
+            <Spy>What movie made you emotional?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What’s your favorite animated movie?</Normal>
+            <Spy>What’s an animated movie you didn’t like?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>Do you prefer action or comedy?</Normal>
+            <Spy>Do you prefer thrillers or comedy?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What’s a movie you recommend often?</Normal>
+            <Spy>What’s a movie you recently recommended?</Spy>
+        </QuestionPair>
+    </Category>
+
+    <Category name="Random">
+        <QuestionPair>
+            <Normal>How old is your best friend?</Normal>
+            <Spy>How old is your closest coworker?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What would you do if you had a free day?</Normal>
+            <Spy>What would you do if you had a surprise day off?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What's your dream vacation?</Normal>
+            <Spy>What’s your ideal weekend getaway?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What’s something you never leave the house without?</Normal>
+            <Spy>What’s something you often forget when leaving the house?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What’s your favorite way to relax?</Normal>
+            <Spy>What’s your usual weekend routine?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What time do you usually wake up?</Normal>
+            <Spy>What time do you usually go to bed?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>Are you an introvert or extrovert?</Normal>
+            <Spy>Are you more social or independent?</Spy>
+        </QuestionPair>
+        <QuestionPair>
+            <Normal>What was your last big purchase?</Normal>
+            <Spy>What was your most recent purchase?</Spy>
+        </QuestionPair>
+    </Category>
+</GameQuestions>

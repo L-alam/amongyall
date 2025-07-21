@@ -19,19 +19,18 @@ export default function WavelengthSetup() {
   const [playerCount, setPlayerCount] = useState(4);
   const [playerName, setPlayerName] = useState('');
   const [players, setPlayers] = useState(['MAX', 'ORLANDO', 'JOHN', 'POUYA']);
-  const [selectedTheme, setSelectedTheme] = useState('Random');
   const [gameQuestions, setGameQuestions] = useState(["How old is your best friend?", "How many bones have you broken?"])
 
-  const themes = ['Sports', 'Food', 'Music', 'Movies', 'Random'];
+  const sets = ['Sports', 'Food', 'Music', 'Movies', 'Random'];
 
   // Go back to the home screen
   const handleBack = () => {
     router.back();
   };
 
-  const handleTheme = () => {
+  const handleSet = () => {
     router.push({
-      pathname: '/question/question-theme',
+      pathname: '/question/question-set',
       params: {
          players: JSON.stringify(players),
       }
@@ -121,7 +120,7 @@ export default function WavelengthSetup() {
           title="NEXT"
           variant="primary"
           size="lg"
-          onPress={handleTheme}
+          onPress={handleSet}
           style={styles.startButton}
         />
 
@@ -213,32 +212,6 @@ const styles = StyleSheet.create({
   playerName: {
     flex: 1,
     
-  },
-  
-  themeList: {
-    gap: spacing.sm, 
-    marginTop: spacing.md, 
-  },
-  
-  themeItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md, 
-    paddingHorizontal: spacing.lg, 
-    borderWidth: 1,
-    borderColor: colors.gray300, 
-    borderRadius: 8,
-  },
-  
-  themeItemSelected: {
-    borderColor: colors.secondary, 
-    backgroundColor: colors.secondary + '10', 
-  },
-  
-  themeTextSelected: {
-    color: colors.secondary, 
-    fontWeight: typography.fontWeight.semibold, 
   },
   
   startButton: {
