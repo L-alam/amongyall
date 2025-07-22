@@ -61,7 +61,7 @@ export default function WavelengthSetup() {
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
         
-        <Text style={textStyles.h2}>Word Chameleon</Text>
+        <Text style={textStyles.h2}>???? Chameleon</Text>
         
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
           <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
