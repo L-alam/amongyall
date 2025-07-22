@@ -28,7 +28,7 @@ export default function WavelengthSetup() {
 
   const handleSet = () => {
     router.push({
-      pathname: '/question/question-gamestart',
+      pathname: '/wavelength/wavelength-gamestart',
       params: {
          players: JSON.stringify(players),
       }
