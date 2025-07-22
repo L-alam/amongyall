@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Pressable, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Pressable, Alert, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -50,10 +50,11 @@ const RegularContent = () => {
 };
 
 // BACK of the card  
-const FlippedContent = ({ question, onResponseChange, response }: { 
+const FlippedContent = ({ question, onResponseChange, response, isFlipped }: { 
     question: string; 
     onResponseChange: (text: string) => void;
     response: string;
+    isFlipped: boolean;
 }) => {
     return (
         <View style={styles.cardBack}>
@@ -68,6 +69,8 @@ const FlippedContent = ({ question, onResponseChange, response }: {
                 multiline={true}
                 numberOfLines={3}
                 textAlignVertical="top"
+                editable={isFlipped} // Only allow editing when card is flipped
+                pointerEvents={isFlipped ? 'auto' : 'none'} // Prevent touch events when not flipped
             />
             <Text style={styles.questionInstruction}>
                 Answer honestly but don't{'\n'}give away your question
@@ -328,7 +331,11 @@ export default function QuestionGameStart() {
     }
     
     return (
-        <View style={layoutStyles.container}>
+        <KeyboardAvoidingView 
+            style={layoutStyles.container} 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
@@ -342,14 +349,26 @@ export default function QuestionGameStart() {
                 </TouchableOpacity>
             </View>
 
-            <View style={combineStyles(layoutStyles.content, layoutStyles.centered)}>
-                {/* Player instruction */}
-                <Text style={combineStyles(textStyles.h1, styles.playerInstruction)}>
-                    Give the phone to:
-                </Text>
-                <Text style={combineStyles(textStyles.h1, styles.playerName)}>
-                    {currentPlayer}
-                </Text>
+            <ScrollView 
+                style={styles.scrollContent}
+                contentContainerStyle={combineStyles(layoutStyles.content, layoutStyles.centered)}
+                keyboardShouldPersistTaps="handled"
+            >
+                {/* Player instruction - smaller when card is flipped */}
+                {!currentCardFlipped ? (
+                    <>
+                        <Text style={combineStyles(textStyles.h1, styles.playerInstruction)}>
+                            Give the phone to:
+                        </Text>
+                        <Text style={combineStyles(textStyles.h1, styles.playerName)}>
+                            {currentPlayer}
+                        </Text>
+                    </>
+                ) : (
+                    <Text style={combineStyles(textStyles.h4, styles.playerInstructionSmall)}>
+                        {currentPlayer}, answer your question:
+                    </Text>
+                )}
 
                 {/* Progress indicator */}
                 <Text style={combineStyles(textStyles.caption, styles.progressText)}>
@@ -359,12 +378,13 @@ export default function QuestionGameStart() {
                 {/* Flip Card */}
                 <FlipCard                                               
                     isFlipped={isFlipped}
-                    cardStyle={styles.flipCard}
+                    cardStyle={currentCardFlipped ? styles.flipCardSmall : styles.flipCard}
                     FlippedContent={
                         <FlippedContent 
                             question={currentPlayerResponse?.question || ''} 
                             onResponseChange={handleResponseChange}
                             response={currentResponse}
+                            isFlipped={currentCardFlipped}
                         />
                     }
                     RegularContent={<RegularContent />}
@@ -382,8 +402,8 @@ export default function QuestionGameStart() {
                         style={styles.nextButton}
                     />
                 )}
-            </View>
-        </View>
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 }
 
@@ -414,10 +434,21 @@ const styles = StyleSheet.create({
         fontWeight: typography.fontWeight.bold,
     },
 
+    playerInstructionSmall: {
+        textAlign: 'center',
+        marginBottom: spacing.sm,
+        color: colors.primary,
+        fontWeight: typography.fontWeight.semibold,
+    },
+
     progressText: {
         textAlign: 'center',
-        marginBottom: spacing.xl,
+        marginBottom: spacing.lg, // Reduced spacing when card is smaller
         color: colors.gray500,
+    },
+
+    scrollContent: {
+        flex: 1,
     },
 
     // Flip card container
@@ -425,6 +456,13 @@ const styles = StyleSheet.create({
         width: screenWidth - spacing.lg * 2,
         height: 350,
         marginBottom: spacing.xl,
+    },
+
+    // Smaller card when flipped to make room for keyboard
+    flipCardSmall: {
+        width: screenWidth - spacing.lg * 2,
+        height: 280,
+        marginBottom: spacing.md,
     },
 
     pressableContainer: {
