@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert, PanGestureHandler, GestureHandlerRootView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert, PanGestureHandler, GestureHandlerRootView, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import Animated, {
@@ -42,7 +42,7 @@ export default function WavelengthGameStart() {
   const [currentRound, setCurrentRound] = useState(1);
   const [wordPair, setWordPair] = useState<WordPairs | null>(null);
   const [goalZone, setGoalZone] = useState<GoalZone | null>(null);
-  const [clue, setClue] = useState('');
+
   const [playerGuesses, setPlayerGuesses] = useState<PlayerGuess[]>([]);
   const [scores, setScores] = useState<{ [playerName: string]: number }>({});
   const [showScale, setShowScale] = useState(false);
@@ -120,10 +120,6 @@ export default function WavelengthGameStart() {
   };
 
   const handleClueGiven = () => {
-    if (!clue.trim()) {
-      Alert.alert('Enter a Clue', 'Please provide a one-word clue before continuing.');
-      return;
-    }
     setGamePhase('group_guessing');
   };
 
@@ -160,7 +156,6 @@ export default function WavelengthGameStart() {
     setCurrentClueGiver((currentClueGiver + 1) % players.length);
     setGamePhase('clue_giver');
     setShowScale(false);
-    setClue('');
     setupRound();
   };
 
@@ -215,95 +210,117 @@ export default function WavelengthGameStart() {
     if (!wordPair || !goalZone) return null;
 
     return (
-      <View style={styles.scaleContainer}>
+      <View style={styles.fullScreenScale}>
         {/* Positive term at top */}
-        <Text style={styles.scaleLabel}>{wordPair.positive}</Text>
+        <View style={styles.termContainer}>
+          <Text style={styles.scaleLabel}>{wordPair.positive}</Text>
+        </View>
         
-        {/* Scale area */}
-        <View style={[styles.scale, { height: scaleHeight }]}>
-          {/* Background notches */}
-          {Array.from({ length: notchCount }, (_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.notch,
-                { top: index * notchSpacing },
-                // Highlight goal zone if in reveal phase
-                gamePhase === 'reveal' && 
-                index >= goalZone.start && 
-                index <= goalZone.end && 
-                styles.goalZoneNotch,
-                // Highlight center for 3 points
-                gamePhase === 'reveal' && 
-                index === goalZone.center && 
-                styles.centerNotch,
-              ]}
-            />
-          ))}
-          
-          {/* Goal zone highlight (only visible to clue giver or in reveal) */}
-          {(gamePhase === 'clue_giver' || gamePhase === 'reveal') && (
-            <View
-              style={[
-                styles.goalZoneHighlight,
-                {
-                  top: goalZone.start * notchSpacing - 10,
-                  height: (goalZone.end - goalZone.start + 1) * notchSpacing + 20,
-                }
-              ]}
-            />
+        {/* Scale area with instruction text */}
+        <View style={styles.scaleAndInstructionContainer}>
+          {/* Instruction text */}
+          {gamePhase === 'clue_giver' && (
+            <Text style={styles.instructionText}>
+              Come up with a one word clue to guide{'\n'}the group to this area of the scale
+            </Text>
           )}
+          
+          <View style={[styles.scale, { height: scaleHeight }]}>
+            {/* Background notches */}
+            {Array.from({ length: notchCount }, (_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.notch,
+                  { top: index * notchSpacing },
+                  // Highlight goal zone if in reveal phase
+                  gamePhase === 'reveal' && 
+                  index >= goalZone.start && 
+                  index <= goalZone.end && 
+                  styles.goalZoneNotch,
+                  // Highlight center for 3 points
+                  gamePhase === 'reveal' && 
+                  index === goalZone.center && 
+                  styles.centerNotch,
+                ]}
+              />
+            ))}
+            
+            {/* Goal zone highlight (only visible to clue giver or in reveal) */}
+            {(gamePhase === 'clue_giver' || gamePhase === 'reveal') && (
+              <View
+                style={[
+                  styles.goalZoneHighlight,
+                  {
+                    top: goalZone.start * notchSpacing - 10,
+                    height: (goalZone.end - goalZone.start + 1) * notchSpacing + 20,
+                  }
+                ]}
+              />
+            )}
 
-          {/* Player guess markers (only in group guessing and reveal phases) */}
-          {gamePhase !== 'clue_giver' && playerGuesses.map((guess, index) => (
-            <GestureHandlerRootView key={guess.playerName} style={StyleSheet.absoluteFillObject}>
-              <PanGestureHandler
-                onGestureEvent={createGestureHandler(guess.playerName)}
-                enabled={gamePhase === 'group_guessing'}
-              >
-                <Animated.View
-                  style={[
-                    styles.guessMarker,
-                    {
-                      backgroundColor: colors.secondary,
-                      left: 10 + (index * 30), // Offset multiple markers
-                    },
-                    useAnimatedStyle(() => ({
-                      top: guessPositions.value[guess.playerName] || scaleHeight / 2,
-                    })),
-                  ]}
+            {/* Scoring numbers on the right */}
+            {(gamePhase === 'clue_giver' || gamePhase === 'reveal') && (
+              <View style={styles.scoreNumbers}>
+                <Text style={[styles.scoreNumber, { top: (goalZone.start + 1) * notchSpacing - 10 }]}>1</Text>
+                <Text style={[styles.scoreNumber, { top: (goalZone.start + 2) * notchSpacing - 10 }]}>2</Text>
+                <Text style={[styles.scoreNumber, { top: goalZone.center * notchSpacing - 10 }]}>3</Text>
+                <Text style={[styles.scoreNumber, { top: (goalZone.end - 1) * notchSpacing - 10 }]}>2</Text>
+                <Text style={[styles.scoreNumber, { top: goalZone.end * notchSpacing - 10 }]}>1</Text>
+              </View>
+            )}
+
+            {/* Player guess markers (only in group guessing and reveal phases) */}
+            {gamePhase !== 'clue_giver' && playerGuesses.map((guess, index) => (
+              <GestureHandlerRootView key={guess.playerName} style={StyleSheet.absoluteFillObject}>
+                <PanGestureHandler
+                  onGestureEvent={createGestureHandler(guess.playerName)}
+                  enabled={gamePhase === 'group_guessing'}
                 >
-                  <Text style={styles.guessMarkerText}>
-                    {guess.playerName.substring(0, 2)}
-                  </Text>
-                </Animated.View>
-              </PanGestureHandler>
-            </GestureHandlerRootView>
-          ))}
+                  <Animated.View
+                    style={[
+                      styles.guessMarker,
+                      {
+                        backgroundColor: colors.secondary,
+                        left: 10 + (index * 30), // Offset multiple markers
+                      },
+                      useAnimatedStyle(() => ({
+                        top: guessPositions.value[guess.playerName] || scaleHeight / 2,
+                      })),
+                    ]}
+                  >
+                    <Text style={styles.guessMarkerText}>
+                      {guess.playerName.substring(0, 2)}
+                    </Text>
+                  </Animated.View>
+                </PanGestureHandler>
+              </GestureHandlerRootView>
+            ))}
+          </View>
         </View>
         
         {/* Negative term at bottom */}
-        <Text style={styles.scaleLabel}>{wordPair.negative}</Text>
+        <View style={styles.termContainer}>
+          <Text style={styles.scaleLabel}>{wordPair.negative}</Text>
+        </View>
+
+        {/* Start button for clue giver */}
+        {gamePhase === 'clue_giver' && showScale && (
+          <Button
+            title="START"
+            variant="primary"
+            size="lg"
+            onPress={handleClueGiven}
+            style={styles.startButton}
+          />
+        )}
       </View>
     );
   };
 
   if (gamePhase === 'clue_giver') {
     return (
-      <View style={layoutStyles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-            <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
-          </TouchableOpacity>
-          
-          <Text style={textStyles.h2}>Wavelength</Text>
-          
-          <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-            <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-
+      <SafeAreaView style={layoutStyles.container}>
         <View style={combineStyles(layoutStyles.content, layoutStyles.centered)}>
           {!showScale ? (
             <>
@@ -315,7 +332,7 @@ export default function WavelengthGameStart() {
               </Text>
               
               <Text style={combineStyles(textStyles.caption, styles.progressText)}>
-                Round {currentRound} • Clue Giver
+                Round {currentRound}
               </Text>
 
               <View style={styles.instructionCard}>
@@ -325,9 +342,8 @@ export default function WavelengthGameStart() {
                   color={colors.gray400} 
                   style={styles.cardIcon}
                 />
-                <Text style={styles.instructionText}>
-                  You will see a scale with a highlighted target zone.{'\n'}
-                  Give a ONE WORD clue to help others guess the target!
+                <Text style={styles.cardInstructionText}>
+                  Click here to reveal{'\n'}your scale
                 </Text>
               </View>
 
@@ -340,74 +356,19 @@ export default function WavelengthGameStart() {
               />
             </>
           ) : (
-            <>
-              <Text style={combineStyles(textStyles.h3, styles.clueGiverTitle)}>
-                Your Target Zone
-              </Text>
-              
-              {renderScale()}
-              
-              <View style={styles.clueInputContainer}>
-                <Text style={textStyles.h4}>Give your one-word clue:</Text>
-                <TouchableOpacity 
-                  style={styles.clueInput}
-                  onPress={() => {
-                    Alert.prompt(
-                      'Your Clue',
-                      'Enter a one-word clue:',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        { 
-                          text: 'Set Clue', 
-                          onPress: (text) => text && setClue(text.trim().toUpperCase())
-                        }
-                      ],
-                      'plain-text',
-                      clue
-                    );
-                  }}
-                >
-                  <Text style={clue ? styles.clueText : styles.clueInputPlaceholder}>
-                    {clue || 'Tap to enter clue'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <Button
-                title="GIVE CLUE TO GROUP"
-                variant="primary"
-                size="lg"
-                onPress={handleClueGiven}
-                disabled={!clue.trim()}
-                style={styles.actionButton}
-              />
-            </>
+            renderScale()
           )}
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (gamePhase === 'group_guessing') {
     return (
-      <View style={layoutStyles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-            <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
-          </TouchableOpacity>
-          
-          <Text style={textStyles.h2}>Wavelength</Text>
-          
-          <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-            <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-
+      <SafeAreaView style={layoutStyles.container}>
         <View style={layoutStyles.content}>
           <View style={styles.clueDisplay}>
-            <Text style={textStyles.h4}>The clue is:</Text>
-            <Text style={styles.displayedClue}>{clue}</Text>
+            <Text style={textStyles.h4}>Discuss and make your guesses</Text>
             <Text style={combineStyles(textStyles.caption, styles.instructionText)}>
               Drag your initials to where you think the clue belongs on the scale
             </Text>
@@ -423,30 +384,16 @@ export default function WavelengthGameStart() {
             style={styles.actionButton}
           />
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   // Reveal phase
   return (
-    <View style={layoutStyles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
-        </TouchableOpacity>
-        
-        <Text style={textStyles.h2}>Wavelength</Text>
-        
-        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-          <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-
+    <SafeAreaView style={layoutStyles.container}>
       <ScrollView style={layoutStyles.content}>
         <View style={styles.resultsHeader}>
           <Text style={textStyles.h3}>Results for Round {currentRound}</Text>
-          <Text style={styles.clueReveal}>Clue: "{clue}"</Text>
         </View>
 
         {renderScale()}
@@ -495,24 +442,11 @@ export default function WavelengthGameStart() {
           style={[styles.actionButton, { marginTop: spacing.md }]}
         />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: spacing['3xl'],
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-  },
-  
-  headerButton: {
-    padding: spacing.sm,
-  },
-
   playerInstruction: {
     textAlign: 'center',
     marginBottom: spacing.sm,
@@ -534,81 +468,116 @@ const styles = StyleSheet.create({
 
   instructionCard: {
     backgroundColor: colors.gray100,
+    borderWidth: 2,
+    borderColor: colors.gray300,
+    borderStyle: 'dashed',
     borderRadius: 16,
     padding: spacing.xl,
     alignItems: 'center',
     marginBottom: spacing.xl,
     width: '100%',
+    minHeight: 200,
+    justifyContent: 'center',
   },
 
   cardIcon: {
     marginBottom: spacing.md,
   },
 
-  instructionText: {
+  cardInstructionText: {
     textAlign: 'center',
     color: colors.gray600,
     lineHeight: typography.fontSize.base * 1.4,
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.medium,
   },
 
-  clueGiverTitle: {
-    textAlign: 'center',
-    marginBottom: spacing.lg,
-    color: colors.primary,
+  fullScreenScale: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: colors.background,
   },
 
-  scaleContainer: {
+  termContainer: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.xl,
     alignItems: 'center',
-    marginVertical: spacing.lg,
+    justifyContent: 'center',
   },
 
   scaleLabel: {
-    fontSize: typography.fontSize.xl,
+    fontSize: typography.fontSize['2xl'],
     fontWeight: typography.fontWeight.bold,
     color: colors.white,
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: 8,
     textAlign: 'center',
-    marginVertical: spacing.md,
-    minWidth: 200,
+  },
+
+  scaleAndInstructionContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  instructionText: {
+    position: 'absolute',
+    left: spacing.md,
+    fontSize: typography.fontSize.sm,
+    color: colors.gray600,
+    lineHeight: typography.fontSize.sm * 1.3,
+    width: 120,
   },
 
   scale: {
-    width: 60,
-    backgroundColor: colors.gray200,
-    borderRadius: 30,
+    width: 8,
+    backgroundColor: colors.gray900,
     position: 'relative',
     marginHorizontal: spacing.xl,
   },
 
   notch: {
     position: 'absolute',
-    width: '100%',
-    height: 2,
-    backgroundColor: colors.gray400,
-    left: 0,
+    width: 20,
+    height: 3,
+    backgroundColor: colors.gray900,
+    left: -6,
   },
 
   goalZoneNotch: {
     backgroundColor: colors.success,
-    height: 3,
+    width: 24,
+    left: -8,
   },
 
   centerNotch: {
     backgroundColor: colors.warning,
-    height: 4,
+    width: 28,
+    left: -10,
   },
 
   goalZoneHighlight: {
     position: 'absolute',
-    width: 80,
-    backgroundColor: colors.success + '30',
-    borderRadius: 40,
-    left: -10,
-    borderWidth: 2,
-    borderColor: colors.success,
+    width: 40,
+    backgroundColor: colors.gray300,
+    left: -16,
+    borderRadius: 8,
+  },
+
+  scoreNumbers: {
+    position: 'absolute',
+    right: -40,
+    width: 30,
+  },
+
+  scoreNumber: {
+    position: 'absolute',
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.gray700,
+    textAlign: 'center',
+    width: 30,
   },
 
   guessMarker: {
@@ -628,32 +597,9 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
 
-  clueInputContainer: {
-    width: '100%',
-    alignItems: 'center',
-    marginTop: spacing.lg,
-  },
-
-  clueInput: {
-    backgroundColor: colors.gray100,
-    borderRadius: 8,
-    padding: spacing.lg,
-    marginTop: spacing.md,
-    minWidth: 200,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.gray300,
-  },
-
-  clueText: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.primary,
-  },
-
-  clueInputPlaceholder: {
-    fontSize: typography.fontSize.base,
-    color: colors.gray500,
+  startButton: {
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.lg,
   },
 
   clueDisplay: {
@@ -664,23 +610,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
 
-  displayedClue: {
-    fontSize: typography.fontSize['2xl'],
-    fontWeight: typography.fontWeight.bold,
-    color: colors.primary,
-    marginVertical: spacing.sm,
-  },
-
   resultsHeader: {
     alignItems: 'center',
     marginBottom: spacing.lg,
-  },
-
-  clueReveal: {
-    fontSize: typography.fontSize.lg,
-    fontStyle: 'italic',
-    color: colors.gray600,
-    marginTop: spacing.sm,
   },
 
   scoresContainer: {
