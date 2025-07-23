@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, SafeAreaView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { colors, spacing, layout, typography } from '../../constants/theme';
 import { 
@@ -28,14 +29,40 @@ export default function WavelengthGameStart() {
     const [selectedRow, setSelectedRow] = useState<number | null>(null); // For arrow placement
     const [showGoalZone, setShowGoalZone] = useState(true); // Toggle goal zone visibility
 
-    const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
-
     const scaleColors = [
         '#FFFFFF', '#FCEAEA', '#F8D5D5', '#F5C0C0', '#F1ABAB',
         '#EE9696', '#EA8181', '#E66C6C', '#E25757', '#DE4242',
         '#DA2D2D', '#D61919', '#C91519', '#BD1218', '#B00E18',
-        '#A40A17', '#970716', '#8B0316', '#880215', '#8B0000'
-      ];
+        '#A40A17', '#970716', '#8B0316', '#880215', '#8B0000',
+        '#8B0000', '#880215', '#8B0316', '#970716', '#A40A17',
+        '#B00E18', '#BD1218', '#C91519', '#D61919', '#DA2D2D',
+        '#DE4242', '#E25757', '#E66C6C', '#EA8181', '#EE9696',
+        '#F1ABAB', '#F5C0C0', '#F8D5D5', '#FCEAEA', '#FFFFFF',
+    ];
+
+    const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
+    const [scaleAreaHeight, setScaleAreaHeight] = useState(0);
+    const rowHeight = (scaleAreaHeight) / scaleColors.length;
+    
+    const goalZoneColors = [
+        '#0074D9', '#7FDBFF', '#E0F7FF'
+    ];
+
+
+    const panGesture = Gesture.Pan()
+        .onUpdate((event) => {
+        const { y } = event;
+        
+        // Calculate which row based on y position
+        const rowIndex = Math.floor(y / (scaleAreaHeight / scaleColors.length));
+        
+        // Clamp to valid range
+        const clampedIndex = Math.max(0, Math.min(scaleColors.length - 1, rowIndex));
+        
+        if (clampedIndex !== selectedRowIndex) {
+            setSelectedRowIndex(clampedIndex);
+        }
+    });
 
 
     // Runs once when the component mounts 
@@ -52,7 +79,7 @@ export default function WavelengthGameStart() {
 
         // Initialize random goal zone
         const zoneWidth = 5;
-        const maxStart = 20 - zoneWidth;
+        const maxStart = scaleColors.length - zoneWidth;
         const start = Math.floor(Math.random() * maxStart);
         setGoalZoneStart(start);
         setGoalZoneEnd(start + zoneWidth - 1);
@@ -161,17 +188,14 @@ export default function WavelengthGameStart() {
                             style={[
                                 styles.scaleRow,
                                 { 
-                                backgroundColor: color,
-                                borderWidth: selectedRowIndex === index ? 3 : 1,
-                                borderColor: selectedRowIndex === index ? colors.primary : colors.gray300,
+                                backgroundColor: isInGoalZone(index) ? '#E0F7FF' : color,
+                                borderWidth: selectedRowIndex === index ? 3 : 0,
+                                borderColor: selectedRowIndex === index ? colors.primary : 'transparent',
                                 }
                             ]}
                             onPress={() => handleRowPress(index)}
                             activeOpacity={0.7}
                             >
-                            <Text style={styles.rowText}>
-                                {index} {isInGoalZone(index) ? '🎯' : ''}
-                            </Text>
                             </TouchableOpacity>
                         ))}
                         
@@ -250,17 +274,12 @@ const styles = StyleSheet.create({
     
     scaleBox: {
         backgroundColor: colors.white,
-        padding: spacing.xl,
+        padding: 0,
         width: screenWidth,
         maxWidth: 400, 
-        minHeight: 300,
         height: '100%',
         alignItems: 'center',
         justifyContent: 'space-between',
-        shadowColor: colors.black,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 16,
         elevation: 10,
     },
     
@@ -339,13 +358,11 @@ const styles = StyleSheet.create({
         padding: spacing.sm,
     },
 
+    
     scaleArea: {
         flex: 1,
         width: '100%',
-        backgroundColor: colors.gray100,
         borderRadius: 8,
-        marginVertical: spacing.md,
-        padding: spacing.sm,
       },
       
       scaleRow: {
@@ -353,9 +370,6 @@ const styles = StyleSheet.create({
         width: '100%',
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 4,
-        marginVertical: 1,
-        minHeight: 20,
       },
       
       rowText: {
