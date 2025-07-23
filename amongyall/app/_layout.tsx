@@ -1,13 +1,14 @@
 import { Stack } from "expo-router";
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function RootLayout() {
     return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
-          headerShown: false, // Hide the default header for all screens
+          headerShown: false,
           contentStyle: { backgroundColor: '#ffffff' },
         }}
       >
@@ -16,6 +17,6 @@ export default function RootLayout() {
         <Stack.Screen name="question-setup" />
         <Stack.Screen name="wavelength-setup" />
       </Stack>
-    </>
+    </GestureHandlerRootView>
   );
 }

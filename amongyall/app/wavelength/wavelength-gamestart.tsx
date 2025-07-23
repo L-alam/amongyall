@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, SafeAreaView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, SafeAreaView, Alert, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -50,8 +50,13 @@ export default function WavelengthGameStart() {
 
 
     const panGesture = Gesture.Pan()
-        .onUpdate((event) => {
+    .onUpdate((event) => {
         const { y } = event;
+        
+        // Safety check to prevent division by zero
+        if (scaleAreaHeight === 0 || scaleColors.length === 0) {
+        return;
+        }
         
         // Calculate which row based on y position
         const rowIndex = Math.floor(y / (scaleAreaHeight / scaleColors.length));
@@ -60,7 +65,7 @@ export default function WavelengthGameStart() {
         const clampedIndex = Math.max(0, Math.min(scaleColors.length - 1, rowIndex));
         
         if (clampedIndex !== selectedRowIndex) {
-            setSelectedRowIndex(clampedIndex);
+        setSelectedRowIndex(clampedIndex);
         }
     });
 
@@ -180,8 +185,15 @@ export default function WavelengthGameStart() {
             <View style={styles.content}>
                 {/* White scale box in the center */}
                 <View style={styles.scaleBox}>
-                    
-                    {/* Scale area - this is where the wavelength scale will go */}
+
+                <GestureDetector gesture={panGesture}>
+                    <Animated.View 
+                    style={{ flex: 1, width: '100%' }}
+                    onLayout={(event) => {
+                        const { height } = event.nativeEvent.layout;
+                        setScaleAreaHeight(height);
+                    }}
+                    >
                         {scaleColors.map((color, index) => (
                             <TouchableOpacity
                             key={index}
@@ -198,6 +210,9 @@ export default function WavelengthGameStart() {
                             >
                             </TouchableOpacity>
                         ))}
+                    </Animated.View>
+                </GestureDetector>
+                
                         
                         <Text style={styles.debugText}>
                             Goal Zone: {goalZoneStart} - {goalZoneEnd}
