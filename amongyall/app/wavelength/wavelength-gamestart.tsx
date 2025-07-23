@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, SafeAreaView, Alert, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, SafeAreaView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated from 'react-native-reanimated';
+import { runOnJS } from 'react-native-reanimated';
 
 import { colors, spacing, layout, typography } from '../../constants/theme';
 import { 
@@ -48,14 +50,16 @@ export default function WavelengthGameStart() {
         '#0074D9', '#7FDBFF', '#E0F7FF'
     ];
 
-
     const panGesture = Gesture.Pan()
-    .onUpdate((event) => {
+        .onUpdate((event) => {
         const { y } = event;
+        
+        console.log('Gesture Y:', y, 'Scale Height:', scaleAreaHeight);
         
         // Safety check to prevent division by zero
         if (scaleAreaHeight === 0 || scaleColors.length === 0) {
-        return;
+            console.log('Bailing - no height or colors');
+            return;
         }
         
         // Calculate which row based on y position
@@ -64,11 +68,13 @@ export default function WavelengthGameStart() {
         // Clamp to valid range
         const clampedIndex = Math.max(0, Math.min(scaleColors.length - 1, rowIndex));
         
+        console.log('Row Index:', rowIndex, 'Clamped:', clampedIndex);
+        
         if (clampedIndex !== selectedRowIndex) {
-        setSelectedRowIndex(clampedIndex);
+            // Use runOnJS to safely call React state setter
+            runOnJS(setSelectedRowIndex)(clampedIndex);
         }
     });
-
 
     // Runs once when the component mounts 
     useEffect(() => {
@@ -88,7 +94,7 @@ export default function WavelengthGameStart() {
         const start = Math.floor(Math.random() * maxStart);
         setGoalZoneStart(start);
         setGoalZoneEnd(start + zoneWidth - 1);
-       }, []); // Empty dependency array ensures this only runs once
+    }, []); // Empty dependency array ensures this only runs once
 
     const handleBack = () => {
         router.back();
@@ -186,40 +192,39 @@ export default function WavelengthGameStart() {
                 {/* White scale box in the center */}
                 <View style={styles.scaleBox}>
 
-                <GestureDetector gesture={panGesture}>
-                    <Animated.View 
-                    style={{ flex: 1, width: '100%' }}
-                    onLayout={(event) => {
-                        const { height } = event.nativeEvent.layout;
-                        setScaleAreaHeight(height);
-                    }}
-                    >
-                        {scaleColors.map((color, index) => (
-                            <TouchableOpacity
-                            key={index}
-                            style={[
-                                styles.scaleRow,
-                                { 
-                                backgroundColor: isInGoalZone(index) ? '#E0F7FF' : color,
-                                borderWidth: selectedRowIndex === index ? 3 : 0,
-                                borderColor: selectedRowIndex === index ? colors.primary : 'transparent',
-                                }
-                            ]}
-                            onPress={() => handleRowPress(index)}
-                            activeOpacity={0.7}
-                            >
-                            </TouchableOpacity>
-                        ))}
-                    </Animated.View>
-                </GestureDetector>
-                
-                        
-                        <Text style={styles.debugText}>
-                            Goal Zone: {goalZoneStart} - {goalZoneEnd}
-                        </Text>
-                        <Text style={styles.debugText}>
-                            Selected Row: {selectedRowIndex !== null ? selectedRowIndex : 'None'}
-                        </Text>
+                    <GestureDetector gesture={panGesture}>
+                        <Animated.View 
+                            style={{ flex: 1, width: '100%' }}
+                            onLayout={(event) => {
+                                const { height } = event.nativeEvent.layout;
+                                setScaleAreaHeight(height);
+                            }}
+                        >
+                            {scaleColors.map((color, index) => (
+                                <TouchableOpacity
+                                key={index}
+                                style={[
+                                    styles.scaleRow,
+                                    { 
+                                    backgroundColor: isInGoalZone(index) ? '#E0F7FF' : color,
+                                    borderWidth: selectedRowIndex === index ? 3 : 0,
+                                    borderColor: selectedRowIndex === index ? colors.primary : 'transparent',
+                                    }
+                                ]}
+                                onPress={() => handleRowPress(index)}
+                                activeOpacity={0.7}
+                                >
+                                </TouchableOpacity>
+                            ))}
+                        </Animated.View>
+                    </GestureDetector>
+                    
+                    <Text style={styles.debugText}>
+                        Goal Zone: {goalZoneStart} - {goalZoneEnd}
+                    </Text>
+                    <Text style={styles.debugText}>
+                        Selected Row: {selectedRowIndex !== null ? selectedRowIndex : 'None'}
+                    </Text>
                     
                 </View>
             </View>
@@ -284,7 +289,7 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: spacing.lg,
+        paddingHorizontal: 0,
     },
     
     scaleBox: {
@@ -305,16 +310,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginBottom: spacing.lg,
     },
-    
-    // scaleArea: {
-    //     flex: 1,
-    //     width: '100%',
-    //     alignItems: 'center',
-    //     justifyContent: 'center',
-    //     backgroundColor: colors.gray100,
-    //     borderRadius: 8,
-    //     marginVertical: spacing.md,
-    // },
     
     placeholderText: {
         fontSize: typography.fontSize.base,
@@ -373,25 +368,23 @@ const styles = StyleSheet.create({
         padding: spacing.sm,
     },
 
-    
     scaleArea: {
         flex: 1,
         width: '100%',
         borderRadius: 8,
-      },
+    },
       
-      scaleRow: {
+    scaleRow: {
         flex: 1,
         width: '100%',
         alignItems: 'center',
         justifyContent: 'center',
-      },
+    },
       
-      rowText: {
+    rowText: {
         fontSize: typography.fontSize.xs,
         fontWeight: typography.fontWeight.medium,
         color: colors.black,
         textAlign: 'center',
-      },
-    
+    },
 });
