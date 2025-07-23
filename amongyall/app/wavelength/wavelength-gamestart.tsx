@@ -104,14 +104,15 @@ export default function WavelengthGameStart() {
         <View style={styles.container}>
             {/* Header - visible on black background */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-                    <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.white} />
-                </TouchableOpacity>
+                {/* Left spacer - empty but takes up space */}
+                <View style={styles.headerSpacer} />
                 
-                <Text style={[textStyles.h2, { color: colors.white }]}>Wavelength</Text>
+                {/* Center - the term */}
+                <Text style={styles.topTerm}>{currentPair.positive}</Text>
                 
+                {/* Right - close button */}
                 <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-                    <Ionicons name="close" size={layout.iconSize.md} color={colors.white} />
+                    <Ionicons name="close" size={layout.iconSize.sm} color={colors.white} />
                 </TouchableOpacity>
             </View>
 
@@ -119,10 +120,6 @@ export default function WavelengthGameStart() {
             <View style={styles.content}>
                 {/* White scale box in the center */}
                 <View style={styles.scaleBox}>
-                    {/* Top label */}
-                    {currentPair && (
-                        <Text style={styles.topLabel}>{currentPair.positive}</Text>
-                    )}
                     
                     {/* Scale area - this is where the wavelength scale will go */}
                     <View style={styles.scaleArea}>
@@ -131,12 +128,15 @@ export default function WavelengthGameStart() {
                         </Text>
                     </View>
                     
-                    {/* Bottom label */}
-                    {currentPair && (
-                        <Text style={styles.bottomLabel}>{currentPair.negative}</Text>
-                    )}
                 </View>
             </View>
+
+            <View style={styles.header}>
+                <Text style={styles.bottomTerm}>{currentPair.negative}</Text>
+            </View>
+
+
+
         </View>
     );
 }
@@ -178,7 +178,9 @@ const styles = StyleSheet.create({
     },
     
     revealButton: {
+        height: '60%',
         width: '100%',
+        maxHeight: 400,
         maxWidth: 300,
     },
     
@@ -186,19 +188,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.black, // Black background for the scale screen
-    },
-    
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingTop: spacing['3xl'],
-        paddingHorizontal: spacing.lg,
-        paddingBottom: spacing.lg,
-    },
-    
-    headerButton: {
-        padding: spacing.sm,
     },
     
     content: {
@@ -210,11 +199,11 @@ const styles = StyleSheet.create({
     
     scaleBox: {
         backgroundColor: colors.white,
-        borderRadius: 16,
         padding: spacing.xl,
-        width: screenWidth - (spacing.lg * 2), // Full width minus padding
+        width: screenWidth, // Full width minus padding
         maxWidth: 400, // Maximum width for larger screens
         minHeight: 300,
+        height: '100%',
         alignItems: 'center',
         justifyContent: 'space-between',
         shadowColor: colors.black,
@@ -254,5 +243,42 @@ const styles = StyleSheet.create({
         color: colors.black,
         textAlign: 'center',
         marginTop: spacing.lg,
+    },
+
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingTop: spacing['3xl'],
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.lg,
+    },
+    
+    headerSpacer: {
+        width: layout.iconSize.sm + spacing.sm * 2,
+    },
+    
+    topTerm: {
+        color: "white",
+        fontSize: typography.fontSize['3xl'],
+        fontWeight: typography.fontWeight.bold,
+        lineHeight: typography.fontSize['3xl'] * typography.lineHeight.tight,
+        textAlign: 'center',
+        flex: 1,
+        marginTop: spacing.xl,
+    },
+
+    bottomTerm: {
+        color: "white",
+        fontSize: typography.fontSize['3xl'],
+        fontWeight: typography.fontWeight.bold,
+        lineHeight: typography.fontSize['3xl'] * typography.lineHeight.tight,
+        textAlign: 'center',
+        flex: 1,
+        marginBottom: spacing.xl,
+    },
+    
+    headerButton: {
+        padding: spacing.sm,
     },
 });
