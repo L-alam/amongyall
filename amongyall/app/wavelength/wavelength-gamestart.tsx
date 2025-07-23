@@ -22,6 +22,23 @@ export default function WavelengthGameStart() {
     const [selectedPlayer, setSelectedPlayer] = useState<string>('');
     const [showScale, setShowScale] = useState(false);
 
+    // Scale State
+    const [goalZoneStart, setGoalZoneStart] = useState(8);
+    const [goalZoneEnd, setGoalZoneEnd] = useState(12);
+    const [selectedRow, setSelectedRow] = useState<number | null>(null); // For arrow placement
+    const [showGoalZone, setShowGoalZone] = useState(true); // Toggle goal zone visibility
+
+    const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
+
+    const scaleColors = [
+        '#FFFFFF', '#FCEAEA', '#F8D5D5', '#F5C0C0', '#F1ABAB',
+        '#EE9696', '#EA8181', '#E66C6C', '#E25757', '#DE4242',
+        '#DA2D2D', '#D61919', '#C91519', '#BD1218', '#B00E18',
+        '#A40A17', '#970716', '#8B0316', '#880215', '#8B0000'
+      ];
+
+
+    // Runs once when the component mounts 
     useEffect(() => {
         // Get a random word pair for this round
         const pair = getRandomPair();
@@ -32,7 +49,14 @@ export default function WavelengthGameStart() {
             const randomPlayer = players[Math.floor(Math.random() * players.length)];
             setSelectedPlayer(randomPlayer);
         }
-    }, []);
+
+        // Initialize random goal zone
+        const zoneWidth = 5;
+        const maxStart = 20 - zoneWidth;
+        const start = Math.floor(Math.random() * maxStart);
+        setGoalZoneStart(start);
+        setGoalZoneEnd(start + zoneWidth - 1);
+       }, []); // Empty dependency array ensures this only runs once
 
     const handleBack = () => {
         router.back();
@@ -53,6 +77,15 @@ export default function WavelengthGameStart() {
                 },
             ]
         );
+    };
+
+    const handleRowPress = (rowIndex: number) => {
+        setSelectedRowIndex(rowIndex);
+        console.log(`Row ${rowIndex} pressed`);
+    };
+     
+    const isInGoalZone = (rowIndex: number) => {
+        return rowIndex >= goalZoneStart && rowIndex <= goalZoneEnd;
     };
 
     const revealScale = () => {
@@ -108,7 +141,7 @@ export default function WavelengthGameStart() {
                 <View style={styles.headerSpacer} />
                 
                 {/* Center - the term */}
-                <Text style={styles.topTerm}>{currentPair.positive}</Text>
+                <Text style={styles.topTerm}>{currentPair?.positive}</Text>
                 
                 {/* Right - close button */}
                 <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
@@ -122,21 +155,39 @@ export default function WavelengthGameStart() {
                 <View style={styles.scaleBox}>
                     
                     {/* Scale area - this is where the wavelength scale will go */}
-                    <View style={styles.scaleArea}>
-                        <Text style={styles.placeholderText}>
-                            Scale will go here
+                        {scaleColors.map((color, index) => (
+                            <TouchableOpacity
+                            key={index}
+                            style={[
+                                styles.scaleRow,
+                                { 
+                                backgroundColor: color,
+                                borderWidth: selectedRowIndex === index ? 3 : 1,
+                                borderColor: selectedRowIndex === index ? colors.primary : colors.gray300,
+                                }
+                            ]}
+                            onPress={() => handleRowPress(index)}
+                            activeOpacity={0.7}
+                            >
+                            <Text style={styles.rowText}>
+                                {index} {isInGoalZone(index) ? '🎯' : ''}
+                            </Text>
+                            </TouchableOpacity>
+                        ))}
+                        
+                        <Text style={styles.debugText}>
+                            Goal Zone: {goalZoneStart} - {goalZoneEnd}
                         </Text>
-                    </View>
+                        <Text style={styles.debugText}>
+                            Selected Row: {selectedRowIndex !== null ? selectedRowIndex : 'None'}
+                        </Text>
                     
                 </View>
             </View>
 
             <View style={styles.header}>
-                <Text style={styles.bottomTerm}>{currentPair.negative}</Text>
+                <Text style={styles.bottomTerm}>{currentPair?.negative}</Text>
             </View>
-
-
-
         </View>
     );
 }
@@ -187,7 +238,7 @@ const styles = StyleSheet.create({
     // Scale Screen Styles (Black Background)
     container: {
         flex: 1,
-        backgroundColor: colors.black, // Black background for the scale screen
+        backgroundColor: colors.black, 
     },
     
     content: {
@@ -200,8 +251,8 @@ const styles = StyleSheet.create({
     scaleBox: {
         backgroundColor: colors.white,
         padding: spacing.xl,
-        width: screenWidth, // Full width minus padding
-        maxWidth: 400, // Maximum width for larger screens
+        width: screenWidth,
+        maxWidth: 400, 
         minHeight: 300,
         height: '100%',
         alignItems: 'center',
@@ -221,20 +272,26 @@ const styles = StyleSheet.create({
         marginBottom: spacing.lg,
     },
     
-    scaleArea: {
-        flex: 1,
-        width: '100%',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.gray100,
-        borderRadius: 8,
-        marginVertical: spacing.md,
-    },
+    // scaleArea: {
+    //     flex: 1,
+    //     width: '100%',
+    //     alignItems: 'center',
+    //     justifyContent: 'center',
+    //     backgroundColor: colors.gray100,
+    //     borderRadius: 8,
+    //     marginVertical: spacing.md,
+    // },
     
     placeholderText: {
         fontSize: typography.fontSize.base,
         color: colors.gray500,
         fontStyle: 'italic',
+    },
+
+    debugText: {
+        fontSize: typography.fontSize.sm,
+        color: colors.gray400,
+        marginTop: spacing.sm,
     },
     
     bottomLabel: {
@@ -281,4 +338,31 @@ const styles = StyleSheet.create({
     headerButton: {
         padding: spacing.sm,
     },
+
+    scaleArea: {
+        flex: 1,
+        width: '100%',
+        backgroundColor: colors.gray100,
+        borderRadius: 8,
+        marginVertical: spacing.md,
+        padding: spacing.sm,
+      },
+      
+      scaleRow: {
+        flex: 1,
+        width: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 4,
+        marginVertical: 1,
+        minHeight: 20,
+      },
+      
+      rowText: {
+        fontSize: typography.fontSize.xs,
+        fontWeight: typography.fontWeight.medium,
+        color: colors.black,
+        textAlign: 'center',
+      },
+    
 });
