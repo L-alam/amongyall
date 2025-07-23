@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, SafeAreaView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -19,17 +19,87 @@ export default function WavelengthGameStart() {
     const players = JSON.parse(params.players as string || '[]') as string[];
     
     const [currentPair, setCurrentPair] = useState<WordPairs | null>(null);
+    const [selectedPlayer, setSelectedPlayer] = useState<string>('');
+    const [showScale, setShowScale] = useState(false);
 
     useEffect(() => {
         // Get a random word pair for this round
         const pair = getRandomPair();
         setCurrentPair(pair);
+        
+        // Select a random player
+        if (players.length > 0) {
+            const randomPlayer = players[Math.floor(Math.random() * players.length)];
+            setSelectedPlayer(randomPlayer);
+        }
     }, []);
 
     const handleBack = () => {
         router.back();
     };
 
+    const confirmPlayer = () => {
+        Alert.alert(
+            'Confirm Player',
+            `Are you really ${selectedPlayer}?`,
+            [
+                {
+                    text: 'No',
+                    style: 'cancel',
+                },
+                {
+                    text: 'Yes',
+                    onPress: () => revealScale(),
+                },
+            ]
+        );
+    };
+
+    const revealScale = () => {
+        setShowScale(true);
+    };
+
+    // Player Selection Screen (White Background)
+    if (!showScale) {
+        return (
+            <View style={styles.playerSelectionContainer}>
+                {/* Header */}
+                <View style={styles.playerSelectionHeader}>
+                    <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                        <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
+                    </TouchableOpacity>
+                    
+                    <Text style={textStyles.h2}>Wavelength</Text>
+                    
+                    <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                        <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
+                    </TouchableOpacity>
+                </View>
+
+                {/* Main content */}
+                <View style={styles.playerSelectionContent}>
+                    <Text style={[textStyles.h1, styles.givePhoneText]}>
+                        Give the phone to:
+                    </Text>
+                    
+                    <Text style={[textStyles.h1, styles.playerNameText]}>
+                        {selectedPlayer}
+                    </Text>
+
+                    <Button
+                        title="REVEAL SCALE"
+                        variant="primary"
+                        size="lg"
+                        icon="eye-outline"
+                        onPress={confirmPlayer}
+                        style={styles.revealButton}
+                    />
+                </View>
+            </View>
+        );
+    }
+
+    // Scale Screen (Black Background)
     return (
         <View style={styles.container}>
             {/* Header - visible on black background */}
@@ -72,9 +142,50 @@ export default function WavelengthGameStart() {
 }
 
 const styles = StyleSheet.create({
+    // Player Selection Screen Styles (White Background)
+    playerSelectionContainer: {
+        flex: 1,
+        backgroundColor: colors.white, // White background for player selection
+    },
+    
+    playerSelectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingTop: spacing['3xl'],
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.lg,
+    },
+    
+    playerSelectionContent: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: spacing.lg,
+    },
+    
+    givePhoneText: {
+        textAlign: 'center',
+        marginBottom: spacing.sm,
+        color: colors.gray600,
+    },
+    
+    playerNameText: {
+        textAlign: 'center',
+        marginBottom: spacing.xl,
+        color: colors.primary,
+        fontWeight: typography.fontWeight.bold,
+    },
+    
+    revealButton: {
+        width: '100%',
+        maxWidth: 300,
+    },
+    
+    // Scale Screen Styles (Black Background)
     container: {
         flex: 1,
-        backgroundColor: colors.black, // Black background for the entire screen
+        backgroundColor: colors.black, // Black background for the scale screen
     },
     
     header: {
