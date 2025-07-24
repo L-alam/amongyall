@@ -26,6 +26,10 @@ export default function WavelengthSetup() {
     router.back();
   };
 
+  const handleBackToHome = () => {
+    router.push('/');
+  };
+
   const handleSet = () => {
     router.push({
       pathname: '/wavelength/wavelength-gamestart',
@@ -55,7 +59,7 @@ export default function WavelengthSetup() {
     <ScrollView style={layoutStyles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+        <TouchableOpacity style={styles.headerButton} onPress={handleBackToHome}>
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
         

@@ -180,7 +180,7 @@ export default function WavelengthResults() {
                     text: 'Yes, Restart',
                     onPress: () => {
                         router.push({
-                            pathname: '/wavelength/wavelength-gamestart',
+                            pathname: '/wavelength/wavelength-setup',
                             params: {
                                 players: JSON.stringify(players),
                             }
