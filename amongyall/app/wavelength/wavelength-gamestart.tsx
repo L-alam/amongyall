@@ -54,7 +54,7 @@ export default function WavelengthGameStart() {
         .onUpdate((event) => {
         const { y } = event;
         
-        console.log('Gesture Y:', y, 'Scale Height:', scaleAreaHeight);
+        //console.log('Gesture Y:', y, 'Scale Height:', scaleAreaHeight);
         
         // Safety check to prevent division by zero
         if (scaleAreaHeight === 0 || scaleColors.length === 0) {
@@ -68,7 +68,7 @@ export default function WavelengthGameStart() {
         // Clamp to valid range
         const clampedIndex = Math.max(0, Math.min(scaleColors.length - 1, rowIndex));
         
-        console.log('Row Index:', rowIndex, 'Clamped:', clampedIndex);
+        //console.log('Row Index:', rowIndex, 'Clamped:', clampedIndex);
         
         if (clampedIndex !== selectedRowIndex) {
             // Use runOnJS to safely call React state setter
@@ -119,7 +119,7 @@ export default function WavelengthGameStart() {
 
     const handleRowPress = (rowIndex: number) => {
         setSelectedRowIndex(rowIndex);
-        console.log(`Row ${rowIndex} pressed`);
+        //console.log(`Row ${rowIndex} pressed`);
     };
      
     const isInGoalZone = (rowIndex: number) => {
@@ -175,12 +175,11 @@ export default function WavelengthGameStart() {
         <View style={styles.container}>
             {/* Header - visible on black background */}
             <View style={styles.header}>
-                {/* Left spacer - empty but takes up space */}
                 <View style={styles.headerSpacer} />
-                
+
                 {/* Center - the term */}
                 <Text style={styles.topTerm}>{currentPair?.positive}</Text>
-                
+
                 {/* Right - close button */}
                 <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
                     <Ionicons name="close" size={layout.iconSize.sm} color={colors.white} />
@@ -189,44 +188,54 @@ export default function WavelengthGameStart() {
 
             {/* Main content area */}
             <View style={styles.content}>
+
                 {/* White scale box in the center */}
                 <View style={styles.scaleBox}>
+                    <View style={styles.horizontalContainer}>
 
-                    <GestureDetector gesture={panGesture}>
-                        <Animated.View 
-                            style={{ flex: 1, width: '100%' }}
-                            onLayout={(event) => {
-                                const { height } = event.nativeEvent.layout;
-                                setScaleAreaHeight(height);
-                            }}
-                        >
-                            {scaleColors.map((color, index) => (
-                                <TouchableOpacity
-                                key={index}
-                                style={[
-                                    styles.scaleRow,
-                                    { 
-                                    backgroundColor: isInGoalZone(index) ? '#E0F7FF' : color,
-                                    borderWidth: selectedRowIndex === index ? 3 : 0,
-                                    borderColor: selectedRowIndex === index ? colors.primary : 'transparent',
-                                    }
-                                ]}
-                                onPress={() => handleRowPress(index)}
-                                activeOpacity={0.7}
-                                >
-                                </TouchableOpacity>
-                            ))}
-                        </Animated.View>
-                    </GestureDetector>
-                    
-                    <Text style={styles.debugText}>
-                        Goal Zone: {goalZoneStart} - {goalZoneEnd}
-                    </Text>
-                    <Text style={styles.debugText}>
-                        Selected Row: {selectedRowIndex !== null ? selectedRowIndex : 'None'}
-                    </Text>
-                    
+                        {/* Left side of Scale */}
+                        <View style={styles.debugContainer}>
+                            <Text style={styles.debugText}>
+                                Goal Zone: {goalZoneStart} - {goalZoneEnd}
+                            </Text>
+                            <Text style={styles.debugText}>
+                                Selected Row: {selectedRowIndex !== null ? selectedRowIndex : 'None'}
+                            </Text>
+                        </View>
+                        
+                        {/* Scale */}
+                        <GestureDetector gesture={panGesture}>
+                            <Animated.View 
+                                style={styles.scaleContainer}
+                                onLayout={(event) => {
+                                    const { height } = event.nativeEvent.layout;
+                                    setScaleAreaHeight(height);
+                                }}
+                            >
+                                {scaleColors.map((color, index) => (
+                                    <TouchableOpacity
+                                    key={index}
+                                    style={[
+                                        styles.scaleRow,
+                                        { 
+                                        backgroundColor: isInGoalZone(index) ? '#E0F7FF' : color,
+                                        borderWidth: selectedRowIndex === index ? 3 : 0,
+                                        borderColor: selectedRowIndex === index ? colors.primary : 'transparent',
+                                        }
+                                    ]}
+                                    onPress={() => handleRowPress(index)}
+                                    activeOpacity={0.7}
+                                    >
+                                    </TouchableOpacity>
+                                ))}
+                            </Animated.View>
+                        </GestureDetector>
+
+                        {/* Right side of Scale */}
+                        <View style={styles.scaleSpacer} />
+                    </View>
                 </View>
+
             </View>
 
             <View style={styles.header}>
@@ -387,4 +396,25 @@ const styles = StyleSheet.create({
         color: colors.black,
         textAlign: 'center',
     },
+
+    horizontalContainer: {
+        flex: 1,
+        flexDirection: 'row',
+        width: '100%',
+    },
+    
+    debugContainer: {
+        width: '60%',
+        justifyContent: 'center',
+        paddingHorizontal: spacing.sm,
+    },
+    
+    scaleContainer: {
+        flex: 1,
+        width: '100%',
+    },
+
+    scaleSpacer: {
+        width: '20%'
+    }
 });
