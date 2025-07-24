@@ -28,7 +28,6 @@ export default function WavelengthGameStart() {
     // Scale State
     const [goalZoneStart, setGoalZoneStart] = useState(8);
     const [goalZoneEnd, setGoalZoneEnd] = useState(12);
-    const [selectedRow, setSelectedRow] = useState<number | null>(null); // For arrow placement
     const [showGoalZone, setShowGoalZone] = useState(true); // Toggle goal zone visibility
 
     const scaleColors = [
@@ -243,12 +242,17 @@ export default function WavelengthGameStart() {
                         
                         {/* Left side of Scale */}
                         <View style={styles.debugContainer}>
-                            <Text style={styles.debugText}>
-                                Goal Zone: {goalZoneStart} - {goalZoneEnd}
+                            <Text style={styles.instructionText}>
+                                Come up with a one word clue to guide the group to the blue area of the scale
                             </Text>
-                            <Text style={styles.debugText}>
-                                Selected Row: {selectedRowIndex !== null ? selectedRowIndex : 'None'}
-                            </Text>
+
+                            <Button
+                                title="START"
+                                variant="primary"
+                                size="md"
+                                onPress={startGameplay}
+                                style={styles.startButton}
+                            />
                         </View>
                         
                         {/* Combined Scale Rows */}
@@ -263,7 +267,7 @@ export default function WavelengthGameStart() {
                                                 styles.scaleRowLeft,
                                                 { 
                                                 backgroundColor: goalZoneColor || colors.gray200,
-                                                borderColor: selectedRowIndex === index ? colors.primary : 'transparent',
+                                                borderColor: selectedRowIndex === index ? colors.gray100 : (isInGoalZone(index) ? 'transparent' : colors.gray400),
                                                 }
                                             ]}
                                         />
@@ -387,10 +391,12 @@ const styles = StyleSheet.create({
         fontStyle: 'italic',
     },
 
-    debugText: {
+    instructionText: {
         fontSize: typography.fontSize.sm,
-        color: colors.gray400,
-        marginTop: spacing.sm,
+        color: colors.gray600,
+        textAlign: 'center',
+        marginBottom: spacing.xl,
+        lineHeight: typography.fontSize.sm * 1.4,
     },
     
     bottomLabel: {
@@ -467,7 +473,7 @@ const styles = StyleSheet.create({
     debugContainer: {
         width: '60%',
         justifyContent: 'center',
-        paddingHorizontal: spacing.sm,
+        paddingHorizontal: spacing.md,
     },
     
     scaleContainer: {
@@ -485,8 +491,9 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: 'transparent',
+        borderBottomWidth: 1,
+        // borderBottomColor: colors.gray400,
+        // borderTopColor: colors.gray400,
     },
 
     scaleRowRight: {
@@ -505,5 +512,9 @@ const styles = StyleSheet.create({
         fontSize: typography.fontSize.xs,
         fontWeight: typography.fontWeight.medium,
         color: colors.white,
+    },
+
+    startButton: {
+        width: '100%',
     },
 });
