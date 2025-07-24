@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -38,33 +38,46 @@ const PLAYER_COLORS = [
     '#82E0AA', // Green
 ];
 
+// Goal zone colors from wavelength-gamestart
+const goalZoneColors = [
+    '#0074D9', '#7FDBFF', '#E0F7FF'
+];
+
 export default function WavelengthResults() {
     const params = useLocalSearchParams();
     const players = JSON.parse(params.players as string || '[]') as string[];
     const currentPair = JSON.parse(params.currentPair as string || '{}') as WordPairs;
-    const goalZoneStart = parseInt(params.goalZoneStart as string) || 8;
-    const goalZoneEnd = parseInt(params.goalZoneEnd as string) || 12;
     const playerVotes = JSON.parse(params.playerVotes as string || '[]') as PlayerVote[];
+    
+    // Parse goal zone values once and memoize them
+    const goalZoneStart = useMemo(() => parseInt(params.goalZoneStart as string) || 8, [params.goalZoneStart]);
+    const goalZoneEnd = useMemo(() => parseInt(params.goalZoneEnd as string) || 12, [params.goalZoneEnd]);
     
     const [playerScores, setPlayerScores] = useState<PlayerScore[]>([]);
     const [previousPlayer, setPreviousPlayer] = useState<string>('');
 
     const scaleSize = 40;
 
-    // Calculate points based on distance from goal zone
-    const calculatePoints = useCallback((rowIndex: number): number => {
-        const goalZoneCenter = (goalZoneStart + goalZoneEnd) / 2;
-        const distance = Math.abs(rowIndex - goalZoneCenter);
-        
-        // Points system: closer to center = more points
-        if (distance === 0) return 4; // Perfect center
-        if (distance <= 1) return 3;  // Very close
-        if (distance <= 2) return 2;  // Close
-        if (distance <= 3) return 1;  // Somewhat close
-        return 0; // Too far
+    // Memoize the goal zone check function
+    const isInGoalZone = useCallback((rowIndex: number) => {
+        return rowIndex >= goalZoneStart && rowIndex <= goalZoneEnd;
     }, [goalZoneStart, goalZoneEnd]);
 
-    // Initialize player scores
+    // Memoize the points calculation function
+    const calculatePoints = useCallback((rowIndex: number): number => {
+        if (!isInGoalZone(rowIndex)) return 0;
+        
+        // Goal zone scoring: center gets 3, next rows get 2, outer rows get 1
+        const goalZoneCenter = Math.floor((goalZoneStart + goalZoneEnd) / 2);
+        const distanceFromCenter = Math.abs(rowIndex - goalZoneCenter);
+        
+        if (distanceFromCenter === 0) return 3; // Center row = 3 points
+        if (distanceFromCenter === 1) return 2; // Next to center = 2 points  
+        if (distanceFromCenter === 2) return 1; // Outer goal zone = 1 point
+        return 0; // Outside goal zone
+    }, [goalZoneStart, goalZoneEnd, isInGoalZone]);
+
+    // Initialize player scores - only run once when component mounts
     useEffect(() => {
         const scores: PlayerScore[] = players.map(playerName => {
             const vote = playerVotes.find(v => v.playerName === playerName);
@@ -77,7 +90,7 @@ export default function WavelengthResults() {
             };
         });
         setPlayerScores(scores);
-    }, [players, playerVotes, calculatePoints]);
+    }, []); // Empty dependency array - only run once on mount
 
     const getPlayerColor = useCallback((playerName: string): string => {
         const playerIndex = players.indexOf(playerName);
@@ -89,10 +102,6 @@ export default function WavelengthResults() {
             .filter(vote => vote.selectedRow === rowIndex && vote.hasVoted)
             .map(vote => vote.playerName);
     }, [playerVotes]);
-
-    const isInGoalZone = (rowIndex: number) => {
-        return rowIndex >= goalZoneStart && rowIndex <= goalZoneEnd;
-    };
 
     // Get point value for each row based on distance from goal zone
     const getRowPoints = useCallback((rowIndex: number): number => {
@@ -173,29 +182,19 @@ export default function WavelengthResults() {
     };
 
     const handleNextPlayer = () => {
-        // Get a new random pair
-        const newPair = getRandomPair();
-        if (!newPair) return;
-
         // Select a random player that's different from the previous one
         const availablePlayers = players.filter(player => player !== previousPlayer);
-        const randomPlayer = availablePlayers[Math.floor(Math.random() * availablePlayers.length)];
+        const randomPlayer = availablePlayers.length > 0 
+            ? availablePlayers[Math.floor(Math.random() * availablePlayers.length)]
+            : players[Math.floor(Math.random() * players.length)];
         
         setPreviousPlayer(randomPlayer);
 
-        // Generate new random goal zone
-        const zoneWidth = 5;
-        const maxStart = scaleSize - zoneWidth;
-        const newGoalZoneStart = Math.floor(Math.random() * maxStart);
-        const newGoalZoneEnd = newGoalZoneStart + zoneWidth - 1;
-
+        // Navigate back to gamestart for the reveal process
         router.push({
-            pathname: '/wavelength/wavelength-gameplay',
+            pathname: '/wavelength/wavelength-gamestart',
             params: {
                 players: JSON.stringify(players),
-                currentPair: JSON.stringify(newPair),
-                goalZoneStart: newGoalZoneStart.toString(),
-                goalZoneEnd: newGoalZoneEnd.toString(),
             }
         });
     };
@@ -314,8 +313,8 @@ export default function WavelengthResults() {
                                             style={[
                                                 styles.scaleRowLeft,
                                                 { 
-                                                    backgroundColor: inGoalZone ? colors.secondary + '30' : colors.gray200,
-                                                    borderColor: inGoalZone ? colors.secondary : colors.gray400,
+                                                    backgroundColor: inGoalZone ? '#E0F7FF' : colors.gray200,
+                                                    borderColor: inGoalZone ? '#7FDBFF' : colors.gray400,
                                                     borderWidth: inGoalZone ? 2 : 1,
                                                 }
                                             ]}
@@ -324,17 +323,20 @@ export default function WavelengthResults() {
                                             {renderPlayerCircles(playersOnThisRow)}
                                         </View>
 
-                                        {/* Right side of scale - shows points */}
+                                        {/* Right side of scale - shows points or arrow */}
                                         <View style={styles.scaleRowRight}>
-                                            <Text style={[
-                                                styles.pointsText,
-                                                { 
-                                                    color: inGoalZone ? colors.secondary : colors.gray500,
-                                                    fontWeight: inGoalZone ? typography.fontWeight.bold : typography.fontWeight.normal
-                                                }
-                                            ]}>
-                                                {rowPoints}
-                                            </Text>
+                                            {inGoalZone ? (
+                                                <View style={styles.goalZoneIndicator}>
+                                                    <Ionicons 
+                                                        name="arrow-back" 
+                                                        size={12} 
+                                                        color="#0074D9" 
+                                                    />
+                                                    <Text style={styles.goalZonePointsText}>
+                                                        {rowPoints}
+                                                    </Text>
+                                                </View>
+                                            ) : null}
                                         </View>
                                     </View>
                                 );
@@ -454,12 +456,13 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.sm,
-        borderRadius: 8,
+        paddingVertical: spacing.xs, // Reduced from spacing.sm
+        paddingHorizontal: spacing.xs, // Reduced from spacing.sm
+        borderRadius: 6, // Reduced from 8
         backgroundColor: colors.gray100,
         borderWidth: 1,
         borderColor: colors.gray200,
+        minHeight: 32, // Smaller minimum height
     },
     
     winnerItem: {
@@ -476,13 +479,13 @@ const styles = StyleSheet.create({
     },
     
     playerColorIndicator: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
+        width: 10, // Reduced from 12
+        height: 10, // Reduced from 12
+        borderRadius: 5, // Reduced from 6
     },
     
     playerScoreText: {
-        fontSize: typography.fontSize.sm,
+        fontSize: typography.fontSize.xs, // Reduced from sm
         color: colors.gray700,
         fontWeight: typography.fontWeight.medium,
     },
@@ -504,7 +507,7 @@ const styles = StyleSheet.create({
     },
     
     totalScoreText: {
-        fontSize: typography.fontSize.base,
+        fontSize: typography.fontSize.sm, // Reduced from base
         fontWeight: typography.fontWeight.bold,
         color: colors.gray800,
     },
@@ -536,7 +539,8 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         flexDirection: 'row',
         paddingHorizontal: 4,
-        overflow: 'visible',
+        overflow: 'hidden', // Changed from 'visible' to prevent circles from extending outside
+        position: 'relative', // Add relative positioning for better circle containment
     },
 
     scaleRowRight: {
@@ -548,6 +552,21 @@ const styles = StyleSheet.create({
     pointsText: {
         fontSize: typography.fontSize.sm,
         fontWeight: typography.fontWeight.semibold,
+        textAlign: 'center',
+    },
+
+    // Goal zone indicator styling
+    goalZoneIndicator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+    },
+
+    goalZonePointsText: {
+        fontSize: typography.fontSize.sm,
+        fontWeight: typography.fontWeight.bold,
+        color: '#0074D9',
         textAlign: 'center',
     },
 
