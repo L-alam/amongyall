@@ -28,7 +28,7 @@ export default function WavelengthGameStart() {
     // Scale State
     const [goalZoneStart, setGoalZoneStart] = useState(8);
     const [goalZoneEnd, setGoalZoneEnd] = useState(12);
-    const [showGoalZone, setShowGoalZone] = useState(true); // Toggle goal zone visibility
+    const previousScores = JSON.parse(params.playerScores as string || '[]') as PlayerScore[];
 
     const scaleColors = [
         '#FFFFFF', '#FCEAEA', '#F8D5D5', '#F5C0C0', '#F1ABAB',
@@ -123,6 +123,7 @@ export default function WavelengthGameStart() {
                 currentPair: JSON.stringify(currentPair),
                 goalZoneStart: goalZoneStart.toString(),
                 goalZoneEnd: goalZoneEnd.toString(),
+                playerScores: JSON.stringify(previousScores),
             }
         });
     };

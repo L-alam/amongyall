@@ -23,7 +23,7 @@ interface PlayerVote {
 interface PlayerScore {
     playerName: string;
     score: number;
-    roundPoints: number; // Points earned this round
+    roundPoints: number;
 }
 
 // Player colors for up to 8 players
@@ -40,21 +40,25 @@ const PLAYER_COLORS = [
 
 // Goal zone colors from wavelength-gamestart
 const goalZoneColors = [
-    '#0074D9', '#7FDBFF', '#E0F7FF'
+    '#B3E5FC', // Lightest blue 
+    '#81D4FA', // Light blue 
+    '#4DABF7'  
 ];
 
 export default function WavelengthResults() {
     const params = useLocalSearchParams();
-    const players = JSON.parse(params.players as string || '[]') as string[];
-    const currentPair = JSON.parse(params.currentPair as string || '{}') as WordPairs;
-    const playerVotes = JSON.parse(params.playerVotes as string || '[]') as PlayerVote[];
-    
+    const players = useMemo(() => JSON.parse(params.players as string || '[]') as string[], [params.players]);
+    const currentPair = useMemo(() => JSON.parse(params.currentPair as string || '{}') as WordPairs, [params.currentPair]);
+    const playerVotes = useMemo(() => JSON.parse(params.playerVotes as string || '[]') as PlayerVote[], [params.playerVotes]);
+
     // Parse goal zone values once and memoize them
     const goalZoneStart = useMemo(() => parseInt(params.goalZoneStart as string) || 8, [params.goalZoneStart]);
     const goalZoneEnd = useMemo(() => parseInt(params.goalZoneEnd as string) || 12, [params.goalZoneEnd]);
     
     const [playerScores, setPlayerScores] = useState<PlayerScore[]>([]);
     const [previousPlayer, setPreviousPlayer] = useState<string>('');
+
+    const previousScoresParam = useMemo(() => params.previousScores as string || '[]', [params.previousScores]);
 
     const scaleSize = 40;
 
@@ -77,20 +81,26 @@ export default function WavelengthResults() {
         return 0; // Outside goal zone
     }, [goalZoneStart, goalZoneEnd, isInGoalZone]);
 
-    // Initialize player scores - only run once when component mounts
+
+
     useEffect(() => {
+        const previousScores = JSON.parse(previousScoresParam) as PlayerScore[];
+        
         const scores: PlayerScore[] = players.map(playerName => {
             const vote = playerVotes.find(v => v.playerName === playerName);
             const roundPoints = vote && vote.selectedRow !== null ? calculatePoints(vote.selectedRow) : 0;
             
+            // Find previous score for this player, or start at 0
+            const previousScore = previousScores.find(p => p.playerName === playerName)?.score || 0;
+            
             return {
                 playerName,
-                score: roundPoints, // For now, just this round's points
+                score: previousScore + roundPoints, // Add current round to previous total
                 roundPoints
             };
         });
         setPlayerScores(scores);
-    }, []); // Empty dependency array - only run once on mount
+    }, [players, playerVotes, goalZoneStart, goalZoneEnd, previousScoresParam]);
 
     const getPlayerColor = useCallback((playerName: string): string => {
         const playerIndex = players.indexOf(playerName);
@@ -195,8 +205,30 @@ export default function WavelengthResults() {
             pathname: '/wavelength/wavelength-gamestart',
             params: {
                 players: JSON.stringify(players),
+                playerScores: JSON.stringify(playerScores),
             }
         });
+    };
+
+    const getGoalZoneColor = (rowIndex: number) => {
+        if (!isInGoalZone(rowIndex)) {
+            return null; // Not in goal zone
+        }
+
+        const positionInGoalZone = rowIndex - goalZoneStart;
+        const goalZoneSize = goalZoneEnd - goalZoneStart + 1;
+        const middleIndex = Math.floor(goalZoneSize / 2);
+
+        if (positionInGoalZone === middleIndex) {
+            // Middle row - darkest blue
+            return goalZoneColors[2]; // '#4DABF7'
+        } else if (positionInGoalZone === middleIndex - 1 || positionInGoalZone === middleIndex + 1) {
+            // Second and fourth rows - medium blue
+            return goalZoneColors[1]; // '#81D4FA'
+        } else {
+            // First and fifth rows - lightest blue
+            return goalZoneColors[0]; // '#B3E5FC'
+        }
     };
 
     const handleBackToHome = () => {
@@ -302,6 +334,7 @@ export default function WavelengthResults() {
                                 const playersOnThisRow = getPlayersOnRow(index);
                                 const rowPoints = getRowPoints(index);
                                 const inGoalZone = isInGoalZone(index);
+                                const goalZoneColor = getGoalZoneColor(index);
                                 
                                 return (
                                     <View
@@ -313,8 +346,8 @@ export default function WavelengthResults() {
                                             style={[
                                                 styles.scaleRowLeft,
                                                 { 
-                                                    backgroundColor: inGoalZone ? '#E0F7FF' : colors.gray200,
-                                                    borderColor: inGoalZone ? '#7FDBFF' : colors.gray400,
+                                                    backgroundColor: goalZoneColor || colors.gray200,
+                                                    borderColor: inGoalZone ? '#7FDBFF' : colors.gray300,
                                                     borderWidth: inGoalZone ? 2 : 1,
                                                 }
                                             ]}
@@ -333,7 +366,7 @@ export default function WavelengthResults() {
                                                         color="#0074D9" 
                                                     />
                                                     <Text style={styles.goalZonePointsText}>
-                                                        {rowPoints}
+                                                        {rowPoints} 
                                                     </Text>
                                                 </View>
                                             ) : null}
@@ -536,7 +569,7 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        borderBottomWidth: 1,
+        borderBottomWidth: 0,
         flexDirection: 'row',
         paddingHorizontal: 4,
         overflow: 'hidden', // Changed from 'visible' to prevent circles from extending outside

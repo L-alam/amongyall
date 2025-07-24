@@ -46,6 +46,7 @@ export default function WavelengthGameplay() {
     const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
     const [scaleAreaHeight, setScaleAreaHeight] = useState(0);
     const [playerVotes, setPlayerVotes] = useState<PlayerVote[]>([]);
+    const previousScores = JSON.parse(params.playerScores as string || '[]') as PlayerScore[];
 
     const scaleSize = 40
 
@@ -156,6 +157,7 @@ export default function WavelengthGameplay() {
                 goalZoneStart: goalZoneStart.toString(),
                 goalZoneEnd: goalZoneEnd.toString(),
                 playerVotes: JSON.stringify(playerVotes),
+                previousScores: JSON.stringify(previousScores),
             }
         });
     };
@@ -330,7 +332,7 @@ export default function WavelengthGameplay() {
                                                     styles.scaleRowLeft,
                                                     { 
                                                         backgroundColor: colors.gray200,
-                                                        borderColor: selectedRowIndex === index ? getPlayerColor(selectedPlayer) : colors.gray400,
+                                                        borderColor: selectedRowIndex === index ? getPlayerColor(selectedPlayer) : colors.gray300,
                                                         borderWidth: selectedRowIndex === index ? 2 : 1,
                                                     }
                                                 ]}
