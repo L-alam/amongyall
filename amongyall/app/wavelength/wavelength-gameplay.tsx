@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, SafeAreaView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -13,24 +13,29 @@ import {
   combineStyles,
 } from '../../utils/styles';
 import { Button } from '../../components/Button';
-import { getRandomPair, WordPairs } from '../../constants/theme';
+import { WordPairs } from '../../constants/theme';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-export default function WavelengthGameStart() {
+interface PlayerVote {
+    playerName: string;
+    selectedRow: number | null;
+    hasVoted: boolean;
+}
+
+export default function WavelengthGameplay() {
     const params = useLocalSearchParams();
     const players = JSON.parse(params.players as string || '[]') as string[];
+    const currentPair = JSON.parse(params.currentPair as string || '{}') as WordPairs;
+    const goalZoneStart = parseInt(params.goalZoneStart as string) || 8;
+    const goalZoneEnd = parseInt(params.goalZoneEnd as string) || 12;
     
-    const [currentPair, setCurrentPair] = useState<WordPairs | null>(null);
-    const [selectedPlayer, setSelectedPlayer] = useState<string>('');
-    const [showScale, setShowScale] = useState(false);
+    const [selectedPlayer, setSelectedPlayer] = useState<string>(players[0] || '');
+    const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
+    const [scaleAreaHeight, setScaleAreaHeight] = useState(0);
+    const [playerVotes, setPlayerVotes] = useState<PlayerVote[]>([]);
 
-    // Scale State
-    const [goalZoneStart, setGoalZoneStart] = useState(8);
-    const [goalZoneEnd, setGoalZoneEnd] = useState(12);
-    const [selectedRow, setSelectedRow] = useState<number | null>(null); // For arrow placement
-    const [showGoalZone, setShowGoalZone] = useState(true); // Toggle goal zone visibility
-
+    // Use the same scale colors as the original gamestart file
     const scaleColors = [
         '#FFFFFF', '#FCEAEA', '#F8D5D5', '#F5C0C0', '#F1ABAB',
         '#EE9696', '#EA8181', '#E66C6C', '#E25757', '#DE4242',
@@ -42,135 +47,125 @@ export default function WavelengthGameStart() {
         '#F1ABAB', '#F5C0C0', '#F8D5D5', '#FCEAEA', '#FFFFFF',
     ];
 
-    const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
-    const [scaleAreaHeight, setScaleAreaHeight] = useState(0);
-    const rowHeight = (scaleAreaHeight) / scaleColors.length;
-    
-    const goalZoneColors = [
-        '#0074D9', '#7FDBFF', '#E0F7FF'
-    ];
+    // Initialize player votes
+    useEffect(() => {
+        const initialVotes: PlayerVote[] = players.map(player => ({
+            playerName: player,
+            selectedRow: null,
+            hasVoted: false
+        }));
+        setPlayerVotes(initialVotes);
+    }, [players]);
 
+    // Pan gesture - using JS thread to prevent crashes
     const panGesture = Gesture.Pan()
         .onUpdate((event) => {
-        const { y } = event;
-        
-        //console.log('Gesture Y:', y, 'Scale Height:', scaleAreaHeight);
-        
-        // Safety check to prevent division by zero
-        if (scaleAreaHeight === 0 || scaleColors.length === 0) {
-            console.log('Bailing - no height or colors');
-            return;
-        }
-        
-        // Calculate which row based on y position
-        const rowIndex = Math.floor(y / (scaleAreaHeight / scaleColors.length));
-        
-        // Clamp to valid range
-        const clampedIndex = Math.max(0, Math.min(scaleColors.length - 1, rowIndex));
-        
-        //console.log('Row Index:', rowIndex, 'Clamped:', clampedIndex);
-        
-        if (clampedIndex !== selectedRowIndex) {
-            // Use runOnJS to safely call React state setter
-            runOnJS(setSelectedRowIndex)(clampedIndex);
-        }
-    });
-
-    // Runs once when the component mounts 
-    useEffect(() => {
-        // Get a random word pair for this round
-        const pair = getRandomPair();
-        setCurrentPair(pair);
-        
-        // Select a random player
-        if (players.length > 0) {
-            const randomPlayer = players[Math.floor(Math.random() * players.length)];
-            setSelectedPlayer(randomPlayer);
-        }
-
-        // Initialize random goal zone
-        const zoneWidth = 5;
-        const maxStart = scaleColors.length - zoneWidth;
-        const start = Math.floor(Math.random() * maxStart);
-        setGoalZoneStart(start);
-        setGoalZoneEnd(start + zoneWidth - 1);
-    }, []); // Empty dependency array ensures this only runs once
+            const { y } = event;
+            
+            // Safety check to prevent division by zero
+            if (scaleAreaHeight === 0 || scaleColors.length === 0) {
+                return;
+            }
+            
+            // Calculate which row based on y position
+            const rowIndex = Math.floor(y / (scaleAreaHeight / scaleColors.length));
+            
+            // Clamp to valid range
+            const clampedIndex = Math.max(0, Math.min(scaleColors.length - 1, rowIndex));
+            
+            if (clampedIndex !== selectedRowIndex) {
+                // Use runOnJS to safely call React state setter on JS thread
+                runOnJS(setSelectedRowIndex)(clampedIndex);
+                runOnJS(updatePlayerVote)(selectedPlayer, clampedIndex);
+            }
+        });
 
     const handleBack = () => {
         router.back();
     };
 
-    const confirmPlayer = () => {
+    const handlePlayerSelect = (playerName: string) => {
+        setSelectedPlayer(playerName);
+        // Load this player's current vote if they have one
+        const playerVote = playerVotes.find(vote => vote.playerName === playerName);
+        setSelectedRowIndex(playerVote?.selectedRow || null);
+    };
+
+    const handleRowPress = (rowIndex: number) => {
+        setSelectedRowIndex(rowIndex);
+        updatePlayerVote(selectedPlayer, rowIndex);
+    };
+
+    const updatePlayerVote = (playerName: string, rowIndex: number) => {
+        setPlayerVotes(prev => 
+            prev.map(vote => 
+                vote.playerName === playerName 
+                    ? { ...vote, selectedRow: rowIndex, hasVoted: true }
+                    : vote
+            )
+        );
+    };
+
+    const handleRevealScores = () => {
+        const allVoted = playerVotes.every(vote => vote.hasVoted);
+        
+        if (!allVoted) {
+            const unvotedPlayers = playerVotes
+                .filter(vote => !vote.hasVoted)
+                .map(vote => vote.playerName)
+                .join(', ');
+                
+            Alert.alert(
+                'Not Everyone Has Voted',
+                `The following players haven't voted yet: ${unvotedPlayers}`,
+                [{ text: 'OK' }]
+            );
+            return;
+        }
+
         Alert.alert(
-            'Confirm Player',
-            `Are you really ${selectedPlayer}?`,
+            'Reveal Scores',
+            'Has everyone voted?',
             [
                 {
                     text: 'No',
                     style: 'cancel',
                 },
                 {
-                    text: 'Yes',
-                    onPress: () => revealScale(),
+                    text: 'Yes, Reveal Scores',
+                    onPress: () => navigateToResults(),
                 },
             ]
         );
     };
 
-    const handleRowPress = (rowIndex: number) => {
-        setSelectedRowIndex(rowIndex);
-        //console.log(`Row ${rowIndex} pressed`);
+    const navigateToResults = () => {
+        router.push({
+            pathname: '/wavelength/wavelength-results',
+            params: {
+                players: JSON.stringify(players),
+                currentPair: JSON.stringify(currentPair),
+                goalZoneStart: goalZoneStart.toString(),
+                goalZoneEnd: goalZoneEnd.toString(),
+                playerVotes: JSON.stringify(playerVotes),
+            }
+        });
     };
-     
+
+    const getPlayerVoteRow = (playerName: string): number | null => {
+        const vote = playerVotes.find(vote => vote.playerName === playerName);
+        return vote?.selectedRow || null;
+    };
+
+    const hasPlayerVoted = (playerName: string): boolean => {
+        const vote = playerVotes.find(vote => vote.playerName === playerName);
+        return vote?.hasVoted || false;
+    };
+
     const isInGoalZone = (rowIndex: number) => {
         return rowIndex >= goalZoneStart && rowIndex <= goalZoneEnd;
     };
 
-    const revealScale = () => {
-        setShowScale(true);
-    };
-
-    // Player Selection Screen (White Background)
-    if (!showScale) {
-        return (
-            <View style={styles.playerSelectionContainer}>
-                {/* Header */}
-                <View style={styles.playerSelectionHeader}>
-                    <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-                        <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
-                    </TouchableOpacity>
-                    
-                    <Text style={textStyles.h2}>Wavelength</Text>
-                    
-                    <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-                        <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
-                    </TouchableOpacity>
-                </View>
-
-                {/* Main content */}
-                <View style={styles.playerSelectionContent}>
-                    <Text style={[textStyles.h1, styles.givePhoneText]}>
-                        Give the phone to:
-                    </Text>
-                    
-                    <Text style={[textStyles.h1, styles.playerNameText]}>
-                        {selectedPlayer}
-                    </Text>
-
-                    <Button
-                        title="REVEAL SCALE"
-                        variant="primary"
-                        size="lg"
-                        icon="eye-outline"
-                        onPress={confirmPlayer}
-                        style={styles.revealButton}
-                    />
-                </View>
-            </View>
-        );
-    }
-
-    // Scale Screen (Black Background)
     return (
         <View style={styles.container}>
             {/* Header - visible on black background */}
@@ -180,30 +175,72 @@ export default function WavelengthGameStart() {
                 {/* Center - the term */}
                 <Text style={styles.topTerm}>{currentPair?.positive}</Text>
 
-                {/* Right - close button */}
-                <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-                    <Ionicons name="close" size={layout.iconSize.sm} color={colors.white} />
-                </TouchableOpacity>
+                <View style={styles.headerSpacer} />
             </View>
 
             {/* Main content area */}
             <View style={styles.content}>
-
                 {/* White scale box in the center */}
                 <View style={styles.scaleBox}>
                     <View style={styles.horizontalContainer}>
                         
-                        {/* Left side of Scale */}
-                        <View style={styles.debugContainer}>
-                            <Text style={styles.debugText}>
-                                Goal Zone: {goalZoneStart} - {goalZoneEnd}
+                        {/* Left side - Player Selection */}
+                        <View style={styles.leftContainer}>
+                            {/* Current player indicator */}
+                            <Text style={styles.currentPlayerText}>
+                                {selectedPlayer}'s turn
                             </Text>
-                            <Text style={styles.debugText}>
-                                Selected Row: {selectedRowIndex !== null ? selectedRowIndex : 'None'}
-                            </Text>
+
+                            {/* Player list */}
+                            <View style={styles.playerList}>
+                                {players.map((player) => (
+                                    <TouchableOpacity
+                                        key={player}
+                                        style={[
+                                            styles.playerButton,
+                                            selectedPlayer === player && styles.playerButtonSelected,
+                                            hasPlayerVoted(player) && styles.playerButtonVoted
+                                        ]}
+                                        onPress={() => handlePlayerSelect(player)}
+                                    >
+                                        <Ionicons 
+                                            name="person-circle-outline" 
+                                            size={selectedPlayer === player ? 24 : 20} 
+                                            color={
+                                                hasPlayerVoted(player) ? colors.success :
+                                                selectedPlayer === player ? colors.secondary : colors.gray500
+                                            } 
+                                        />
+                                        <Text style={[
+                                            styles.playerButtonText,
+                                            selectedPlayer === player && styles.playerButtonTextSelected,
+                                            hasPlayerVoted(player) && styles.playerButtonTextVoted
+                                        ]}>
+                                            {player}
+                                        </Text>
+                                        {hasPlayerVoted(player) && (
+                                            <Ionicons 
+                                                name="checkmark-circle" 
+                                                size={14} 
+                                                color={colors.success} 
+                                            />
+                                        )}
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            {/* Reveal Scores Button */}
+                            <Button
+                                title="REVEAL SCORES"
+                                variant="secondary"
+                                size="sm"
+                                icon="eye-outline"
+                                onPress={handleRevealScores}
+                                style={styles.revealButton}
+                            />
                         </View>
                         
-                        {/* Right side - Scale */}
+                        {/* Scale - Interactive, same styling as gamestart */}
                         <GestureDetector gesture={panGesture}>
                             <Animated.View 
                                 style={styles.scaleContainer}
@@ -214,31 +251,53 @@ export default function WavelengthGameStart() {
                             >
                                 {scaleColors.map((color, index) => (
                                     <TouchableOpacity
-                                    key={index}
-                                    style={[
-                                        styles.scaleRow,
-                                        { 
-                                        backgroundColor: isInGoalZone(index) ? '#E0F7FF' : color,
-                                        borderWidth: selectedRowIndex === index ? 3 : 0,
-                                        borderColor: selectedRowIndex === index ? colors.primary : 'transparent',
-                                        }
-                                    ]}
-                                    onPress={() => handleRowPress(index)}
-                                    activeOpacity={0.7}
+                                        key={index}
+                                        style={styles.scaleRowContainer}
+                                        onPress={() => handleRowPress(index)}
+                                        activeOpacity={0.7}
                                     >
+                                        {/* Left side of scale */}
+                                        <View
+                                            style={[
+                                                styles.scaleRowLeft,
+                                                { 
+                                                    backgroundColor: colors.gray200, // No goal zone visible during gameplay
+                                                    borderColor: selectedRowIndex === index ? colors.secondary : colors.gray400,
+                                                    borderWidth: selectedRowIndex === index ? 2 : 1,
+                                                }
+                                            ]}
+                                        />
+                                        {/* Right side of scale */}
+                                        <View
+                                            style={[
+                                                styles.scaleRowRight,
+                                                { 
+                                                    backgroundColor: selectedRowIndex === index ? colors.secondary + '20' : colors.white,
+                                                }
+                                            ]}
+                                        >
+                                            {selectedRowIndex === index && (
+                                                <View style={styles.selectedIndicator}>
+                                                    <Ionicons 
+                                                        name="arrow-back" 
+                                                        size={12} 
+                                                        color={colors.secondary} 
+                                                    />
+                                                    <Text style={styles.selectedText}>
+                                                        {selectedPlayer}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                        </View>
                                     </TouchableOpacity>
                                 ))}
                             </Animated.View>
                         </GestureDetector>
-
-                        {/* Right side of Scale */}
-                        <View style={styles.scaleSpacer} />
                     </View>
                 </View>
-
             </View>
 
-            <View style={styles.header}>
+            <View style={styles.footer}>
                 <Text style={styles.bottomTerm}>{currentPair?.negative}</Text>
             </View>
         </View>
@@ -246,49 +305,7 @@ export default function WavelengthGameStart() {
 }
 
 const styles = StyleSheet.create({
-    // Player Selection Screen Styles (White Background)
-    playerSelectionContainer: {
-        flex: 1,
-        backgroundColor: colors.white, // White background for player selection
-    },
-    
-    playerSelectionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingTop: spacing['3xl'],
-        paddingHorizontal: spacing.lg,
-        paddingBottom: spacing.lg,
-    },
-    
-    playerSelectionContent: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: spacing.lg,
-    },
-    
-    givePhoneText: {
-        textAlign: 'center',
-        marginBottom: spacing.sm,
-        color: colors.gray600,
-    },
-    
-    playerNameText: {
-        textAlign: 'center',
-        marginBottom: spacing.xl,
-        color: colors.primary,
-        fontWeight: typography.fontWeight.bold,
-    },
-    
-    revealButton: {
-        height: '60%',
-        width: '100%',
-        maxHeight: 400,
-        maxWidth: 300,
-    },
-    
-    // Scale Screen Styles (Black Background)
+    // Scale Screen Styles (Black Background) - Same as gamestart
     container: {
         flex: 1,
         backgroundColor: colors.black, 
@@ -311,36 +328,17 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         elevation: 10,
     },
-    
-    topLabel: {
-        fontSize: typography.fontSize.xl,
-        fontWeight: typography.fontWeight.bold,
-        color: colors.black,
-        textAlign: 'center',
-        marginBottom: spacing.lg,
-    },
-    
-    placeholderText: {
-        fontSize: typography.fontSize.base,
-        color: colors.gray500,
-        fontStyle: 'italic',
-    },
-
-    debugText: {
-        fontSize: typography.fontSize.sm,
-        color: colors.gray400,
-        marginTop: spacing.sm,
-    },
-    
-    bottomLabel: {
-        fontSize: typography.fontSize.xl,
-        fontWeight: typography.fontWeight.bold,
-        color: colors.black,
-        textAlign: 'center',
-        marginTop: spacing.lg,
-    },
 
     header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingTop: spacing['3xl'],
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.lg,
+    },
+    
+    footer: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -377,44 +375,109 @@ const styles = StyleSheet.create({
         padding: spacing.sm,
     },
 
-    scaleArea: {
-        flex: 1,
-        width: '100%',
-        borderRadius: 8,
-    },
-      
-    scaleRow: {
-        flex: 1,
-        width: '100%',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-      
-    rowText: {
-        fontSize: typography.fontSize.xs,
-        fontWeight: typography.fontWeight.medium,
-        color: colors.black,
-        textAlign: 'center',
-    },
-
     horizontalContainer: {
         flex: 1,
         flexDirection: 'row',
         width: '100%',
     },
     
-    debugContainer: {
+    // Left container - Player selection (same width as gamestart's debugContainer)
+    leftContainer: {
         width: '60%',
-        justifyContent: 'center',
-        paddingHorizontal: spacing.sm,
+        justifyContent: 'flex-start',
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.md,
     },
     
+    currentPlayerText: {
+        fontSize: typography.fontSize.sm,
+        fontWeight: typography.fontWeight.semibold,
+        color: colors.secondary,
+        textAlign: 'center',
+        marginBottom: spacing.md,
+    },
+    
+    playerList: {
+        flex: 1,
+        gap: spacing.xs,
+        marginBottom: spacing.md,
+    },
+    
+    playerButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        borderRadius: 8,
+        backgroundColor: colors.gray100,
+        gap: spacing.xs,
+    },
+    
+    playerButtonSelected: {
+        backgroundColor: colors.secondary + '20',
+        borderWidth: 2,
+        borderColor: colors.secondary,
+    },
+    
+    playerButtonVoted: {
+        backgroundColor: colors.success + '10',
+    },
+    
+    playerButtonText: {
+        fontSize: typography.fontSize.sm,
+        color: colors.gray600,
+        flex: 1,
+    },
+    
+    playerButtonTextSelected: {
+        color: colors.secondary,
+        fontWeight: typography.fontWeight.semibold,
+    },
+    
+    playerButtonTextVoted: {
+        color: colors.success,
+        fontWeight: typography.fontWeight.medium,
+    },
+    
+    revealButton: {
+        width: '100%',
+    },
+    
+    // Scale styling - same as gamestart
     scaleContainer: {
         flex: 1,
         width: '100%',
     },
 
-    scaleSpacer: {
-        width: '20%'
-    }
+    scaleRowContainer: {
+        flex: 1,
+        flexDirection: 'row',
+        width: '100%',
+    },
+
+    scaleRowLeft: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderBottomWidth: 1,
+    },
+
+    scaleRowRight: {
+        width: '45%',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    selectedIndicator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+    },
+    
+    selectedText: {
+        fontSize: typography.fontSize.xs,
+        fontWeight: typography.fontWeight.medium,
+        color: colors.secondary,
+    },
 });
