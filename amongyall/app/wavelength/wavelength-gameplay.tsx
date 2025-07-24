@@ -57,48 +57,11 @@ export default function WavelengthGameplay() {
             hasVoted: false
         }));
         setPlayerVotes(initialVotes);
-    }, [players]);
+    }, [players.length]);
 
-    // Pan gesture - using JS thread to prevent crashes
-    const panGesture = Gesture.Pan()
-        .onUpdate((event) => {
-            const { y } = event;
-            
-            // Safety check to prevent division by zero
-            if (scaleAreaHeight === 0) {
-                return;
-            }
-            
-            // Calculate which row based on y position
-            const rowIndex = Math.floor(y / (scaleAreaHeight / scaleSize));
-            
-            // Clamp to valid range
-            const clampedIndex = Math.max(0, Math.min(scaleSize - 1, rowIndex));
-            
-            if (clampedIndex !== selectedRowIndex) {
-                // Use runOnJS to safely call React state setter on JS thread
-                runOnJS(setSelectedRowIndex)(clampedIndex);
-                runOnJS(updatePlayerVote)(selectedPlayer, clampedIndex);
-            }
-        });
 
-    const handleBack = () => {
-        router.back();
-    };
-
-    const handlePlayerSelect = (playerName: string) => {
-        setSelectedPlayer(playerName);
-        // Load this player's current vote if they have one
-        const playerVote = playerVotes.find(vote => vote.playerName === playerName);
-        setSelectedRowIndex(playerVote?.selectedRow || null);
-    };
-
-    const handleRowPress = (rowIndex: number) => {
-        setSelectedRowIndex(rowIndex);
-        updatePlayerVote(selectedPlayer, rowIndex);
-    };
-
-    const updatePlayerVote = (playerName: string, rowIndex: number) => {
+    // Memoized functions to prevent re-renders
+    const updatePlayerVote = useCallback((playerName: string, rowIndex: number) => {
         setPlayerVotes(prev => 
             prev.map(vote => 
                 vote.playerName === playerName 
@@ -106,7 +69,50 @@ export default function WavelengthGameplay() {
                     : vote
             )
         );
-    };
+    }, []);
+
+
+    // Memoized pan gesture to prevent recreation on every render
+    const panGesture = useMemo(() => 
+        Gesture.Pan()
+            .onUpdate((event) => {
+                const { y } = event;
+                
+                // Safety check to prevent division by zero
+                if (scaleAreaHeight === 0) {
+                    return;
+                }
+                
+                // Calculate which row based on y position
+                const rowIndex = Math.floor(y / (scaleAreaHeight / scaleSize));
+                
+                // Clamp to valid range
+                const clampedIndex = Math.max(0, Math.min(scaleSize - 1, rowIndex));
+                
+                if (clampedIndex !== selectedRowIndex) {
+                    // Use runOnJS to safely call React state setter on JS thread
+                    runOnJS(setSelectedRowIndex)(clampedIndex);
+                    runOnJS(updatePlayerVote)(selectedPlayer, clampedIndex);
+                }
+            })
+    , [scaleAreaHeight, scaleSize, selectedRowIndex, selectedPlayer, updatePlayerVote]);
+
+
+
+    const handlePlayerSelect = useCallback((playerName: string) => {
+        setSelectedPlayer(playerName);
+        // Load this player's current vote if they have one
+        const playerVote = playerVotes.find(vote => vote.playerName === playerName);
+        setSelectedRowIndex(playerVote?.selectedRow || null);
+    }, [playerVotes]);
+
+
+    const handleRowPress = useCallback((rowIndex: number) => {
+        setSelectedRowIndex(rowIndex);
+        updatePlayerVote(selectedPlayer, rowIndex);
+    }, [selectedPlayer, updatePlayerVote]);
+
+
 
     const handleRevealScores = () => {
         const allVoted = playerVotes.every(vote => vote.hasVoted);
@@ -154,21 +160,22 @@ export default function WavelengthGameplay() {
         });
     };
 
-    const getPlayerColor = (playerName: string): string => {
+    
+    const getPlayerColor = useCallback((playerName: string): string => {
         const playerIndex = players.indexOf(playerName);
         return PLAYER_COLORS[playerIndex % PLAYER_COLORS.length];
-    };
+    }, [players]);
 
-    const getPlayersOnRow = (rowIndex: number): string[] => {
+    const getPlayersOnRow = useCallback((rowIndex: number): string[] => {
         return playerVotes
             .filter(vote => vote.selectedRow === rowIndex && vote.hasVoted)
             .map(vote => vote.playerName);
-    };
+    }, [playerVotes]);
 
-    const hasPlayerVoted = (playerName: string): boolean => {
+    const hasPlayerVoted = useCallback((playerName: string): boolean => {
         const vote = playerVotes.find(vote => vote.playerName === playerName);
         return vote?.hasVoted || false;
-    };
+    }, [playerVotes]);
 
     const isInGoalZone = (rowIndex: number) => {
         return rowIndex >= goalZoneStart && rowIndex <= goalZoneEnd;
