@@ -77,7 +77,7 @@ export default function WavelengthGameStart() {
 
     const startGameplay = () => {
         router.push({
-            pathname: '/wavelength/wavelength-gameplay',
+            pathname: '/wavelength/waveGameplayTest',
             params: {
                 players: JSON.stringify(players),
                 currentPair: JSON.stringify(currentPair),

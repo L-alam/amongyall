@@ -158,6 +158,22 @@ export default function WavelengthGameStart() {
         }
     };
 
+    const getScoreForRow = (rowIndex: number) => {
+        if (!isInGoalZone(rowIndex)) return null;
+        
+        const positionInGoalZone = rowIndex - goalZoneStart;
+        const goalZoneSize = goalZoneEnd - goalZoneStart + 1;
+        const middleIndex = Math.floor(goalZoneSize / 2);
+      
+        if (positionInGoalZone === middleIndex) {
+          return 3; // Middle row - 3 points
+        } else if (positionInGoalZone === middleIndex - 1 || positionInGoalZone === middleIndex + 1) {
+          return 2; // Second and fourth rows - 2 points
+        } else {
+          return 1; // First and fifth rows - 1 point
+        }
+      };
+
     const revealScale = () => {
         setShowScale(true);
     };
@@ -259,7 +275,20 @@ export default function WavelengthGameStart() {
                                                 backgroundColor: goalZoneColor || colors.white,
                                                 }
                                             ]}
-                                        />
+                                        >
+                                            {isInGoalZone(index) && (
+                                                <View style={styles.scoreContainer}>
+                                                    <Ionicons 
+                                                        name="arrow-back" 
+                                                        size={12} 
+                                                        color={colors.white} 
+                                                    />
+                                                    <Text style={styles.scoreText}>
+                                                        {getScoreForRow(index)} pts
+                                                    </Text>
+                                                </View>
+                                            )}
+                                        </View>
                                     </View>
                                 );
                             })}
@@ -461,8 +490,20 @@ const styles = StyleSheet.create({
     },
 
     scaleRowRight: {
-        width: '20%',
+        width: '45%',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    scoreContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+    },
+    
+    scoreText: {
+        fontSize: typography.fontSize.xs,
+        fontWeight: typography.fontWeight.medium,
+        color: colors.white,
     },
 });
