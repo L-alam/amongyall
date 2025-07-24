@@ -181,6 +181,55 @@ export default function WavelengthGameplay() {
         return rowIndex >= goalZoneStart && rowIndex <= goalZoneEnd;
     };
 
+    // Enhanced function to render overlapping player circles
+    const renderPlayerCircles = useCallback((playersOnThisRow: string[]) => {
+        if (playersOnThisRow.length === 0) return null;
+
+        // If only 1 player, show normally without overlap
+        if (playersOnThisRow.length === 1) {
+            return (
+                <View style={styles.scaleVoteIndicators}>
+                    <View
+                        style={[
+                            styles.scaleVoteCircle,
+                            { backgroundColor: getPlayerColor(playersOnThisRow[0]) }
+                        ]}
+                    >
+                        <Text style={styles.scaleVoteCircleText}>
+                            {playersOnThisRow[0].charAt(0)}
+                        </Text>
+                    </View>
+                </View>
+            );
+        }
+
+        // For 2+ players, always use overlapping circles (cascade all 8!)
+        const overlapOffset = 10; // Slightly smaller offset to fit more circles
+        const totalWidth = (playersOnThisRow.length - 1) * overlapOffset + 18; // Calculate total width needed
+        
+        return (
+            <View style={[styles.overlappingContainer, { width: Math.min(totalWidth, 120) }]}>
+                {playersOnThisRow.map((playerName, playerIndex) => (
+                    <View
+                        key={`${playerName}-${playerIndex}`}
+                        style={[
+                            styles.scaleVoteCircleOverlapping,
+                            { 
+                                backgroundColor: getPlayerColor(playerName),
+                                left: playerIndex * overlapOffset,
+                                zIndex: playerIndex + 1
+                            }
+                        ]}
+                    >
+                        <Text style={styles.scaleVoteCircleText}>
+                            {playerName.charAt(0)}
+                        </Text>
+                    </View>
+                ))}
+            </View>
+        );
+    }, [getPlayerColor]);
+
     return (
         <View style={styles.container}>
             {/* Header - visible on black background */}
@@ -280,28 +329,14 @@ export default function WavelengthGameplay() {
                                                 style={[
                                                     styles.scaleRowLeft,
                                                     { 
-                                                        backgroundColor: colors.gray200, // No goal zone visible during gameplay
+                                                        backgroundColor: colors.gray200,
                                                         borderColor: selectedRowIndex === index ? getPlayerColor(selectedPlayer) : colors.gray400,
                                                         borderWidth: selectedRowIndex === index ? 2 : 1,
                                                     }
                                                 ]}
                                             >
-                                                {/* Player vote circles directly on the scale */}
-                                                <View style={styles.scaleVoteIndicators}>
-                                                    {playersOnThisRow.map((playerName, playerIndex) => (
-                                                        <View
-                                                            key={`${playerName}-${playerIndex}`}
-                                                            style={[
-                                                                styles.scaleVoteCircle,
-                                                                { backgroundColor: getPlayerColor(playerName) }
-                                                            ]}
-                                                        >
-                                                            <Text style={styles.scaleVoteCircleText}>
-                                                                {playerName.charAt(0)}
-                                                            </Text>
-                                                        </View>
-                                                    ))}
-                                                </View>
+                                                {/* Enhanced player vote circles */}
+                                                {renderPlayerCircles(playersOnThisRow)}
                                             </View>
                                             {/* Right side of scale */}
                                             <View
@@ -512,17 +547,29 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         flexDirection: 'row',
         paddingHorizontal: 4,
+        overflow: 'visible', // Allow overlapping circles to extend beyond bounds
     },
 
-    // Vote circles on the actual scale
+    // ENHANCED: Original vote indicators for 1-2 players
     scaleVoteIndicators: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        flexWrap: 'wrap',
         gap: 3,
     },
 
+    // ENHANCED: Container for overlapping circles - now supports up to 8 players
+    overlappingContainer: {
+        position: 'relative',
+        height: 18,
+        minWidth: 18,
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        // Allow container to expand horizontally for all 8 players
+        maxWidth: 120, // Enough space for 8 overlapping circles
+    },
+
+    // ENHANCED: Standard vote circle (for 1-2 players)
     scaleVoteCircle: {
         width: 18,
         height: 18,
@@ -538,8 +585,38 @@ const styles = StyleSheet.create({
         elevation: 3,
     },
 
+    // ENHANCED: Overlapping vote circle - optimized for cascading up to 8 players
+    scaleVoteCircleOverlapping: {
+        position: 'absolute',
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: colors.white,
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.4, // Slightly stronger shadow for better depth
+        shadowRadius: 2,
+        elevation: 4, // Higher elevation for better layering
+    },
+
+    // ENHANCED: Count badge for 5+ players
+    countBadge: {
+        backgroundColor: colors.gray600,
+    },
+
     scaleVoteCircleText: {
         fontSize: 10,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.white,
+        textAlign: 'center',
+    },
+
+    // ENHANCED: Text for count badge
+    countBadgeText: {
+        fontSize: 8,
         fontWeight: typography.fontWeight.bold,
         color: colors.white,
         textAlign: 'center',

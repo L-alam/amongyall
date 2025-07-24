@@ -83,7 +83,7 @@ export default function WavelengthSetup() {
             <TouchableOpacity style={styles.addButton} onPress={handleAddPlayer}>
               <Ionicons 
                 name="add-circle-outline" 
-                size={layout.iconSize.md} 
+                size={layout.iconSize.lg} 
                 color={colors.gray500} 
               />
             </TouchableOpacity>
