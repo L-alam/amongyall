@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -47,17 +47,7 @@ export default function WavelengthGameplay() {
     const [scaleAreaHeight, setScaleAreaHeight] = useState(0);
     const [playerVotes, setPlayerVotes] = useState<PlayerVote[]>([]);
 
-    // Use the same scale colors as the original gamestart file
-    const scaleColors = [
-        '#FFFFFF', '#FCEAEA', '#F8D5D5', '#F5C0C0', '#F1ABAB',
-        '#EE9696', '#EA8181', '#E66C6C', '#E25757', '#DE4242',
-        '#DA2D2D', '#D61919', '#C91519', '#BD1218', '#B00E18',
-        '#A40A17', '#970716', '#8B0316', '#880215', '#8B0000',
-        '#8B0000', '#880215', '#8B0316', '#970716', '#A40A17',
-        '#B00E18', '#BD1218', '#C91519', '#D61919', '#DA2D2D',
-        '#DE4242', '#E25757', '#E66C6C', '#EA8181', '#EE9696',
-        '#F1ABAB', '#F5C0C0', '#F8D5D5', '#FCEAEA', '#FFFFFF',
-    ];
+    const scaleSize = 40
 
     // Initialize player votes
     useEffect(() => {
@@ -75,15 +65,15 @@ export default function WavelengthGameplay() {
             const { y } = event;
             
             // Safety check to prevent division by zero
-            if (scaleAreaHeight === 0 || scaleColors.length === 0) {
+            if (scaleAreaHeight === 0) {
                 return;
             }
             
             // Calculate which row based on y position
-            const rowIndex = Math.floor(y / (scaleAreaHeight / scaleColors.length));
+            const rowIndex = Math.floor(y / (scaleAreaHeight / scaleSize));
             
             // Clamp to valid range
-            const clampedIndex = Math.max(0, Math.min(scaleColors.length - 1, rowIndex));
+            const clampedIndex = Math.max(0, Math.min(scaleSize - 1, rowIndex));
             
             if (clampedIndex !== selectedRowIndex) {
                 // Use runOnJS to safely call React state setter on JS thread
@@ -193,10 +183,7 @@ export default function WavelengthGameplay() {
                 {/* Center - the term */}
                 <Text style={styles.topTerm}>{currentPair?.positive}</Text>
 
-                {/* Right - close button */}
-                <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-                    <Ionicons name="close" size={layout.iconSize.sm} color={colors.white} />
-                </TouchableOpacity>
+                <View style={styles.headerSpacer} />
             </View>
 
             {/* Main content area */}
@@ -270,7 +257,8 @@ export default function WavelengthGameplay() {
                                     setScaleAreaHeight(height);
                                 }}
                             >
-                                {scaleColors.map((color, index) => {
+                                {Array.from({ length: scaleSize }, (_, index) => {
+
                                     const playersOnThisRow = getPlayersOnRow(index);
                                     
                                     return (
