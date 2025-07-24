@@ -46,15 +46,16 @@ export default function WavelengthGameStart() {
     const [scaleAreaHeight, setScaleAreaHeight] = useState(0);
     const rowHeight = (scaleAreaHeight) / scaleColors.length;
     
+    // Goal zone gradient colors
     const goalZoneColors = [
-        '#0074D9', '#7FDBFF', '#E0F7FF'
+        '#B3E5FC', // Lightest blue (first/last row of goal zone)
+        '#81D4FA', // Light blue (second/fourth row of goal zone)
+        '#4DABF7'  // Main blue (middle row of goal zone)
     ];
 
     const panGesture = Gesture.Pan()
         .onUpdate((event) => {
         const { y } = event;
-        
-        //console.log('Gesture Y:', y, 'Scale Height:', scaleAreaHeight);
         
         // Safety check to prevent division by zero
         if (scaleAreaHeight === 0 || scaleColors.length === 0) {
@@ -67,8 +68,6 @@ export default function WavelengthGameStart() {
         
         // Clamp to valid range
         const clampedIndex = Math.max(0, Math.min(scaleColors.length - 1, rowIndex));
-        
-        //console.log('Row Index:', rowIndex, 'Clamped:', clampedIndex);
         
         if (clampedIndex !== selectedRowIndex) {
             // Use runOnJS to safely call React state setter
@@ -117,13 +116,46 @@ export default function WavelengthGameStart() {
         );
     };
 
+    const startGameplay = () => {
+        router.push({
+            pathname: '/wavelength/wavelength-gameplay',
+            params: {
+                players: JSON.stringify(players),
+                currentPair: JSON.stringify(currentPair),
+                goalZoneStart: goalZoneStart.toString(),
+                goalZoneEnd: goalZoneEnd.toString(),
+            }
+        });
+    };
+
     const handleRowPress = (rowIndex: number) => {
         setSelectedRowIndex(rowIndex);
-        //console.log(`Row ${rowIndex} pressed`);
     };
      
     const isInGoalZone = (rowIndex: number) => {
         return rowIndex >= goalZoneStart && rowIndex <= goalZoneEnd;
+    };
+
+    // Get the goal zone color based on position within the goal zone
+    const getGoalZoneColor = (rowIndex: number) => {
+        if (!isInGoalZone(rowIndex)) {
+            return null; // Not in goal zone
+        }
+
+        const positionInGoalZone = rowIndex - goalZoneStart;
+        const goalZoneSize = goalZoneEnd - goalZoneStart + 1;
+        const middleIndex = Math.floor(goalZoneSize / 2);
+
+        if (positionInGoalZone === middleIndex) {
+            // Middle row - darkest blue
+            return goalZoneColors[2]; // '#4DABF7'
+        } else if (positionInGoalZone === middleIndex - 1 || positionInGoalZone === middleIndex + 1) {
+            // Second and fourth rows - medium blue
+            return goalZoneColors[1]; // '#81D4FA'
+        } else {
+            // First and fifth rows - lightest blue
+            return goalZoneColors[0]; // '#B3E5FC'
+        }
     };
 
     const revealScale = () => {
@@ -192,7 +224,7 @@ export default function WavelengthGameStart() {
                 {/* White scale box in the center */}
                 <View style={styles.scaleBox}>
                     <View style={styles.horizontalContainer}>
-
+                        
                         {/* Left side of Scale */}
                         <View style={styles.debugContainer}>
                             <Text style={styles.debugText}>
@@ -203,36 +235,36 @@ export default function WavelengthGameStart() {
                             </Text>
                         </View>
                         
-                        {/* Scale */}
-                        <GestureDetector gesture={panGesture}>
-                            <Animated.View 
-                                style={styles.scaleContainer}
-                                onLayout={(event) => {
-                                    const { height } = event.nativeEvent.layout;
-                                    setScaleAreaHeight(height);
-                                }}
-                            >
-                                {scaleColors.map((color, index) => (
-                                    <TouchableOpacity
-                                    key={index}
-                                    style={[
-                                        styles.scaleRow,
-                                        { 
-                                        backgroundColor: isInGoalZone(index) ? '#E0F7FF' : color,
-                                        borderWidth: selectedRowIndex === index ? 3 : 0,
-                                        borderColor: selectedRowIndex === index ? colors.primary : 'transparent',
-                                        }
-                                    ]}
-                                    onPress={() => handleRowPress(index)}
-                                    activeOpacity={0.7}
-                                    >
-                                    </TouchableOpacity>
-                                ))}
-                            </Animated.View>
-                        </GestureDetector>
+                        {/* Combined Scale Rows */}
+                        <View style={styles.scaleContainer}>
+                            {scaleColors.map((color, index) => {
+                                const goalZoneColor = getGoalZoneColor(index);
+                                return (
+                                    <View key={index} style={styles.scaleRowContainer}>
+                                        {/* Left side of scale */}
+                                        <View
+                                            style={[
+                                                styles.scaleRowLeft,
+                                                { 
+                                                backgroundColor: goalZoneColor || colors.gray200,
+                                                borderColor: selectedRowIndex === index ? colors.primary : 'transparent',
+                                                }
+                                            ]}
+                                        />
+                                        {/* Right side of scale */}
+                                        <View
+                                            style={[
+                                                styles.scaleRowRight,
+                                                { 
+                                                backgroundColor: goalZoneColor || colors.white,
+                                                }
+                                            ]}
+                                        />
+                                    </View>
+                                );
+                            })}
+                        </View>
 
-                        {/* Right side of Scale */}
-                        <View style={styles.scaleSpacer} />
                     </View>
                 </View>
 
@@ -414,7 +446,23 @@ const styles = StyleSheet.create({
         width: '100%',
     },
 
-    scaleSpacer: {
-        width: '20%'
-    }
+    scaleRowContainer: {
+        flex: 1,
+        flexDirection: 'row',
+        width: '100%',
+    },
+
+    scaleRowLeft: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: 'transparent',
+    },
+
+    scaleRowRight: {
+        width: '20%',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
 });
