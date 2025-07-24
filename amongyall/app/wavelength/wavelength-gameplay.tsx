@@ -23,6 +23,18 @@ interface PlayerVote {
     hasVoted: boolean;
 }
 
+// Player colors for up to 8 players
+const PLAYER_COLORS = [
+    '#FF6B6B', // Red
+    '#4ECDC4', // Teal
+    '#45B7D1', // Blue
+    '#FFA07A', // Orange
+    '#98D8C8', // Mint
+    '#F7DC6F', // Yellow
+    '#BB8FCE', // Purple
+    '#82E0AA', // Green
+];
+
 export default function WavelengthGameplay() {
     const params = useLocalSearchParams();
     const players = JSON.parse(params.players as string || '[]') as string[];
@@ -152,9 +164,15 @@ export default function WavelengthGameplay() {
         });
     };
 
-    const getPlayerVoteRow = (playerName: string): number | null => {
-        const vote = playerVotes.find(vote => vote.playerName === playerName);
-        return vote?.selectedRow || null;
+    const getPlayerColor = (playerName: string): string => {
+        const playerIndex = players.indexOf(playerName);
+        return PLAYER_COLORS[playerIndex % PLAYER_COLORS.length];
+    };
+
+    const getPlayersOnRow = (rowIndex: number): string[] => {
+        return playerVotes
+            .filter(vote => vote.selectedRow === rowIndex && vote.hasVoted)
+            .map(vote => vote.playerName);
     };
 
     const hasPlayerVoted = (playerName: string): boolean => {
@@ -175,7 +193,10 @@ export default function WavelengthGameplay() {
                 {/* Center - the term */}
                 <Text style={styles.topTerm}>{currentPair?.positive}</Text>
 
-                <View style={styles.headerSpacer} />
+                {/* Right - close button */}
+                <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                    <Ionicons name="close" size={layout.iconSize.sm} color={colors.white} />
+                </TouchableOpacity>
             </View>
 
             {/* Main content area */}
@@ -193,40 +214,40 @@ export default function WavelengthGameplay() {
 
                             {/* Player list */}
                             <View style={styles.playerList}>
-                                {players.map((player) => (
-                                    <TouchableOpacity
-                                        key={player}
-                                        style={[
-                                            styles.playerButton,
-                                            selectedPlayer === player && styles.playerButtonSelected,
-                                            hasPlayerVoted(player) && styles.playerButtonVoted
-                                        ]}
-                                        onPress={() => handlePlayerSelect(player)}
-                                    >
-                                        <Ionicons 
-                                            name="person-circle-outline" 
-                                            size={selectedPlayer === player ? 24 : 20} 
-                                            color={
-                                                hasPlayerVoted(player) ? colors.success :
-                                                selectedPlayer === player ? colors.secondary : colors.gray500
-                                            } 
-                                        />
-                                        <Text style={[
-                                            styles.playerButtonText,
-                                            selectedPlayer === player && styles.playerButtonTextSelected,
-                                            hasPlayerVoted(player) && styles.playerButtonTextVoted
-                                        ]}>
-                                            {player}
-                                        </Text>
-                                        {hasPlayerVoted(player) && (
-                                            <Ionicons 
-                                                name="checkmark-circle" 
-                                                size={14} 
-                                                color={colors.success} 
-                                            />
-                                        )}
-                                    </TouchableOpacity>
-                                ))}
+                                {players.map((player) => {
+                                    const playerColor = getPlayerColor(player);
+                                    return (
+                                        <TouchableOpacity
+                                            key={player}
+                                            style={[
+                                                styles.playerButton,
+                                                selectedPlayer === player && styles.playerButtonSelected,
+                                                hasPlayerVoted(player) && styles.playerButtonVoted,
+                                                selectedPlayer === player && { borderColor: playerColor }
+                                            ]}
+                                            onPress={() => handlePlayerSelect(player)}
+                                        >
+                                            <View style={[
+                                                styles.playerColorIndicator,
+                                                { backgroundColor: playerColor }
+                                            ]} />
+                                            <Text style={[
+                                                styles.playerButtonText,
+                                                selectedPlayer === player && [styles.playerButtonTextSelected, { color: playerColor }],
+                                                hasPlayerVoted(player) && styles.playerButtonTextVoted
+                                            ]}>
+                                                {player}
+                                            </Text>
+                                            {hasPlayerVoted(player) && (
+                                                <Ionicons 
+                                                    name="checkmark-circle" 
+                                                    size={14} 
+                                                    color={colors.success} 
+                                                />
+                                            )}
+                                        </TouchableOpacity>
+                                    );
+                                })}
                             </View>
 
                             {/* Reveal Scores Button */}
@@ -249,48 +270,73 @@ export default function WavelengthGameplay() {
                                     setScaleAreaHeight(height);
                                 }}
                             >
-                                {scaleColors.map((color, index) => (
-                                    <TouchableOpacity
-                                        key={index}
-                                        style={styles.scaleRowContainer}
-                                        onPress={() => handleRowPress(index)}
-                                        activeOpacity={0.7}
-                                    >
-                                        {/* Left side of scale */}
-                                        <View
-                                            style={[
-                                                styles.scaleRowLeft,
-                                                { 
-                                                    backgroundColor: colors.gray200, // No goal zone visible during gameplay
-                                                    borderColor: selectedRowIndex === index ? colors.secondary : colors.gray400,
-                                                    borderWidth: selectedRowIndex === index ? 2 : 1,
-                                                }
-                                            ]}
-                                        />
-                                        {/* Right side of scale */}
-                                        <View
-                                            style={[
-                                                styles.scaleRowRight,
-                                                { 
-                                                    backgroundColor: selectedRowIndex === index ? colors.secondary + '20' : colors.white,
-                                                }
-                                            ]}
+                                {scaleColors.map((color, index) => {
+                                    const playersOnThisRow = getPlayersOnRow(index);
+                                    
+                                    return (
+                                        <TouchableOpacity
+                                            key={index}
+                                            style={styles.scaleRowContainer}
+                                            onPress={() => handleRowPress(index)}
+                                            activeOpacity={0.7}
                                         >
-                                            {selectedRowIndex === index && (
-                                                <View style={styles.selectedIndicator}>
-                                                    <Ionicons 
-                                                        name="arrow-back" 
-                                                        size={12} 
-                                                        color={colors.secondary} 
-                                                    />
-                                                    <Text style={styles.selectedText}>
-                                                        {selectedPlayer}
-                                                    </Text>
+                                            {/* Left side of scale */}
+                                            <View
+                                                style={[
+                                                    styles.scaleRowLeft,
+                                                    { 
+                                                        backgroundColor: colors.gray200, // No goal zone visible during gameplay
+                                                        borderColor: selectedRowIndex === index ? getPlayerColor(selectedPlayer) : colors.gray400,
+                                                        borderWidth: selectedRowIndex === index ? 2 : 1,
+                                                    }
+                                                ]}
+                                            >
+                                                {/* Player vote circles directly on the scale */}
+                                                <View style={styles.scaleVoteIndicators}>
+                                                    {playersOnThisRow.map((playerName, playerIndex) => (
+                                                        <View
+                                                            key={`${playerName}-${playerIndex}`}
+                                                            style={[
+                                                                styles.scaleVoteCircle,
+                                                                { backgroundColor: getPlayerColor(playerName) }
+                                                            ]}
+                                                        >
+                                                            <Text style={styles.scaleVoteCircleText}>
+                                                                {playerName.charAt(0)}
+                                                            </Text>
+                                                        </View>
+                                                    ))}
                                                 </View>
-                                            )}
-                                        </View>
-                                    </TouchableOpacity>
-                                ))}
+                                            </View>
+                                            {/* Right side of scale */}
+                                            <View
+                                                style={[
+                                                    styles.scaleRowRight,
+                                                    { 
+                                                        backgroundColor: selectedRowIndex === index ? getPlayerColor(selectedPlayer) + '20' : colors.white,
+                                                    }
+                                                ]}
+                                            >
+                                                {/* Current selection indicator */}
+                                                {selectedRowIndex === index && (
+                                                    <View style={styles.selectedIndicator}>
+                                                        <Ionicons 
+                                                            name="arrow-back" 
+                                                            size={12} 
+                                                            color={getPlayerColor(selectedPlayer)} 
+                                                        />
+                                                        <Text style={[
+                                                            styles.selectedText,
+                                                            { color: getPlayerColor(selectedPlayer) }
+                                                        ]}>
+                                                            {selectedPlayer}
+                                                        </Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                        </TouchableOpacity>
+                                    );
+                                })}
                             </Animated.View>
                         </GestureDetector>
                     </View>
@@ -411,12 +457,21 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         backgroundColor: colors.gray100,
         gap: spacing.xs,
+        borderWidth: 2,
+        borderColor: 'transparent',
+    },
+    
+    playerColorIndicator: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        marginRight: spacing.xs,
     },
     
     playerButtonSelected: {
-        backgroundColor: colors.secondary + '20',
+        backgroundColor: colors.gray200,
         borderWidth: 2,
-        borderColor: colors.secondary,
+        // borderColor will be set dynamically to player color
     },
     
     playerButtonVoted: {
@@ -430,8 +485,8 @@ const styles = StyleSheet.create({
     },
     
     playerButtonTextSelected: {
-        color: colors.secondary,
         fontWeight: typography.fontWeight.semibold,
+        // color will be set dynamically to player color
     },
     
     playerButtonTextVoted: {
@@ -460,6 +515,39 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         borderBottomWidth: 1,
+        flexDirection: 'row',
+        paddingHorizontal: 4,
+    },
+
+    // Vote circles on the actual scale
+    scaleVoteIndicators: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexWrap: 'wrap',
+        gap: 3,
+    },
+
+    scaleVoteCircle: {
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: colors.white,
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.3,
+        shadowRadius: 2,
+        elevation: 3,
+    },
+
+    scaleVoteCircleText: {
+        fontSize: 10,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.white,
+        textAlign: 'center',
     },
 
     scaleRowRight: {
@@ -478,6 +566,6 @@ const styles = StyleSheet.create({
     selectedText: {
         fontSize: typography.fontSize.xs,
         fontWeight: typography.fontWeight.medium,
-        color: colors.secondary,
+        // color will be set dynamically to player color
     },
 });
