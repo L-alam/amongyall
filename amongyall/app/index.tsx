@@ -25,12 +25,7 @@ export default function Index() {
     }
   };
 
-  
-  // GAME MODE
-  // const handleGameModePress = (gameMode: string) => {
-  //   // TODO: Navigate to game setup screen
-  //   console.log(`Selected game mode: ${gameMode}`);
-  // };
+
 
   // SETTINGS
   const handleSettingsPress = () => {
