@@ -56,4 +56,27 @@ export const testConnection = async () => {
       return false;
     }
   };
-  
+
+
+
+// CREATE TABLE themes (
+//   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+//   name TEXT NOT NULL UNIQUE,
+//   is_premium BOOLEAN DEFAULT false,
+//   is_custom BOOLEAN DEFAULT false,
+//   created_by UUID REFERENCES auth.users(id),
+//   created_at TIMESTAMP DEFAULT NOW()
+// );
+
+// CREATE TABLE theme_words (
+//   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+//   theme_id UUID REFERENCES themes(id) ON DELETE CASCADE,
+//   word TEXT,
+//   created_at TIMESTAMP DEFAULT NOW()
+// );
+
+// CREATE TABLE user_themes (
+//   user_id UUID REFERENCES auth.users(id),
+//   theme_id UUID REFERENCES themes(id),
+//   PRIMARY KEY (user_id, theme_id)
+// );

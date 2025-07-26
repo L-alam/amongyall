@@ -1,0 +1,6 @@
+id,name,is_premium,is_custom,created_by,created_at
+550e8400-e29b-41d4-a716-446655440001,Countries,false,false,,
+550e8400-e29b-41d4-a716-446655440002,Musical Instruments,false,false,,
+550e8400-e29b-41d4-a716-446655440003,Under the Sea,false,false,,
+550e8400-e29b-41d4-a716-446655440004,Music,false,false,,
+550e8400-e29b-41d4-a716-446655440005,Cities,false,false,,
