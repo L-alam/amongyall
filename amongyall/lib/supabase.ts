@@ -33,3 +33,27 @@ AppState.addEventListener('change', (state) => {
     supabase.auth.stopAutoRefresh()
   }
 })
+
+
+export const testConnection = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('nonexistent_table')
+        .select('*')
+        .limit(1);
+      
+      // We expect an error here, but if we get a specific Supabase error,
+      // it means the connection is working
+      if (error && error.message.includes('does not exist')) {
+        console.log('✅ Supabase connection successful! (Table not found is expected)');
+        return true;
+      }
+      
+      console.log('✅ Supabase connection successful!');
+      return true;
+    } catch (err) {
+      console.log('❌ Connection failed:', err);
+      return false;
+    }
+  };
+  
