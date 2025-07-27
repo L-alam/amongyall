@@ -91,40 +91,6 @@ export default function WordSetup() {
 
       <View style={layoutStyles.content}>
 
-        {/* Number of Terms Section */}
-        <View style={layoutStyles.section}>
-          <Text style={textStyles.h4}>Number Of Cards: {numCards}</Text>
-          <View style={styles.playerCountControls}>
-            <TouchableOpacity 
-              style={[
-                styles.countButton,
-                numCards <= MIN_CARDS && styles.countButtonDisabled
-              ]}
-              onPress={decreaseCards}
-              disabled={numCards <= MIN_CARDS}
-            >
-              <Text style={[
-                styles.countButtonText,
-                numCards <= MIN_CARDS && styles.countButtonTextDisabled
-              ]}>−</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[
-                styles.countButton,
-                numCards >= MAX_CARDS && styles.countButtonDisabled
-              ]}
-              onPress={increaseCards}
-              disabled={numCards >= MAX_CARDS}
-            >
-              <Text style={[
-                styles.countButtonText,
-                numCards >= MAX_CARDS && styles.countButtonTextDisabled
-              ]}>+</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-
         {/* Add Players Section */}
         <View style={layoutStyles.section}>
           <Text style={textStyles.h4}>ADD PLAYERS</Text>

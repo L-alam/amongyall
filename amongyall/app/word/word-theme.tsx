@@ -167,6 +167,16 @@ export default function WordTheme() {
     loadThemePreview(themeName, true);
   };
 
+  const handleCreateCustomTheme = () => {
+    router.push({
+      pathname: '/word/word-custom-theme',
+      params: {
+        numCards: numCards.toString(),
+        players: JSON.stringify(players),
+      }
+    });
+  };
+
   const increaseCards = () => {
     if (numCards < MAX_CARDS) {
       setNumCards(numCards + 1);
@@ -347,6 +357,16 @@ export default function WordTheme() {
           </View>
         </View>
 
+        {/* Create Custom Theme Button */}
+        <Button
+          title="Create your own theme"
+          variant="outline"
+          size="md"
+          icon="add-outline"
+          onPress={handleCreateCustomTheme}
+          style={styles.customThemeButton}
+        />
+
         {/* Start Button */}
         <Button
           title="START GAME"
@@ -501,8 +521,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  startButton: {
+  customThemeButton: {
     marginTop: spacing.lg,
+    marginBottom: spacing.md,
+  },
+
+  startButton: {
     marginBottom: spacing.xl,
   },
 
