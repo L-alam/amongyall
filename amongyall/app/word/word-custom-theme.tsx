@@ -70,6 +70,23 @@ export default function WordCustomTheme() {
     });
   };
 
+  const handleAIAssistance = () => {
+    router.push({
+      pathname: '/word/word-ai-theme',
+      params: {
+        numCards: words.length.toString(),
+        players: JSON.stringify(players),
+        themeName: themeName,
+        existingWords: JSON.stringify(words.filter(word => word.trim() !== ''))
+      }
+    });
+  };
+
+  const handleSave = () => {
+    // TODO: Implement save functionality
+    console.log('Save theme:', { themeName, words: words.filter(word => word.trim() !== '') });
+  };
+
   const filledWordsCount = words.filter(word => word.trim() !== '').length;
 
   return (
@@ -172,6 +189,27 @@ export default function WordCustomTheme() {
           </View>
         </View>
 
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          <Button
+            title="Save"
+            variant="ghost"
+            size="sm"
+            icon="bookmark-outline"
+            onPress={handleSave}
+            style={styles.saveButton}
+          />
+          
+          <Button
+            title="Use AI Assistance"
+            variant="outline"
+            size="md"
+            icon="sparkles-outline"
+            onPress={handleAIAssistance}
+            style={styles.aiButton}
+          />
+        </View>
+
         {/* Start Button */}
         <Button
           title="START GAME"
@@ -264,8 +302,24 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
 
-  startButton: {
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: spacing.xl,
+    marginBottom: spacing.md,
+  },
+
+  saveButton: {
+    minWidth: 80,
+  },
+
+  aiButton: {
+    flex: 1,
+    marginLeft: spacing.md,
+  },
+
+  startButton: {
     marginBottom: spacing.xl,
   },
 });
