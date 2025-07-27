@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -6,6 +6,8 @@ import { router } from 'expo-router';
 import { colors, spacing, layout } from '../constants/theme';
 import { textStyles, layoutStyles, gameStyles, combineStyles } from '../utils/styles';
 import { Button } from '../components/Button';
+
+import { testConnection } from '../lib/supabase';
 
 export default function Index() {
 
@@ -25,6 +27,9 @@ export default function Index() {
     }
   };
 
+  useEffect(() => {
+    testConnection();
+  }, []);
 
 
   // SETTINGS

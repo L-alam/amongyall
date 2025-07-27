@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -13,9 +13,16 @@ import {
   combineStyles,
 } from '../../utils/styles';
 import { Button } from '../../components/Button';
-import { themes, getRandomWordsFromTheme, getAllThemeNames } from '../../constants/theme';
+// Import our new database functions
+import { getAllThemeNames, getRandomWordsFromTheme } from '../../lib/themeService';
 
 const { width: screenWidth } = Dimensions.get('window');
+
+interface ThemePreview {
+  themeName: string;
+  words: string[];
+  loading: boolean;
+}
 
 export default function WordTheme() {
   // Get initial numCards from the previous screen (word-setup)
@@ -25,18 +32,99 @@ export default function WordTheme() {
   
   const [selectedTheme, setSelectedTheme] = useState('Countries');
   const [numCards, setNumCards] = useState(initialNumCards);
-  const [previewWords, setPreviewWords] = useState<string[]>([]);
-  const themeNames = getAllThemeNames();
+  const [themeNames, setThemeNames] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [themePreviews, setThemePreviews] = useState<Record<string, ThemePreview>>({});
+  const [expandedTheme, setExpandedTheme] = useState<string | null>(null);
 
   // Constraints for numCards
   const MIN_CARDS = 4;
   const MAX_CARDS = 16;
 
-  // Update preview words when theme changes
+  // Load theme names on component mount
   useEffect(() => {
-    const words = getRandomWordsFromTheme(selectedTheme, numCards);
-    setPreviewWords(words);
-  }, [selectedTheme, numCards]);
+    loadThemeNames();
+  }, []);
+
+  const loadThemeNames = async () => {
+    try {
+      setLoading(true);
+      const names = await getAllThemeNames();
+      setThemeNames(names);
+      
+      // Set the first theme as selected if we have themes
+      if (names.length > 0 && !selectedTheme) {
+        setSelectedTheme(names[0]);
+      }
+    } catch (error) {
+      console.error('Error loading themes:', error);
+      Alert.alert(
+        'Error', 
+        'Failed to load themes. Please check your connection and try again.',
+        [
+          {
+            text: 'Retry',
+            onPress: loadThemeNames
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          }
+        ]
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadThemePreview = async (themeName: string, refresh: boolean = false) => {
+    // Don't reload if we already have this preview and it's not a refresh
+    if (!refresh && themePreviews[themeName] && !themePreviews[themeName].loading) {
+      return;
+    }
+
+    try {
+      // Set loading state
+      setThemePreviews(prev => ({
+        ...prev,
+        [themeName]: {
+          themeName,
+          words: prev[themeName]?.words || [],
+          loading: true
+        }
+      }));
+
+      const words = await getRandomWordsFromTheme(themeName, numCards);
+      
+      setThemePreviews(prev => ({
+        ...prev,
+        [themeName]: {
+          themeName,
+          words,
+          loading: false
+        }
+      }));
+    } catch (error) {
+      console.error('Error loading theme preview:', error);
+      setThemePreviews(prev => ({
+        ...prev,
+        [themeName]: {
+          themeName,
+          words: [],
+          loading: false
+        }
+      }));
+      Alert.alert('Error', 'Failed to load theme preview.');
+    }
+  };
+
+  // Update previews when numCards changes
+  useEffect(() => {
+    // Reload all existing previews with new card count
+    Object.keys(themePreviews).forEach(themeName => {
+      loadThemePreview(themeName, true);
+    });
+  }, [numCards]);
 
   // Go back to the player setup screen
   const handleBack = () => {
@@ -44,6 +132,12 @@ export default function WordTheme() {
   };
 
   const handleStartGame = () => {
+    const preview = themePreviews[selectedTheme];
+    if (!preview || preview.words.length === 0) {
+      Alert.alert('Error', 'No words available for the selected theme.');
+      return;
+    }
+
     // Navigate to game screen with selected theme and words
     router.push({
       pathname: '/word/word-gamestart',
@@ -51,14 +145,26 @@ export default function WordTheme() {
         theme: selectedTheme,
         numCards: numCards.toString(),
         players: JSON.stringify(players),
-        words: JSON.stringify(previewWords)
+        words: JSON.stringify(preview.words)
       }
     });
   };
 
-  const refreshPreview = () => {
-    const words = getRandomWordsFromTheme(selectedTheme, numCards);
-    setPreviewWords(words);
+  const handleThemePress = (themeName: string) => {
+    // Set as selected theme
+    setSelectedTheme(themeName);
+    
+    // Toggle expansion
+    if (expandedTheme === themeName) {
+      setExpandedTheme(null);
+    } else {
+      setExpandedTheme(themeName);
+      loadThemePreview(themeName);
+    }
+  };
+
+  const refreshThemePreview = (themeName: string) => {
+    loadThemePreview(themeName, true);
   };
 
   const increaseCards = () => {
@@ -73,9 +179,110 @@ export default function WordTheme() {
     }
   };
 
-  // Calculate grid layout
-  const cardWidth = (screenWidth - spacing.lg * 2 - spacing.md) / 2;
+  // Calculate grid layout for two columns
+  const cardWidth = (screenWidth - spacing.lg * 2 - spacing.md * 3) / 2; // Account for container padding and gap
   const cardHeight = 60;
+
+  // Theme Item Component
+  const ThemeItem = ({ theme }: { theme: string }) => {
+    const isSelected = selectedTheme === theme;
+    const isExpanded = expandedTheme === theme;
+    const preview = themePreviews[theme];
+
+    return (
+      <View style={styles.themeItemContainer}>
+        <TouchableOpacity
+          style={combineStyles(
+            styles.themeItem,
+            isSelected && styles.themeItemSelected
+          )}
+          onPress={() => handleThemePress(theme)}
+        >
+          <Text style={combineStyles(
+            textStyles.body,
+            isSelected && styles.themeTextSelected
+          )}>
+            {theme}
+          </Text>
+          <Ionicons 
+            name={isExpanded ? "chevron-down-outline" : "chevron-forward-outline"}
+            size={layout.iconSize.sm} 
+            color={isSelected ? colors.secondary : colors.gray400} 
+          />
+        </TouchableOpacity>
+        
+        {/* Theme Preview Expansion */}
+        {isExpanded && (
+          <View style={styles.themePreview}>
+            <View style={styles.previewHeader}>
+              <Text style={styles.previewTitle}>
+                {theme} Preview ({numCards} cards)
+              </Text>
+              <TouchableOpacity 
+                style={styles.refreshButton} 
+                onPress={() => refreshThemePreview(theme)}
+                disabled={preview?.loading}
+              >
+                {preview?.loading ? (
+                  <ActivityIndicator size="small" color={colors.secondary} />
+                ) : (
+                  <Ionicons name="refresh" size={layout.iconSize.sm} color={colors.secondary} />
+                )}
+              </TouchableOpacity>
+            </View>
+            
+            {/* Two-column grid for preview cards */}
+            <View style={styles.previewGrid}>
+              {preview?.words.map((word, index) => (
+                <View 
+                  key={index} 
+                  style={[
+                    styles.previewCard,
+                    { width: cardWidth, height: cardHeight }
+                  ]}
+                >
+                  <Text style={styles.previewCardText} numberOfLines={2}>
+                    {word}
+                  </Text>
+                </View>
+              )) || []}
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <View style={combineStyles(layoutStyles.container, layoutStyles.centered)}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={combineStyles(textStyles.body, styles.loadingText)}>
+          Loading themes...
+        </Text>
+      </View>
+    );
+  }
+
+  // Show error state if no themes loaded
+  if (themeNames.length === 0) {
+    return (
+      <View style={combineStyles(layoutStyles.container, layoutStyles.centered)}>
+        <Ionicons name="warning-outline" size={48} color={colors.error} />
+        <Text style={combineStyles(textStyles.h4, styles.errorText)}>
+          No themes available
+        </Text>
+        <Button
+          title="Retry"
+          variant="primary"
+          size="md"
+          onPress={loadThemeNames}
+          style={styles.retryButton}
+        />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={layoutStyles.container}>
@@ -93,60 +300,49 @@ export default function WordTheme() {
       </View>
 
       <View style={layoutStyles.content}>
+        
+        {/* Number of Cards Controls */}
+        <View style={layoutStyles.section}>
+          <Text style={textStyles.h4}>Number Of Cards: {numCards}</Text>
+          <View style={styles.cardCountControls}>
+            <TouchableOpacity 
+              style={[
+                styles.countButton,
+                numCards <= MIN_CARDS && styles.countButtonDisabled
+              ]}
+              onPress={decreaseCards}
+              disabled={numCards <= MIN_CARDS}
+            >
+              <Text style={[
+                styles.countButtonText,
+                numCards <= MIN_CARDS && styles.countButtonTextDisabled
+              ]}>−</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.countButton,
+                numCards >= MAX_CARDS && styles.countButtonDisabled
+              ]}
+              onPress={increaseCards}
+              disabled={numCards >= MAX_CARDS}
+            >
+              <Text style={[
+                styles.countButtonText,
+                numCards >= MAX_CARDS && styles.countButtonTextDisabled
+              ]}>+</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Theme Selection Section */}
         <View style={layoutStyles.section}>
           <Text style={textStyles.h4}>Choose Theme</Text>
+          <Text style={styles.expandHint}>
+            💡 Tap any theme to preview its words
+          </Text>
           <View style={styles.themeList}>
             {themeNames.map((theme) => (
-              <TouchableOpacity
-                key={theme}
-                style={combineStyles(
-                  styles.themeItem,
-                  selectedTheme === theme && styles.themeItemSelected
-                )}
-                onPress={() => setSelectedTheme(theme)}
-              >
-                <Text style={combineStyles(
-                  textStyles.body,
-                  selectedTheme === theme && styles.themeTextSelected
-                )}>
-                  {theme}
-                </Text>
-                {selectedTheme === theme && (
-                  <Ionicons 
-                    name="checkmark" 
-                    size={layout.iconSize.sm} 
-                    color={colors.secondary} 
-                  />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Preview Section */}
-        <View style={layoutStyles.section}>
-          <View style={styles.previewHeader}>
-            <Text style={textStyles.h4}>Preview ({numCards} cards)</Text>
-            <TouchableOpacity style={styles.refreshButton} onPress={refreshPreview}>
-              <Ionicons name="refresh" size={layout.iconSize.sm} color={colors.secondary} />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.previewGrid}>
-            {previewWords.map((word, index) => (
-              <View 
-                key={index} 
-                style={[
-                  styles.previewCard,
-                  { width: cardWidth, height: cardHeight }
-                ]}
-              >
-                <Text style={styles.previewCardText} numberOfLines={2}>
-                  {word}
-                </Text>
-              </View>
+              <ThemeItem key={theme} theme={theme} />
             ))}
           </View>
         </View>
@@ -176,68 +372,6 @@ const styles = StyleSheet.create({
   
   headerButton: {
     padding: spacing.sm,
-  },
-  
-  themeList: {
-    gap: spacing.sm, 
-    marginTop: spacing.md, 
-  },
-  
-  themeItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md, 
-    paddingHorizontal: spacing.lg, 
-    borderWidth: 1,
-    borderColor: colors.gray300, 
-    borderRadius: 8,
-  },
-  
-  themeItemSelected: {
-    borderColor: colors.secondary, 
-    backgroundColor: colors.secondary + '10', 
-  },
-  
-  themeTextSelected: {
-    color: colors.secondary, 
-    fontWeight: typography.fontWeight.semibold, 
-  },
-
-  previewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-
-  refreshButton: {
-    padding: spacing.sm,
-  },
-
-  previewGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-    justifyContent: 'space-between',
-  },
-
-  previewCard: {
-    backgroundColor: colors.gray100,
-    borderRadius: 8,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.gray200,
-  },
-
-  previewCardText: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.medium,
-    color: colors.gray700,
-    textAlign: 'center',
   },
 
   cardCountControls: {
@@ -269,9 +403,124 @@ const styles = StyleSheet.create({
   countButtonTextDisabled: {
     color: colors.gray400,
   },
+
+  expandHint: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray500,
+    fontStyle: 'italic',
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
+  },
   
+  themeList: {
+    gap: spacing.sm, 
+  },
+
+  themeItemContainer: {
+    // Container for theme item and its preview
+  },
+  
+  themeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md, 
+    paddingHorizontal: spacing.lg, 
+    borderWidth: 1,
+    borderColor: colors.gray300, 
+    borderRadius: 8,
+    backgroundColor: colors.white,
+  },
+  
+  themeItemSelected: {
+    borderColor: colors.secondary, 
+    backgroundColor: colors.secondary + '10', 
+  },
+  
+  themeTextSelected: {
+    color: colors.secondary, 
+    fontWeight: typography.fontWeight.semibold, 
+  },
+
+  // Theme Preview Styles
+  themePreview: {
+    backgroundColor: colors.gray50,
+    borderRadius: 8,
+    padding: spacing.md,
+    marginTop: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.gray200,
+  },
+
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+
+  previewTitle: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.gray700,
+  },
+
+  refreshButton: {
+    padding: spacing.sm,
+  },
+
+  // Fixed two-column grid layout
+  previewGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+
+  previewCard: {
+    backgroundColor: colors.white,
+    borderRadius: 6,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.gray200,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+    marginBottom: spacing.sm,
+  },
+
+  previewCardText: {
+    fontSize: typography.fontSize.xs,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.gray700,
+    textAlign: 'center',
+  },
+
   startButton: {
     marginTop: spacing.lg,
     marginBottom: spacing.xl,
+  },
+
+  // Loading and error states
+  loadingText: {
+    marginTop: spacing.md,
+    textAlign: 'center',
+    color: colors.gray600,
+  },
+
+  errorText: {
+    textAlign: 'center',
+    color: colors.error,
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+  },
+
+  retryButton: {
+    minWidth: 120,
   },
 });
