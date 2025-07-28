@@ -13,6 +13,7 @@ import {
 } from '../../utils/styles';
 import { Button } from '../../components/Button';
 import { generateWordsWithAI, GenerateWordsRequest } from '../../lib/openaiService';
+import { createCustomTheme } from '../../lib/themeService';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -28,10 +29,21 @@ export default function WordAITheme() {
   const [generatedWords, setGeneratedWords] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Constraints for numCards
   const MIN_CARDS = 4;
   const MAX_CARDS = 16;
+
+  // Validation functions
+  const areAllWordsValid = () => {
+    return generatedWords.length > 0 && generatedWords.every(word => word.trim().length > 0);
+  };
+
+  const canSaveTheme = () => {
+    const trimmedTopic = topic.trim();
+    return trimmedTopic.length >= 3 && areAllWordsValid() && !saving && !isGenerating;
+  };
 
   // Go back to the previous screen
   const handleBack = () => {
@@ -51,7 +63,6 @@ export default function WordAITheme() {
       const request: GenerateWordsRequest = {
         topic: topic.trim(),
         count: numCards,
-        difficulty,
       };
 
       const response = await generateWordsWithAI(request);
@@ -93,6 +104,76 @@ export default function WordAITheme() {
       );
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleSaveTheme = async () => {
+    // Final validation
+    if (!topic.trim() || topic.trim().length < 3) {
+      Alert.alert('Invalid Topic', 'Please enter a topic with at least 3 characters.');
+      return;
+    }
+
+    if (!areAllWordsValid()) {
+      Alert.alert('No Words Generated', 'Please generate words first before saving.');
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      // Create theme name from topic
+      const themeName = `AI: ${topic.trim()}`;
+      
+      // Filter out empty words and trim whitespace
+      const cleanWords = generatedWords.map(word => word.trim()).filter(word => word.length > 0);
+      
+      const newTheme = await createCustomTheme(themeName, cleanWords);
+      
+      Alert.alert(
+        'Theme Saved!',
+        `Your AI-generated theme "${themeName}" has been saved successfully.`,
+        [
+          {
+            text: 'Create Another',
+            onPress: () => {
+              setTopic('');
+              setGeneratedWords([]);
+              setHasGenerated(false);
+            },
+          },
+          {
+            text: 'Start Game',
+            onPress: () => {
+              router.push({
+                pathname: '/word/word-gamestart',
+                params: {
+                  theme: newTheme.name,
+                  numCards: cleanWords.length.toString(),
+                  players: JSON.stringify(players),
+                  words: JSON.stringify(cleanWords),
+                  isCustomTheme: 'true'
+                }
+              });
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error saving theme:', error);
+      
+      // Handle specific error types
+      if (error instanceof Error && error.message.includes('already exists')) {
+        Alert.alert('Theme Name Taken', 'A theme with this name already exists. Please choose a different topic.');
+      } else {
+        Alert.alert(
+          'Save Failed',
+          'Failed to save your AI-generated theme. Please try again.',
+          [{ text: 'OK' }]
+        );
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -159,151 +240,214 @@ export default function WordAITheme() {
   const cardHeight = 60;
 
   return (
-    <KeyboardAvoidingView 
-      style={layoutStyles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
+    <View style={styles.container}>
+      {/* Fixed Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+          <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
+        </TouchableOpacity>
+        
+        <Text style={textStyles.h2}>AI Word Generator</Text>
+        
+        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+          <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Scrollable Content */}
       <ScrollView 
-        style={layoutStyles.container}
+        style={styles.scrollableContent}
+        contentContainerStyle={styles.scrollContentContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-            <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
-          </TouchableOpacity>
-          
-          <Text style={textStyles.h2}>AI Word Generator</Text>
-          
-          <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-            <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
-          </TouchableOpacity>
+        {/* Number of Cards Controls */}
+        <View style={layoutStyles.section}>
+          <Text style={textStyles.h4}>Number Of Cards: {numCards}</Text>
+          <View style={styles.cardCountControls}>
+            <TouchableOpacity 
+              style={[
+                styles.countButton,
+                numCards <= MIN_CARDS && styles.countButtonDisabled
+              ]}
+              onPress={decreaseCards}
+              disabled={numCards <= MIN_CARDS}
+            >
+              <Text style={[
+                styles.countButtonText,
+                numCards <= MIN_CARDS && styles.countButtonTextDisabled
+              ]}>−</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.countButton,
+                numCards >= MAX_CARDS && styles.countButtonDisabled
+              ]}
+              onPress={increaseCards}
+              disabled={numCards >= MAX_CARDS}
+            >
+              <Text style={[
+                styles.countButtonText,
+                numCards >= MAX_CARDS && styles.countButtonTextDisabled
+              ]}>+</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View style={layoutStyles.content}>
-          
-          {/* Number of Cards Controls */}
-          <View style={layoutStyles.section}>
-            <Text style={textStyles.h4}>Number Of Cards: {numCards}</Text>
-            <View style={styles.cardCountControls}>
-              <TouchableOpacity 
-                style={[
-                  styles.countButton,
-                  numCards <= MIN_CARDS && styles.countButtonDisabled
-                ]}
-                onPress={decreaseCards}
-                disabled={numCards <= MIN_CARDS}
-              >
-                <Text style={[
-                  styles.countButtonText,
-                  numCards <= MIN_CARDS && styles.countButtonTextDisabled
-                ]}>−</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[
-                  styles.countButton,
-                  numCards >= MAX_CARDS && styles.countButtonDisabled
-                ]}
-                onPress={increaseCards}
-                disabled={numCards >= MAX_CARDS}
-              >
-                <Text style={[
-                  styles.countButtonText,
-                  numCards >= MAX_CARDS && styles.countButtonTextDisabled
-                ]}>+</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+        {/* Topic Input Section */}
+        <View style={layoutStyles.section}>
+          <Text style={textStyles.h4}>Enter Topic</Text>
+          <Text style={styles.hintText}>
+            💡 Examples: "2010 NBA All-stars", "Marvel Superheroes", "Italian Food", "90s Movies"
+          </Text>
+          <TextInput
+            style={styles.topicInput}
+            placeholder="Type your topic here..."
+            placeholderTextColor={colors.gray400}
+            value={topic}
+            onChangeText={handleTopicChange}
+            multiline={false}
+            returnKeyType="done"
+            editable={!isGenerating}
+          />
+        </View>
 
-          {/* Topic Input Section */}
+        {/* Generate Button */}
+        <View style={layoutStyles.section}>
+          <Button
+            title={isGenerating ? "GENERATING..." : hasGenerated ? "REGENERATE WORDS" : "GENERATE WORDS"}
+            variant="secondary"
+            size="lg"
+            icon={isGenerating ? undefined : "sparkles-outline"}
+            onPress={handleGenerateWords}
+            disabled={isGenerating || !topic.trim()}
+            loading={isGenerating}
+            style={styles.generateButton}
+          />
+        </View>
+
+        {/* Generated Words Preview */}
+        {hasGenerated && generatedWords.length > 0 && (
           <View style={layoutStyles.section}>
-            <Text style={textStyles.h4}>Enter Topic</Text>
-            <Text style={styles.hintText}>
-              💡 Examples: "2010 NBA All-stars", "Marvel Superheroes", "Italian Food", "90s Movies"
+            <Text style={textStyles.h4}>Generated Words ({generatedWords.length})</Text>
+            <Text style={styles.previewHint}>
+              Topic: {topic}
             </Text>
-            <TextInput
-              style={styles.topicInput}
-              placeholder="Type your topic here..."
-              placeholderTextColor={colors.gray400}
-              value={topic}
-              onChangeText={handleTopicChange}
-              multiline={false}
-              returnKeyType="done"
-              editable={!isGenerating}
-            />
-          </View>
-
-          {/* Generate Button */}
-          <View style={layoutStyles.section}>
-            <Button
-              title={isGenerating ? "GENERATING..." : hasGenerated ? "REGENERATE WORDS" : "GENERATE WORDS"}
-              variant="secondary"
-              size="lg"
-              icon={isGenerating ? undefined : "sparkles-outline"}
-              onPress={handleGenerateWords}
-              disabled={isGenerating || !topic.trim()}
-              loading={isGenerating}
-              style={styles.generateButton}
-            />
-          </View>
-
-          {/* Generated Words Preview */}
-          {hasGenerated && generatedWords.length > 0 && (
-            <View style={layoutStyles.section}>
-              <Text style={textStyles.h4}>Generated Words ({generatedWords.length})</Text>
-              <Text style={styles.previewHint}>
-                Topic: {topic}
-              </Text>
-              
-              {/* Two-column grid for preview cards */}
-              <View style={styles.previewGrid}>
-                {generatedWords.map((word, index) => (
-                  <View 
-                    key={index} 
-                    style={[
-                      styles.previewCard,
-                      { width: cardWidth, height: cardHeight }
-                    ]}
-                  >
-                    <Text style={styles.previewCardText} numberOfLines={2}>
-                      {word}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+            
+            {/* Two-column grid for preview cards */}
+            <View style={styles.previewGrid}>
+              {generatedWords.map((word, index) => (
+                <View 
+                  key={index} 
+                  style={[
+                    styles.previewCard,
+                    { width: cardWidth, height: cardHeight }
+                  ]}
+                >
+                  <Text style={styles.previewCardText} numberOfLines={2}>
+                    {word}
+                  </Text>
+                </View>
+              ))}
             </View>
-          )}
+          </View>
+        )}
 
-          {/* Start Game Button */}
-          {hasGenerated && (
-            <Button
-              title="START GAME"
-              variant="primary"
-              size="lg"
-              onPress={handleStartGame}
-              style={styles.startButton}
-            />
-          )}
-        </View>
+        {/* Help Text */}
+        {hasGenerated && (
+          <View style={styles.helpContainer}>
+            <Text style={styles.helpText}>
+              💡 Your AI-generated theme is ready! You can start playing immediately or save it to your custom themes collection.
+            </Text>
+          </View>
+        )}
       </ScrollView>
-    </KeyboardAvoidingView>
+
+      {/* Fixed Bottom Buttons */}
+      {hasGenerated && (
+        <View style={styles.bottomButtonsContainer}>
+          <Button
+            title="Start Game Now"
+            variant="outline"
+            size="lg"
+            icon="play-outline"
+            onPress={handleStartGame}
+            style={styles.bottomButton}
+          />
+          
+          <Button
+            title={saving ? "Saving..." : "Save & Start Game"}
+            variant="primary"
+            size="lg"
+            icon={saving ? undefined : "save-outline"}
+            onPress={handleSaveTheme}
+            disabled={!canSaveTheme()}
+            loading={saving}
+            style={styles.bottomButton}
+          />
+        </View>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // Fixed Layout Structure
+  container: {
+    flex: 1,
+    backgroundColor: colors.white,
+  },
+
+  // Fixed Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: spacing['3xl'],
     paddingHorizontal: spacing.lg, 
-    paddingBottom: spacing.lg, 
+    paddingBottom: spacing.lg,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray200,
+    elevation: 2,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   
   headerButton: {
     padding: spacing.sm,
+  },
+
+  // Scrollable Content Area
+  scrollableContent: {
+    flex: 1,
+  },
+
+  scrollContentContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+
+  // Fixed Bottom Buttons Container
+  bottomButtonsContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray200,
+    elevation: 2,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    gap: spacing.md,
+  },
+
+  bottomButton: {
+    width: '100%',
   },
 
   cardCountControls: {
@@ -434,6 +578,21 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.medium,
     color: colors.gray700,
     textAlign: 'center',
+  },
+
+  // Help Section
+  helpContainer: {
+    backgroundColor: colors.gray100,
+    borderRadius: 8,
+    padding: spacing.md,
+    marginTop: spacing.md,
+  },
+
+  helpText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray600,
+    textAlign: 'center',
+    lineHeight: typography.fontSize.sm * 1.4,
   },
 
   startButton: {
