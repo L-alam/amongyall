@@ -34,6 +34,7 @@ export default function WordSetup() {
     router.back();
   };
 
+
   const handleTheme = () => {
     router.push({
       pathname: '/word/word-theme',
@@ -69,6 +70,16 @@ export default function WordSetup() {
       setNumCards(numCards - 1);
     }
   };
+  
+  const handleAITheme = () => {
+    router.push({
+      pathname: '/word/word-ai-theme',
+      params: { 
+        numCards: numCards.toString(),
+        players: JSON.stringify(players),
+      }
+    });
+  };
 
   const handleStart = () => {
     console.log('Starting Word Chameleon with:', { players, theme: selectedTheme });
@@ -90,40 +101,6 @@ export default function WordSetup() {
       </View>
 
       <View style={layoutStyles.content}>
-
-        {/* Number of Terms Section */}
-        <View style={layoutStyles.section}>
-          <Text style={textStyles.h4}>Number Of Cards: {numCards}</Text>
-          <View style={styles.playerCountControls}>
-            <TouchableOpacity 
-              style={[
-                styles.countButton,
-                numCards <= MIN_CARDS && styles.countButtonDisabled
-              ]}
-              onPress={decreaseCards}
-              disabled={numCards <= MIN_CARDS}
-            >
-              <Text style={[
-                styles.countButtonText,
-                numCards <= MIN_CARDS && styles.countButtonTextDisabled
-              ]}>−</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[
-                styles.countButton,
-                numCards >= MAX_CARDS && styles.countButtonDisabled
-              ]}
-              onPress={increaseCards}
-              disabled={numCards >= MAX_CARDS}
-            >
-              <Text style={[
-                styles.countButtonText,
-                numCards >= MAX_CARDS && styles.countButtonTextDisabled
-              ]}>+</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
 
         {/* Add Players Section */}
         <View style={layoutStyles.section}>
@@ -168,6 +145,8 @@ export default function WordSetup() {
               </View>
             ))}
           </View>
+
+
         </View>
 
         

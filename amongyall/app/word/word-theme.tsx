@@ -7,14 +7,11 @@ import { colors, spacing, layout, typography } from '../../constants/theme';
 import { 
   textStyles, 
   layoutStyles, 
-  createButtonStyle, 
-  createButtonTextStyle,
-  createInputStyle,
   combineStyles,
 } from '../../utils/styles';
 import { Button } from '../../components/Button';
-// Import our new database functions
-import { getAllThemeNames, getRandomWordsFromTheme } from '../../lib/themeService';
+// Updated imports for new database functions
+import { getAllThemeNames, getRandomWordsFromTheme, getUserCustomThemes, deleteCustomTheme, Theme } from '../../lib/themeService';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -33,28 +30,37 @@ export default function WordTheme() {
   const [selectedTheme, setSelectedTheme] = useState('Countries');
   const [numCards, setNumCards] = useState(initialNumCards);
   const [themeNames, setThemeNames] = useState<string[]>([]);
+  const [customThemes, setCustomThemes] = useState<Theme[]>([]);
   const [loading, setLoading] = useState(true);
   const [themePreviews, setThemePreviews] = useState<Record<string, ThemePreview>>({});
   const [expandedTheme, setExpandedTheme] = useState<string | null>(null);
+  const [customThemesExpanded, setCustomThemesExpanded] = useState(false);
 
   // Constraints for numCards
   const MIN_CARDS = 4;
   const MAX_CARDS = 16;
 
-  // Load theme names on component mount
+  // Load theme names and custom themes on component mount
   useEffect(() => {
-    loadThemeNames();
+    loadThemes();
   }, []);
 
-  const loadThemeNames = async () => {
+  const loadThemes = async () => {
     try {
       setLoading(true);
-      const names = await getAllThemeNames();
-      setThemeNames(names);
+      
+      // Load both regular themes and custom themes
+      const [regularThemes, userCustomThemes] = await Promise.all([
+        getAllThemeNames(),
+        getUserCustomThemes()
+      ]);
+      
+      setThemeNames(regularThemes);
+      setCustomThemes(userCustomThemes);
       
       // Set the first theme as selected if we have themes
-      if (names.length > 0 && !selectedTheme) {
-        setSelectedTheme(names[0]);
+      if (regularThemes.length > 0 && !selectedTheme) {
+        setSelectedTheme(regularThemes[0]);
       }
     } catch (error) {
       console.error('Error loading themes:', error);
@@ -64,7 +70,7 @@ export default function WordTheme() {
         [
           {
             text: 'Retry',
-            onPress: loadThemeNames
+            onPress: loadThemes
           },
           {
             text: 'Cancel',
@@ -150,6 +156,16 @@ export default function WordTheme() {
     });
   };
 
+  const handleCreateCustomTheme = () => {
+    router.push({
+      pathname: '/word/word-custom-theme',
+      params: {
+        numCards: numCards.toString(),
+        players: JSON.stringify(players)
+      }
+    });
+  };
+
   const handleThemePress = (themeName: string) => {
     // Set as selected theme
     setSelectedTheme(themeName);
@@ -161,6 +177,57 @@ export default function WordTheme() {
       setExpandedTheme(themeName);
       loadThemePreview(themeName);
     }
+  };
+
+  const handleCustomThemePress = (theme: Theme) => {
+    // Same logic as regular themes
+    handleThemePress(theme.name);
+  };
+
+  const handleDeleteCustomTheme = async (theme: Theme) => {
+    Alert.alert(
+      'Delete Theme',
+      `Are you sure you want to delete "${theme.name}"? This action cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteCustomTheme(theme.id);
+              
+              // Remove from local state
+              setCustomThemes(prev => prev.filter(t => t.id !== theme.id));
+              
+              // If this was the selected theme, clear selection
+              if (selectedTheme === theme.name) {
+                setSelectedTheme(themeNames.length > 0 ? themeNames[0] : '');
+              }
+              
+              // Remove from previews
+              setThemePreviews(prev => {
+                const newPreviews = { ...prev };
+                delete newPreviews[theme.name];
+                return newPreviews;
+              });
+              
+              // Clear expansion if this theme was expanded
+              if (expandedTheme === theme.name) {
+                setExpandedTheme(null);
+              }
+              
+            } catch (error) {
+              console.error('Error deleting theme:', error);
+              Alert.alert('Error', 'Failed to delete theme. Please try again.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const refreshThemePreview = (themeName: string) => {
@@ -183,7 +250,7 @@ export default function WordTheme() {
   const cardWidth = (screenWidth - spacing.lg * 2 - spacing.md * 3) / 2; // Account for container padding and gap
   const cardHeight = 60;
 
-  // Theme Item Component
+  // Theme Item Component for regular themes
   const ThemeItem = ({ theme }: { theme: string }) => {
     const isSelected = selectedTheme === theme;
     const isExpanded = expandedTheme === theme;
@@ -253,6 +320,100 @@ export default function WordTheme() {
     );
   };
 
+  // Custom Theme Item Component
+  const CustomThemeItem = ({ theme }: { theme: Theme }) => {
+    const isSelected = selectedTheme === theme.name;
+    const isExpanded = expandedTheme === theme.name;
+    const preview = themePreviews[theme.name];
+
+    return (
+      <View style={styles.themeItemContainer}>
+        <TouchableOpacity
+          style={combineStyles(
+            styles.themeItem,
+            styles.customThemeItem,
+            isSelected && styles.themeItemSelected
+          )}
+          onPress={() => handleCustomThemePress(theme)}
+        >
+          <View style={styles.customThemeHeader}>
+            <View style={styles.customThemeInfo}>
+              <Ionicons 
+                name="star" 
+                size={layout.iconSize.sm} 
+                color={colors.warning} 
+                style={styles.customThemeIcon}
+              />
+              <Text style={combineStyles(
+                textStyles.body,
+                isSelected && styles.themeTextSelected
+              )}>
+                {theme.name}
+              </Text>
+            </View>
+            <View style={styles.customThemeActions}>
+              <TouchableOpacity 
+                style={styles.deleteButton}
+                onPress={() => handleDeleteCustomTheme(theme)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons 
+                  name="trash-outline" 
+                  size={layout.iconSize.sm} 
+                  color={colors.error} 
+                />
+              </TouchableOpacity>
+              <Ionicons 
+                name={isExpanded ? "chevron-down-outline" : "chevron-forward-outline"}
+                size={layout.iconSize.sm} 
+                color={isSelected ? colors.secondary : colors.gray400} 
+              />
+            </View>
+          </View>
+        </TouchableOpacity>
+        
+        {/* Theme Preview Expansion */}
+        {isExpanded && (
+          <View style={styles.themePreview}>
+            <View style={styles.previewHeader}>
+              <Text style={styles.previewTitle}>
+                {theme.name} Preview ({numCards} cards)
+              </Text>
+              <TouchableOpacity 
+                style={styles.refreshButton} 
+                onPress={() => refreshThemePreview(theme.name)}
+                disabled={preview?.loading}
+              >
+                {preview?.loading ? (
+                  <ActivityIndicator size="small" color={colors.secondary} />
+                ) : (
+                  <Ionicons name="refresh" size={layout.iconSize.sm} color={colors.secondary} />
+                )}
+              </TouchableOpacity>
+            </View>
+            
+            {/* Two-column grid for preview cards */}
+            <View style={styles.previewGrid}>
+              {preview?.words.map((word, index) => (
+                <View 
+                  key={index} 
+                  style={[
+                    styles.previewCard,
+                    { width: cardWidth, height: cardHeight }
+                  ]}
+                >
+                  <Text style={styles.previewCardText} numberOfLines={2}>
+                    {word}
+                  </Text>
+                </View>
+              )) || []}
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  };
+
   // Show loading state
   if (loading) {
     return (
@@ -266,7 +427,7 @@ export default function WordTheme() {
   }
 
   // Show error state if no themes loaded
-  if (themeNames.length === 0) {
+  if (themeNames.length === 0 && customThemes.length === 0) {
     return (
       <View style={combineStyles(layoutStyles.container, layoutStyles.centered)}>
         <Ionicons name="warning-outline" size={48} color={colors.error} />
@@ -277,7 +438,7 @@ export default function WordTheme() {
           title="Retry"
           variant="primary"
           size="md"
-          onPress={loadThemeNames}
+          onPress={loadThemes}
           style={styles.retryButton}
         />
       </View>
@@ -285,8 +446,8 @@ export default function WordTheme() {
   }
 
   return (
-    <ScrollView style={layoutStyles.container}>
-      {/* Header */}
+    <View style={layoutStyles.container}>
+      {/* Fixed Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
@@ -299,79 +460,145 @@ export default function WordTheme() {
         </TouchableOpacity>
       </View>
 
-      <View style={layoutStyles.content}>
-        
-        {/* Number of Cards Controls */}
-        <View style={layoutStyles.section}>
-          <Text style={textStyles.h4}>Number Of Cards: {numCards}</Text>
-          <View style={styles.cardCountControls}>
-            <TouchableOpacity 
-              style={[
-                styles.countButton,
-                numCards <= MIN_CARDS && styles.countButtonDisabled
-              ]}
-              onPress={decreaseCards}
-              disabled={numCards <= MIN_CARDS}
-            >
-              <Text style={[
-                styles.countButtonText,
-                numCards <= MIN_CARDS && styles.countButtonTextDisabled
-              ]}>−</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[
-                styles.countButton,
-                numCards >= MAX_CARDS && styles.countButtonDisabled
-              ]}
-              onPress={increaseCards}
-              disabled={numCards >= MAX_CARDS}
-            >
-              <Text style={[
-                styles.countButtonText,
-                numCards >= MAX_CARDS && styles.countButtonTextDisabled
-              ]}>+</Text>
-            </TouchableOpacity>
-          </View>
+      {/* Fixed Number of Cards Controls */}
+      <View style={styles.cardControlsContainer}>
+        <Text style={textStyles.h4}>Number Of Cards: {numCards}</Text>
+        <View style={styles.cardCountControls}>
+          <TouchableOpacity 
+            style={[
+              styles.countButton,
+              numCards <= MIN_CARDS && styles.countButtonDisabled
+            ]}
+            onPress={decreaseCards}
+            disabled={numCards <= MIN_CARDS}
+          >
+            <Text style={[
+              styles.countButtonText,
+              numCards <= MIN_CARDS && styles.countButtonTextDisabled
+            ]}>−</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[
+              styles.countButton,
+              numCards >= MAX_CARDS && styles.countButtonDisabled
+            ]}
+            onPress={increaseCards}
+            disabled={numCards >= MAX_CARDS}
+          >
+            <Text style={[
+              styles.countButtonText,
+              numCards >= MAX_CARDS && styles.countButtonTextDisabled
+            ]}>+</Text>
+          </TouchableOpacity>
         </View>
+      </View>
 
-        {/* Theme Selection Section */}
-        <View style={layoutStyles.section}>
-          <Text style={textStyles.h4}>Choose Theme</Text>
-          <Text style={styles.expandHint}>
-            💡 Tap any theme to preview its words
-          </Text>
+      {/* Scrollable Content Area */}
+      <ScrollView 
+        style={styles.scrollableContent}
+        contentContainerStyle={styles.scrollContentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Theme Selection Header */}
+        <Text style={textStyles.h4}>Choose Theme</Text>
+        <Text style={styles.expandHint}>
+          💡 Tap any theme to preview its words
+        </Text>
+
+        {/* Custom Themes Section */}
+        {customThemes.length > 0 && (
+          <View style={styles.customThemesSection}>
+            <TouchableOpacity
+              style={styles.customThemesHeader}
+              onPress={() => setCustomThemesExpanded(!customThemesExpanded)}
+            >
+              <View style={styles.customThemesHeaderContent}>
+                <Ionicons 
+                  name="star" 
+                  size={layout.iconSize.sm} 
+                  color={colors.warning} 
+                  style={styles.sectionIcon}
+                />
+                <Text style={styles.customThemesTitle}>
+                  Your Themes ({customThemes.length})
+                </Text>
+              </View>
+              <Ionicons 
+                name={customThemesExpanded ? "chevron-down-outline" : "chevron-forward-outline"}
+                size={layout.iconSize.sm} 
+                color={colors.primary} 
+              />
+            </TouchableOpacity>
+
+            {customThemesExpanded && (
+              <View style={styles.customThemesList}>
+                {customThemes.map((theme) => (
+                  <CustomThemeItem key={theme.id} theme={theme} />
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Regular Themes List */}
+        <View style={styles.regularThemesSection}>
+          <Text style={styles.sectionTitle}>Available Themes</Text>
           <View style={styles.themeList}>
             {themeNames.map((theme) => (
               <ThemeItem key={theme} theme={theme} />
             ))}
           </View>
         </View>
+      </ScrollView>
 
-        {/* Start Button */}
+      {/* Fixed Bottom Buttons */}
+      <View style={styles.bottomButtonsContainer}>
+        <Button
+          title="Create Custom Theme"
+          variant="outline"
+          size="lg"
+          icon="add-outline"
+          onPress={handleCreateCustomTheme}
+          style={styles.bottomButton}
+        />
+        
         <Button
           title="START GAME"
           variant="primary"
           size="lg"
           onPress={handleStartGame}
-          style={styles.startButton}
+          style={styles.bottomButton}
         />
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // Fixed Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: spacing['3xl'],
     paddingHorizontal: spacing.lg, 
-    paddingBottom: spacing.lg, 
+    paddingBottom: spacing.lg,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray200,
   },
   
   headerButton: {
     padding: spacing.sm,
+  },
+
+  // Fixed Card Controls
+  cardControlsContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray200,
   },
 
   cardCountControls: {
@@ -404,11 +631,72 @@ const styles = StyleSheet.create({
     color: colors.gray400,
   },
 
+  // Scrollable Content
+  scrollableContent: {
+    flex: 1,
+  },
+
+  scrollContentContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+
   expandHint: {
     fontSize: typography.fontSize.sm,
     color: colors.gray500,
     fontStyle: 'italic',
     marginTop: spacing.xs,
+    marginBottom: spacing.lg,
+  },
+
+  // Custom Themes Section
+  customThemesSection: {
+    marginBottom: spacing.xl,
+  },
+
+  customThemesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.warning + '10',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.warning + '30',
+    marginBottom: spacing.sm,
+  },
+
+  customThemesHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  sectionIcon: {
+    marginRight: spacing.sm,
+  },
+
+  customThemesTitle: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.primary,
+  },
+
+  customThemesList: {
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+
+  // Regular Themes Section
+  regularThemesSection: {
+    // No specific styling needed
+  },
+
+  sectionTitle: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.gray700,
     marginBottom: spacing.md,
   },
   
@@ -431,6 +719,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.white,
   },
+
+  customThemeItem: {
+    backgroundColor: colors.gray50,
+    borderColor: colors.warning + '30',
+  },
   
   themeItemSelected: {
     borderColor: colors.secondary, 
@@ -440,6 +733,34 @@ const styles = StyleSheet.create({
   themeTextSelected: {
     color: colors.secondary, 
     fontWeight: typography.fontWeight.semibold, 
+  },
+
+  // Custom Theme Item Specific
+  customThemeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+
+  customThemeInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  customThemeIcon: {
+    marginRight: spacing.sm,
+  },
+
+  customThemeActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+
+  deleteButton: {
+    padding: spacing.xs,
   },
 
   // Theme Preview Styles
@@ -501,9 +822,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  startButton: {
-    marginTop: spacing.lg,
-    marginBottom: spacing.xl,
+  // Fixed Bottom Buttons
+  bottomButtonsContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray200,
+    gap: spacing.md,
+  },
+
+  bottomButton: {
+    width: '100%',
   },
 
   // Loading and error states
