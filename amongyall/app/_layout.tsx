@@ -10,6 +10,7 @@ export default function RootLayout() {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: '#ffffff' },
+          gestureEnabled: false,
         }}
       >
         <Stack.Screen name="index" />

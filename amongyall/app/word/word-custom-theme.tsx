@@ -204,20 +204,14 @@ export default function WordCustomTheme() {
     }
   };
 
-  const handlePreviewTheme = () => {
-    if (!canSaveTheme()) return;
-    
-    const cleanWords = words.map(word => word.trim()).filter(word => word.length > 0);
-    
+  const handleAIAssistance = () => {
     router.push({
-      pathname: '/word/word-gamestart',
+      pathname: '/word/word-ai-theme',
       params: {
-        theme: themeName.trim(),
-        numCards: cleanWords.length.toString(),
+        numCards: numCards.toString(),
         players: JSON.stringify(players),
-        words: JSON.stringify(cleanWords),
-        isCustomTheme: 'true',
-        isPreview: 'true'
+        currentThemeName: themeName,
+        currentWords: JSON.stringify(words)
       }
     });
   };
@@ -226,25 +220,26 @@ export default function WordCustomTheme() {
   const emptyWordCount = getEmptyWordCount();
 
   return (
-    <KeyboardAvoidingView 
-      style={layoutStyles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView style={layoutStyles.container} keyboardShouldPersistTaps="handled">
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-            <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
-          </TouchableOpacity>
-          
-          <Text style={textStyles.h2}>Create Custom Theme</Text>
-          
-          <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-            <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
+    <View style={styles.container}>
+      {/* Fixed Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+          <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
+        </TouchableOpacity>
+        
+        <Text style={textStyles.h2}>Create Custom Theme</Text>
+        
+        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+          <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
+        </TouchableOpacity>
+      </View>
 
-        <View style={layoutStyles.content}>
+      {/* Scrollable Content */}
+      <ScrollView 
+        style={styles.scrollableContent}
+        contentContainerStyle={styles.scrollContentContainer}
+        keyboardShouldPersistTaps="handled"
+      >
           
           {/* Theme Name Section */}
           <View style={layoutStyles.section}>
@@ -378,53 +373,100 @@ export default function WordCustomTheme() {
           </View>
 
           {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            <Button
-              title="Preview Theme"
-              variant="outline"
-              size="lg"
-              icon="eye-outline"
-              onPress={handlePreviewTheme}
-              disabled={!canSaveTheme()}
-              style={styles.actionButton}
-            />
-            
-            <Button
-              title={saving ? "Saving..." : "Save & Start Game"}
-              variant="primary"
-              size="lg"
-              icon={saving ? undefined : "save-outline"}
-              onPress={handleSaveTheme}
-              disabled={!canSaveTheme()}
-              loading={saving}
-              style={styles.actionButton}
-            />
-          </View>
+          <Button
+            title="AI Assistance"
+            variant="outline"
+            size="lg"
+            icon="sparkles-outline"
+            onPress={handleAIAssistance}
+            style={styles.aiButton}
+          />
 
           {/* Help Text */}
           <View style={styles.helpContainer}>
             <Text style={styles.helpText}>
-              💡 Create your own custom word theme! Make sure all words are filled in and your theme name is unique.
+              💡 Create your own custom word theme! Make sure all words are filled in and your theme name is unique. Use AI assistance for inspiration!
             </Text>
           </View>
+        </ScrollView>
+
+        {/* Fixed Bottom Buttons */}
+        <View style={styles.bottomButtonsContainer}>            
+          <Button
+            title={saving ? "Saving..." : "Save & Start Game"}
+            variant="primary"
+            size="lg"
+            icon={saving ? undefined : "save-outline"}
+            onPress={handleSaveTheme}
+            disabled={!canSaveTheme()}
+            loading={saving}
+            style={styles.bottomButton}
+          />
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
+      </View>
+    );
 }
 
 const styles = StyleSheet.create({
+  // Fixed Layout Structure
+  container: {
+    flex: 1,
+    backgroundColor: colors.white,
+  },
+
+  // Fixed Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: spacing['3xl'],
     paddingHorizontal: spacing.lg, 
-    paddingBottom: spacing.lg, 
+    paddingBottom: spacing.lg,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray200,
+    // Elevation for Android shadow
+    elevation: 2,
+    // iOS shadow
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   
   headerButton: {
     padding: spacing.sm,
+  },
+
+  // Scrollable Content Area
+  scrollableContent: {
+    flex: 1, // Takes remaining space between header and footer
+  },
+
+  scrollContentContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md, // Small bottom padding
+  },
+
+  // Fixed Bottom Buttons Container
+  bottomButtonsContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray200,
+    // Elevation for Android shadow
+    elevation: 2,
+    // iOS shadow
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+
+  bottomButton: {
+    width: '100%',
   },
 
   // Theme Name Section
@@ -565,14 +607,10 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
 
-  // Action Buttons
-  actionButtons: {
-    gap: spacing.md,
-    marginTop: spacing.xl,
-  },
-
-  actionButton: {
+  // AI Assistance Button
+  aiButton: {
     width: '100%',
+    marginBottom: spacing.lg,
   },
 
   // Help Section
@@ -580,8 +618,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray100,
     borderRadius: 8,
     padding: spacing.md,
-    marginTop: spacing.lg,
-    marginBottom: spacing.xl,
+    marginTop: spacing.md, // Reduced margin since buttons are now fixed
   },
 
   helpText: {
