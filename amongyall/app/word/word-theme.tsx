@@ -252,13 +252,41 @@ export default function WordTheme() {
   const cardWidth = (screenWidth - spacing.lg * 2 - spacing.md * 3) / 2; // Account for container padding and gap
   const cardHeight = 60;
 
-  const filteredThemeNames = themeNames.filter(theme =>
-    theme.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter themes based on search query (search theme names and words)
+  const filteredThemeNames = themeNames.filter(theme => {
+    // Check if theme name matches
+    if (theme.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return true;
+    }
+    
+    // Check if any words in the theme match
+    const preview = themePreviews[theme];
+    if (preview && preview.words.length > 0) {
+      return preview.words.some(word => 
+        word.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    return false;
+  });
+
   
-  const filteredCustomThemes = customThemes.filter(theme =>
-    theme.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCustomThemes = customThemes.filter(theme => {
+    // Check if theme name matches
+    if (theme.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return true;
+    }
+    
+    // Check if any words in the theme match
+    const preview = themePreviews[theme.name];
+    if (preview && preview.words.length > 0) {
+      return preview.words.some(word => 
+        word.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    return false;
+  });
 
   // Theme Item Component for regular themes
   const ThemeItem = ({ theme }: { theme: string }) => {
