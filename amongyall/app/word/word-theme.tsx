@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -35,6 +35,7 @@ export default function WordTheme() {
   const [themePreviews, setThemePreviews] = useState<Record<string, ThemePreview>>({});
   const [expandedTheme, setExpandedTheme] = useState<string | null>(null);
   const [customThemesExpanded, setCustomThemesExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Constraints for numCards
   const MIN_CARDS = 4;
@@ -246,9 +247,18 @@ export default function WordTheme() {
     }
   };
 
+
   // Calculate grid layout for two columns
   const cardWidth = (screenWidth - spacing.lg * 2 - spacing.md * 3) / 2; // Account for container padding and gap
   const cardHeight = 60;
+
+  const filteredThemeNames = themeNames.filter(theme =>
+    theme.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const filteredCustomThemes = customThemes.filter(theme =>
+    theme.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Theme Item Component for regular themes
   const ThemeItem = ({ theme }: { theme: string }) => {
@@ -338,12 +348,6 @@ export default function WordTheme() {
         >
           <View style={styles.customThemeHeader}>
             <View style={styles.customThemeInfo}>
-              <Ionicons 
-                name="star" 
-                size={layout.iconSize.sm} 
-                color={colors.warning} 
-                style={styles.customThemeIcon}
-              />
               <Text style={combineStyles(
                 textStyles.body,
                 isSelected && styles.themeTextSelected
@@ -501,28 +505,52 @@ export default function WordTheme() {
       >
         {/* Theme Selection Header */}
         <Text style={textStyles.h4}>Choose Theme</Text>
+        
+        {/* Search Field */}
+        <View style={styles.searchContainer}>
+          <Ionicons 
+            name="search" 
+            size={layout.iconSize.sm} 
+            color={colors.gray400} 
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search themes..."
+            placeholderTextColor={colors.gray400}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity 
+              style={styles.clearSearchButton}
+              onPress={() => setSearchQuery('')}
+            >
+              <Ionicons 
+                name="close-circle" 
+                size={layout.iconSize.sm} 
+                color={colors.gray400} 
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+
         <Text style={styles.expandHint}>
           💡 Tap any theme to preview its words
         </Text>
 
         {/* Custom Themes Section */}
-        {customThemes.length > 0 && (
+        {filteredCustomThemes.length > 0 && (
           <View style={styles.customThemesSection}>
             <TouchableOpacity
               style={styles.customThemesHeader}
               onPress={() => setCustomThemesExpanded(!customThemesExpanded)}
             >
-              <View style={styles.customThemesHeaderContent}>
-                <Ionicons 
-                  name="star" 
-                  size={layout.iconSize.sm} 
-                  color={colors.warning} 
-                  style={styles.sectionIcon}
-                />
-                <Text style={styles.customThemesTitle}>
-                  Your Themes ({customThemes.length})
-                </Text>
-              </View>
+              <Text style={styles.customThemesTitle}>
+                Your Themes ({filteredCustomThemes.length})
+              </Text>
               <Ionicons 
                 name={customThemesExpanded ? "chevron-down-outline" : "chevron-forward-outline"}
                 size={layout.iconSize.sm} 
@@ -532,7 +560,7 @@ export default function WordTheme() {
 
             {customThemesExpanded && (
               <View style={styles.customThemesList}>
-                {customThemes.map((theme) => (
+                {filteredCustomThemes.map((theme) => (
                   <CustomThemeItem key={theme.id} theme={theme} />
                 ))}
               </View>
@@ -541,14 +569,29 @@ export default function WordTheme() {
         )}
 
         {/* Regular Themes List */}
-        <View style={styles.regularThemesSection}>
-          <Text style={styles.sectionTitle}>Available Themes</Text>
-          <View style={styles.themeList}>
-            {themeNames.map((theme) => (
-              <ThemeItem key={theme} theme={theme} />
-            ))}
+        {filteredThemeNames.length > 0 && (
+          <View style={styles.regularThemesSection}>
+            <Text style={styles.sectionTitle}>Available Themes</Text>
+            <View style={styles.themeList}>
+              {filteredThemeNames.map((theme) => (
+                <ThemeItem key={theme} theme={theme} />
+              ))}
+            </View>
           </View>
-        </View>
+        )}
+
+        {/* No Results Message */}
+        {searchQuery.length > 0 && filteredThemeNames.length === 0 && filteredCustomThemes.length === 0 && (
+          <View style={styles.noResultsContainer}>
+            <Ionicons name="search" size={48} color={colors.gray400} />
+            <Text style={styles.noResultsText}>
+              No themes found for "{searchQuery}"
+            </Text>
+            <Text style={styles.noResultsSubtext}>
+              Try a different search term or create a custom theme
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
       {/* Fixed Bottom Buttons */}
@@ -647,12 +690,41 @@ const styles = StyleSheet.create({
     color: colors.gray500,
     fontStyle: 'italic',
     marginTop: spacing.xs,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md, // Reduced from spacing.lg
+  },
+
+  // Search Field
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.gray100,
+    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.gray200,
+  },
+
+  searchIcon: {
+    marginRight: spacing.sm,
+  },
+
+  searchInput: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    fontSize: typography.fontSize.base,
+    color: colors.gray800,
+  },
+
+  clearSearchButton: {
+    padding: spacing.xs,
+    marginLeft: spacing.sm,
   },
 
   // Custom Themes Section
   customThemesSection: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md, // Reduced from spacing.xl
   },
 
   customThemesHeader: {
@@ -661,20 +733,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    backgroundColor: colors.warning + '10',
+    backgroundColor: colors.gray100, // Changed from warning color
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.warning + '30',
+    borderColor: colors.gray200, // Changed from warning color
     marginBottom: spacing.sm,
-  },
-
-  customThemesHeaderContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  sectionIcon: {
-    marginRight: spacing.sm,
   },
 
   customThemesTitle: {
@@ -722,7 +785,7 @@ const styles = StyleSheet.create({
 
   customThemeItem: {
     backgroundColor: colors.gray50,
-    borderColor: colors.warning + '30',
+    borderColor: colors.gray300, // Changed from warning color
   },
   
   themeItemSelected: {
@@ -751,6 +814,29 @@ const styles = StyleSheet.create({
 
   customThemeIcon: {
     marginRight: spacing.sm,
+  },
+
+  // No Results Message
+  noResultsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing['2xl'],
+    paddingHorizontal: spacing.lg,
+  },
+
+  noResultsText: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.gray600,
+    textAlign: 'center',
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+
+  noResultsSubtext: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray500,
+    textAlign: 'center',
   },
 
   customThemeActions: {
