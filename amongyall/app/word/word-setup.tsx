@@ -34,6 +34,7 @@ export default function WordSetup() {
     router.back();
   };
 
+
   const handleTheme = () => {
     router.push({
       pathname: '/word/word-theme',
@@ -68,6 +69,16 @@ export default function WordSetup() {
     if (numCards > MIN_CARDS) {
       setNumCards(numCards - 1);
     }
+  };
+  
+  const handleAITheme = () => {
+    router.push({
+      pathname: '/word/word-ai-theme',
+      params: { 
+        numCards: numCards.toString(),
+        players: JSON.stringify(players),
+      }
+    });
   };
 
   const handleStart = () => {
@@ -134,6 +145,8 @@ export default function WordSetup() {
               </View>
             ))}
           </View>
+
+
         </View>
 
         

@@ -235,34 +235,6 @@ export default function WordAITheme() {
             />
           </View>
 
-          {/* Difficulty Selection */}
-          <View style={layoutStyles.section}>
-            <Text style={textStyles.h4}>Difficulty Level</Text>
-            <View style={styles.difficultyContainer}>
-              {(['easy', 'medium', 'hard'] as const).map((level) => (
-                <TouchableOpacity
-                  key={level}
-                  style={[
-                    styles.difficultyButton,
-                    difficulty === level && styles.difficultyButtonSelected
-                  ]}
-                  onPress={() => handleDifficultyChange(level)}
-                  disabled={isGenerating}
-                >
-                  <Text style={[
-                    styles.difficultyButtonText,
-                    difficulty === level && styles.difficultyButtonTextSelected
-                  ]}>
-                    {level.charAt(0).toUpperCase() + level.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={styles.difficultyHint}>
-              Easy: Well-known terms • Medium: Some challenge • Hard: Expert level
-            </Text>
-          </View>
-
           {/* Generate Button */}
           <View style={layoutStyles.section}>
             <Button

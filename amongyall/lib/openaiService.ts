@@ -2,7 +2,6 @@
 export interface GenerateWordsRequest {
     topic: string;
     count: number;
-    difficulty?: 'easy' | 'medium' | 'hard';
   }
   
   export interface GenerateWordsResponse {
@@ -14,7 +13,7 @@ export interface GenerateWordsRequest {
   
   export const generateWordsWithAI = async (request: GenerateWordsRequest): Promise<GenerateWordsResponse> => {
     try {
-      const { topic, count, difficulty = 'medium' } = request;
+      const { topic, count } = request;
       
       // Construct the prompt for better game-suitable words
       const prompt = `Generate exactly ${count} words/terms related to "${topic}" that would work well in a party game where players need to guess a secret word. 
@@ -23,8 +22,7 @@ export interface GenerateWordsRequest {
   - Words should be specific nouns, names, or short phrases (2-3 words max)
   - Words should be well-known and recognizable
   - Avoid overly obscure or technical terms
-  - Make words distinct from each other but clearly related to the topic
-  - Difficulty level: ${difficulty}
+  - Make words distinct from each other but have the same relationship to the topic
   - Return ONLY a JSON array of strings, no other text
   
   Example format: ["word1", "word2", "word3"]
