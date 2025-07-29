@@ -13,7 +13,7 @@ import {
   combineStyles,
 } from '../../utils/styles';
 import { Button } from '../../components/Button';
-import { getRandomPair, WordPairs } from '../../constants/theme';
+import { getRandomPair, WordPairs } from '../../lib/wavelengthService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -74,12 +74,44 @@ export default function WavelengthGameStart() {
         }
     });
 
+    useEffect(() => {
+        setupGame();
+    }, []);
+    
+    const setupGame = async () => {
+        try {
+            // Get a random word pair for this round from database
+            const pair = await getRandomPair();
+            
+            if (!pair) {
+                console.error('No word pairs available in database');
+                // You could show an alert here or navigate back
+                Alert.alert('Error', 'No word pairs available. Please try again later.');
+                return;
+            }
+            
+            setCurrentPair(pair);
+            
+            // Select a random player
+            if (players.length > 0) {
+                const randomPlayer = players[Math.floor(Math.random() * players.length)];
+                setSelectedPlayer(randomPlayer);
+            }
+    
+            // Initialize random goal zone
+            const zoneWidth = 5;
+            const maxStart = scaleColors.length - zoneWidth;
+            const start = Math.floor(Math.random() * maxStart);
+            setGoalZoneStart(start);
+            setGoalZoneEnd(start + zoneWidth - 1);
+        } catch (error) {
+            console.error('Error setting up wavelength game:', error);
+            Alert.alert('Error', 'Failed to load game data. Please try again.');
+        }
+    };
+
     // Runs once when the component mounts 
     useEffect(() => {
-        // Get a random word pair for this round
-        const pair = getRandomPair();
-        setCurrentPair(pair);
-        
         // Select a random player
         if (players.length > 0) {
             const randomPlayer = players[Math.floor(Math.random() * players.length)];

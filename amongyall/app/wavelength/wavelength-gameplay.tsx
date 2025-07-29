@@ -13,7 +13,7 @@ import {
   combineStyles,
 } from '../../utils/styles';
 import { Button } from '../../components/Button';
-import { WordPairs } from '../../constants/theme';
+import { WordPairs } from '../../lib/wavelengthService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 

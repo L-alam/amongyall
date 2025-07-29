@@ -10,7 +10,7 @@ import {
   combineStyles,
 } from '../../utils/styles';
 import { Button } from '../../components/Button';
-import { WordPairs, getRandomPair } from '../../constants/theme';
+import { WordPairs } from '../../lib/wavelengthService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -199,7 +199,7 @@ export default function WavelengthResults() {
             : players[Math.floor(Math.random() * players.length)];
         
         setPreviousPlayer(randomPlayer);
-
+    
         // Navigate back to gamestart for the reveal process
         router.push({
             pathname: '/wavelength/wavelength-gamestart',
