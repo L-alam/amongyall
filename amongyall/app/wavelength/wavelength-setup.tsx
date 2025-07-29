@@ -19,7 +19,8 @@ export default function WavelengthSetup() {
   const [playerCount, setPlayerCount] = useState(4);
   const [playerName, setPlayerName] = useState('');
   const [players, setPlayers] = useState(['MAX', 'ORLANDO', 'JOHN', 'POUYA']);
-  const [waveQuestions, setWaveQuestions] = useState(["Good", "Bad"])
+  const [firstPlayerMode, setFirstPlayerMode] = useState<'random' | 'selected'>('random');
+  const [selectedFirstPlayer, setSelectedFirstPlayer] = useState('');
 
   // Go back to the home screen
   const handleBack = () => {
@@ -30,15 +31,23 @@ export default function WavelengthSetup() {
     router.push('/');
   };
 
-  const handleSet = () => {
+  const handleNext = () => {
+    // Determine who goes first
+    let firstPlayer = '';
+    if (firstPlayerMode === 'random') {
+      firstPlayer = players[Math.floor(Math.random() * players.length)];
+    } else {
+      firstPlayer = selectedFirstPlayer || players[0];
+    }
+
     router.push({
-      pathname: '/wavelength/wavelength-gamestart',
+      pathname: '/wavelength/wavelength-pairs',
       params: {
          players: JSON.stringify(players),
+         firstPlayer: firstPlayer,
       }
     })
   }
-
 
   const handleAddPlayer = () => {
     if (playerName.trim() && players.length < 8) {
@@ -52,8 +61,19 @@ export default function WavelengthSetup() {
     const newPlayers = players.filter((_, i) => i !== index);
     setPlayers(newPlayers);
     setPlayerCount(newPlayers.length);
+    
+    // If the selected first player was removed, reset to first player in list
+    if (selectedFirstPlayer === players[index]) {
+      setSelectedFirstPlayer(newPlayers.length > 0 ? newPlayers[0] : '');
+    }
   };
 
+  const handleFirstPlayerModeChange = (mode: 'random' | 'selected') => {
+    setFirstPlayerMode(mode);
+    if (mode === 'selected' && !selectedFirstPlayer && players.length > 0) {
+      setSelectedFirstPlayer(players[0]);
+    }
+  };
 
   return (
     <ScrollView style={layoutStyles.container}>
@@ -72,8 +92,8 @@ export default function WavelengthSetup() {
 
       <View style={layoutStyles.content}>
 
-                {/* Add Players Section */}
-                <View style={layoutStyles.section}>
+        {/* Add Players Section */}
+        <View style={layoutStyles.section}>
           <Text style={textStyles.h4}>ADD PLAYERS</Text>
           
           <View style={styles.playerInputContainer}>
@@ -116,23 +136,98 @@ export default function WavelengthSetup() {
             ))}
           </View>
         </View>
+
+        {/* First Player Selection */}
+        <View style={layoutStyles.section}>
+          <Text style={textStyles.h4}>WHO GOES FIRST?</Text>
+          
+          <View style={styles.firstPlayerModeContainer}>
+            <TouchableOpacity
+              style={[
+                styles.firstPlayerModeButton,
+                firstPlayerMode === 'random' && styles.firstPlayerModeButtonSelected
+              ]}
+              onPress={() => handleFirstPlayerModeChange('random')}
+            >
+              <Ionicons 
+                name="shuffle-outline" 
+                size={layout.iconSize.sm} 
+                color={firstPlayerMode === 'random' ? colors.secondary : colors.gray500}
+              />
+              <Text style={[
+                styles.firstPlayerModeText,
+                firstPlayerMode === 'random' && styles.firstPlayerModeTextSelected
+              ]}>
+                Random
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.firstPlayerModeButton,
+                firstPlayerMode === 'selected' && styles.firstPlayerModeButtonSelected
+              ]}
+              onPress={() => handleFirstPlayerModeChange('selected')}
+            >
+              <Ionicons 
+                name="person-outline" 
+                size={layout.iconSize.sm} 
+                color={firstPlayerMode === 'selected' ? colors.secondary : colors.gray500}
+              />
+              <Text style={[
+                styles.firstPlayerModeText,
+                firstPlayerMode === 'selected' && styles.firstPlayerModeTextSelected
+              ]}>
+                Choose
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Player Selection Dropdown (only show when 'selected' mode is active) */}
+          {firstPlayerMode === 'selected' && (
+            <View style={styles.playerSelectionContainer}>
+              <Text style={styles.playerSelectionLabel}>Select first player:</Text>
+              <View style={styles.playerSelectionList}>
+                {players.map((player, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.playerSelectionItem,
+                      selectedFirstPlayer === player && styles.playerSelectionItemSelected
+                    ]}
+                    onPress={() => setSelectedFirstPlayer(player)}
+                  >
+                    <Ionicons 
+                      name={selectedFirstPlayer === player ? "radio-button-on" : "radio-button-off"}
+                      size={layout.iconSize.sm} 
+                      color={selectedFirstPlayer === player ? colors.secondary : colors.gray400}
+                    />
+                    <Text style={[
+                      styles.playerSelectionText,
+                      selectedFirstPlayer === player && styles.playerSelectionTextSelected
+                    ]}>
+                      {player}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+        </View>
         
-        {/* Start Button using our Button component */}
+        {/* Next Button */}
         <Button
           title="NEXT"
           variant="primary"
           size="lg"
-          onPress={handleSet}
+          onPress={handleNext}
           style={styles.startButton}
         />
-
 
       </View>
     </ScrollView>
   );
 }
-
-
 
 const styles = StyleSheet.create({
   header: {
@@ -191,7 +286,7 @@ const styles = StyleSheet.create({
   },
   
   playerInput: {
-    ...createInputStyle('default'), // Using our input factory!
+    ...createInputStyle('default'),
     flex: 1,
   },
   
@@ -213,7 +308,88 @@ const styles = StyleSheet.create({
   
   playerName: {
     flex: 1,
-    
+  },
+
+  // First Player Selection Styles
+  firstPlayerModeContainer: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+  },
+
+  firstPlayerModeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.gray300,
+    backgroundColor: colors.white,
+    gap: spacing.sm,
+  },
+
+  firstPlayerModeButtonSelected: {
+    borderColor: colors.secondary,
+    backgroundColor: colors.secondary + '10',
+  },
+
+  firstPlayerModeText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.gray600,
+  },
+
+  firstPlayerModeTextSelected: {
+    color: colors.secondary,
+    fontWeight: typography.fontWeight.semibold,
+  },
+
+  // Player Selection Dropdown Styles
+  playerSelectionContainer: {
+    marginTop: spacing.sm,
+  },
+
+  playerSelectionLabel: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.gray600,
+    marginBottom: spacing.sm,
+  },
+
+  playerSelectionList: {
+    backgroundColor: colors.gray100,
+    borderRadius: 8,
+    padding: spacing.sm,
+    gap: spacing.xs,
+  },
+
+  playerSelectionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 6,
+    backgroundColor: colors.white,
+    gap: spacing.sm,
+  },
+
+  playerSelectionItemSelected: {
+    backgroundColor: colors.secondary + '10',
+  },
+
+  playerSelectionText: {
+    fontSize: typography.fontSize.base,
+    color: colors.gray700,
+    flex: 1,
+  },
+
+  playerSelectionTextSelected: {
+    color: colors.secondary,
+    fontWeight: typography.fontWeight.semibold,
   },
   
   startButton: {

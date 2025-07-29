@@ -184,6 +184,3 @@ export const zIndex = {
   overlay: 1060,
 } as const;
 
-// ############################## Example Questions ########################
-
-// ############################## Wavelength Pairs ########################
