@@ -13,22 +13,30 @@ import {
   combineStyles,
 } from '../../utils/styles';
 import { Button } from '../../components/Button';
-import { getRandomPair, WordPairs } from '../../lib/wavelengthService';
+import { getRandomPair, getRandomBuiltInPair, WordPairs } from '../../lib/wavelengthService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+interface PlayerScore {
+    playerName: string;
+    score: number;
+    roundPoints: number;
+}
 
 export default function WavelengthGameStart() {
     const params = useLocalSearchParams();
     const players = JSON.parse(params.players as string || '[]') as string[];
+    const firstPlayer = params.firstPlayer as string || '';
+    const selectedPair = params.selectedPair ? JSON.parse(params.selectedPair as string) as WordPairs : null;
+    const previousScores = JSON.parse(params.playerScores as string || '[]') as PlayerScore[];
     
     const [currentPair, setCurrentPair] = useState<WordPairs | null>(null);
-    const [selectedPlayer, setSelectedPlayer] = useState<string>('');
+    const [selectedPlayer, setSelectedPlayer] = useState<string>(firstPlayer);
     const [showScale, setShowScale] = useState(false);
 
     // Scale State
     const [goalZoneStart, setGoalZoneStart] = useState(8);
     const [goalZoneEnd, setGoalZoneEnd] = useState(12);
-    const previousScores = JSON.parse(params.playerScores as string || '[]') as PlayerScore[];
 
     const scaleColors = [
         '#FFFFFF', '#FCEAEA', '#F8D5D5', '#F5C0C0', '#F1ABAB',
@@ -80,24 +88,22 @@ export default function WavelengthGameStart() {
     
     const setupGame = async () => {
         try {
-            // Get a random word pair for this round from database
-            const pair = await getRandomPair();
+            // Use the selected pair if provided, otherwise get a random one
+            let pair: WordPairs | null = selectedPair;
             
             if (!pair) {
-                console.error('No word pairs available in database');
-                // You could show an alert here or navigate back
+                // Fallback to random pair if none selected
+                pair = await getRandomPair();
+            }
+            
+            if (!pair) {
+                console.error('No word pairs available');
                 Alert.alert('Error', 'No word pairs available. Please try again later.');
                 return;
             }
             
             setCurrentPair(pair);
             
-            // Select a random player
-            if (players.length > 0) {
-                const randomPlayer = players[Math.floor(Math.random() * players.length)];
-                setSelectedPlayer(randomPlayer);
-            }
-    
             // Initialize random goal zone
             const zoneWidth = 5;
             const maxStart = scaleColors.length - zoneWidth;
@@ -109,22 +115,6 @@ export default function WavelengthGameStart() {
             Alert.alert('Error', 'Failed to load game data. Please try again.');
         }
     };
-
-    // Runs once when the component mounts 
-    useEffect(() => {
-        // Select a random player
-        if (players.length > 0) {
-            const randomPlayer = players[Math.floor(Math.random() * players.length)];
-            setSelectedPlayer(randomPlayer);
-        }
-
-        // Initialize random goal zone
-        const zoneWidth = 5;
-        const maxStart = scaleColors.length - zoneWidth;
-        const start = Math.floor(Math.random() * maxStart);
-        setGoalZoneStart(start);
-        setGoalZoneEnd(start + zoneWidth - 1);
-    }, []); // Empty dependency array ensures this only runs once
 
     const handleBack = () => {
         router.back();
@@ -148,6 +138,12 @@ export default function WavelengthGameStart() {
     };
 
     const startGameplay = () => {
+        // Ensure we have the current pair and first player
+        if (!currentPair) {
+            Alert.alert('Error', 'No word pair loaded. Please try again.');
+            return;
+        }
+
         router.push({
             pathname: '/wavelength/wavelength-gameplay',
             params: {
@@ -156,6 +152,7 @@ export default function WavelengthGameStart() {
                 goalZoneStart: goalZoneStart.toString(),
                 goalZoneEnd: goalZoneEnd.toString(),
                 playerScores: JSON.stringify(previousScores),
+                firstPlayer: firstPlayer, // Ensure first player is passed
             }
         });
     };
@@ -236,6 +233,33 @@ export default function WavelengthGameStart() {
                     <Text style={[textStyles.h1, styles.playerNameText]}>
                         {selectedPlayer}
                     </Text>
+
+                    {/* Show previous scores if this isn't the first round */}
+                    {previousScores.length > 0 && (
+                        <View style={styles.scoresContainer}>
+                            <Text style={styles.scoresTitle}>Current Scores:</Text>
+                            <View style={styles.scoresList}>
+                                {previousScores
+                                    .sort((a, b) => b.score - a.score)
+                                    .map((playerScore, index) => (
+                                        <View key={playerScore.playerName} style={styles.scoreItem}>
+                                            <Text style={[
+                                                styles.scorePlayerName,
+                                                index === 0 && styles.leadingPlayer
+                                            ]}>
+                                                {playerScore.playerName}
+                                            </Text>
+                                            <Text style={[
+                                                styles.scoreValue,
+                                                index === 0 && styles.leadingPlayer
+                                            ]}>
+                                                {playerScore.score}
+                                            </Text>
+                                        </View>
+                                    ))}
+                            </View>
+                        </View>
+                    )}
 
                     <Button
                         title="REVEAL SCALE"
@@ -378,11 +402,59 @@ const styles = StyleSheet.create({
         color: colors.primary,
         fontWeight: typography.fontWeight.bold,
     },
+
+    // Score display styles
+    scoresContainer: {
+        width: '100%',
+        backgroundColor: colors.gray100,
+        borderRadius: 12,
+        padding: spacing.lg,
+        marginBottom: spacing.xl,
+        alignItems: 'center',
+    },
+
+    scoresTitle: {
+        fontSize: typography.fontSize.base,
+        fontWeight: typography.fontWeight.semibold,
+        color: colors.primary,
+        marginBottom: spacing.md,
+    },
+
+    scoresList: {
+        width: '100%',
+        gap: spacing.sm,
+    },
+
+    scoreItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        backgroundColor: colors.white,
+        borderRadius: 6,
+    },
+
+    scorePlayerName: {
+        fontSize: typography.fontSize.base,
+        color: colors.gray700,
+    },
+
+    scoreValue: {
+        fontSize: typography.fontSize.base,
+        fontWeight: typography.fontWeight.semibold,
+        color: colors.gray700,
+    },
+
+    leadingPlayer: {
+        color: colors.success,
+        fontWeight: typography.fontWeight.bold,
+    },
     
     revealButton: {
-        height: '60%',
+        height: '40%',
         width: '100%',
-        maxHeight: 400,
+        maxHeight: 300,
         maxWidth: 300,
     },
     
@@ -525,8 +597,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         borderBottomWidth: 1,
-        // borderBottomColor: colors.gray400,
-        // borderTopColor: colors.gray400,
     },
 
     scaleRowRight: {
