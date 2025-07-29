@@ -10,7 +10,6 @@ import {
   combineStyles,
 } from '../../utils/styles';
 import { Button } from '../../components/Button';
-// Updated imports for new database functions
 import { getAllThemeNames, getRandomWordsFromTheme, getUserCustomThemes, deleteCustomTheme, Theme } from '../../lib/themeService';
 
 const { width: screenWidth } = Dimensions.get('window');

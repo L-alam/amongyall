@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -10,7 +10,7 @@ import {
   combineStyles,
 } from '../../utils/styles';
 import { Button } from '../../components/Button';
-import { questions, getQuestionsByCategory, getRandomPreviewQuestions, getAllCategories } from '../../constants/theme';
+import { getRandomPreviewQuestions, getAllQuestionSetNames, getQuestionsBySetName } from '../../lib/questionService';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -27,23 +27,50 @@ export default function QuestionSet() {
   const params = useLocalSearchParams();
   const players = JSON.parse(params.players as string || '[]');
   
-  const [selectedSet, setSelectedSet] = useState('Sports');
-  const [categories, setCategories] = useState<string[]>([]);
+  const [selectedSet, setSelectedSet] = useState('');
+  const [setNames, setSetNames] = useState<string[]>([]);
   const [categoryPreviews, setCategoryPreviews] = useState<Record<string, CategoryPreview>>({});
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Load categories on component mount
   useEffect(() => {
-    const categoryNames = getAllCategories();
-    setCategories(categoryNames);
-    
-    // Set the first category as selected if we have categories
-    if (categoryNames.length > 0 && !selectedSet) {
-      setSelectedSet(categoryNames[0]);
-    }
+    loadSets();
   }, []);
 
-  const loadCategoryPreview = (categoryName: string, refresh: boolean = false) => {
+  // Load question sets on component mount
+  const loadSets = async () => {
+    try {
+      setLoading(true);
+
+      const questionSets = await getAllQuestionSetNames();
+      setSetNames(questionSets);
+      
+      // Set the first set as selected if we have sets and no current selection
+      if (questionSets.length > 0 && !selectedSet) {
+        setSelectedSet(questionSets[0]);
+      }
+    } catch (error) {
+      console.error('Error loading questions:', error);
+      Alert.alert(
+        'Error', 
+        'Failed to load Question Sets. Please check your connection and try again.',
+        [
+          {
+            text: 'Retry',
+            onPress: loadSets
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          }
+        ]
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCategoryPreview = async (categoryName: string, refresh: boolean = false) => {
     // Don't reload if we already have this preview and it's not a refresh
     if (!refresh && categoryPreviews[categoryName] && !categoryPreviews[categoryName].loading) {
       return;
@@ -60,8 +87,8 @@ export default function QuestionSet() {
         }
       }));
 
-      // Get random preview questions (3 pairs)
-      const questionPairs = getRandomPreviewQuestions(categoryName);
+      // Get random preview questions (3 pairs) from database
+      const questionPairs = await getRandomPreviewQuestions(categoryName);
       
       setCategoryPreviews(prev => ({
         ...prev,
@@ -81,6 +108,7 @@ export default function QuestionSet() {
           loading: false
         }
       }));
+      Alert.alert('Error', 'Failed to load question preview.');
     }
   };
 
@@ -89,19 +117,29 @@ export default function QuestionSet() {
     router.back();
   };
 
-  const handleStartGame = () => {
-    // Get the full question set for the selected category
-    const fullQuestionSet = getQuestionsByCategory(selectedSet);
-    
-    // Navigate to game screen with selected set and all questions
-    router.push({
-      pathname: '/question/question-gamestart',
-      params: {
-        set: selectedSet,
-        players: JSON.stringify(players),
-        questions: JSON.stringify(fullQuestionSet?.pairs || [])
+  const handleStartGame = async () => {
+    try {
+      // Get the full question set for the selected category from database
+      const fullQuestionSet = await getQuestionsBySetName(selectedSet);
+      
+      if (!fullQuestionSet || fullQuestionSet.length === 0) {
+        Alert.alert('Error', 'No questions available for the selected set.');
+        return;
       }
-    });
+      
+      // Navigate to game screen with selected set and all questions
+      router.push({
+        pathname: '/question/question-gamestart',
+        params: {
+          set: selectedSet,
+          players: JSON.stringify(players),
+          questions: JSON.stringify(fullQuestionSet)
+        }
+      });
+    } catch (error) {
+      console.error('Error starting game:', error);
+      Alert.alert('Error', 'Failed to start game. Please try again.');
+    }
   };
 
   const handleCategoryPress = (categoryName: string) => {
@@ -164,39 +202,52 @@ export default function QuestionSet() {
                 onPress={() => refreshCategoryPreview(category)}
                 disabled={preview?.loading}
               >
-                <Ionicons name="refresh" size={layout.iconSize.sm} color={colors.secondary} />
+                {preview?.loading ? (
+                  <ActivityIndicator size="small" color={colors.secondary} />
+                ) : (
+                  <Ionicons name="refresh" size={layout.iconSize.sm} color={colors.secondary} />
+                )}
               </TouchableOpacity>
             </View>
             
             {/* Question pairs preview */}
             <View style={styles.previewContainer}>
-              {preview?.questionPairs.map((questionPair, index) => (
-                <View 
-                  key={index} 
-                  style={styles.previewCard}
-                >
-                  <View style={styles.questionPairContainer}>
-                    <View style={styles.normalQuestionContainer}>
-                      <Text style={styles.questionLabel}>Everyone gets:</Text>
-                      <Text style={styles.normalQuestionText} numberOfLines={4}>
-                        {questionPair.normal}
-                      </Text>
-                    </View>
-                    
-                    <View style={styles.divider} />
-                    
-                    <View style={styles.spyQuestionContainer}>
-                      <Text style={styles.spyLabel}>Spy gets:</Text>
-                      <Text style={styles.spyQuestionText} numberOfLines={4}>
-                        {questionPair.spy}
-                      </Text>
+              {preview?.questionPairs && preview.questionPairs.length > 0 ? (
+                preview.questionPairs.map((questionPair, index) => (
+                  <View 
+                    key={index} 
+                    style={styles.previewCard}
+                  >
+                    <View style={styles.questionPairContainer}>
+                      <View style={styles.normalQuestionContainer}>
+                        <Text style={styles.questionLabel}>Everyone gets:</Text>
+                        <Text style={styles.normalQuestionText} numberOfLines={4}>
+                          {questionPair.normal}
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.divider} />
+                      
+                      <View style={styles.spyQuestionContainer}>
+                        <Text style={styles.spyLabel}>Spy gets:</Text>
+                        <Text style={styles.spyQuestionText} numberOfLines={4}>
+                          {questionPair.spy}
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                </View>
-              )) || []}
+                ))
+              ) : (
+                !preview?.loading && (
+                  <Text style={styles.noPreviewText}>No preview available</Text>
+                )
+              )}
               
-              {(!preview || preview.questionPairs.length === 0) && !preview?.loading && (
-                <Text style={styles.noPreviewText}>No preview available</Text>
+              {preview?.loading && (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={styles.loadingText}>Loading preview...</Text>
+                </View>
               )}
             </View>
           </View>
@@ -204,6 +255,37 @@ export default function QuestionSet() {
       </View>
     );
   };
+
+  // Show loading state while loading sets
+  if (loading) {
+    return (
+      <View style={combineStyles(layoutStyles.container, layoutStyles.centered)}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={combineStyles(textStyles.body, styles.mainLoadingText)}>
+          Loading question sets...
+        </Text>
+      </View>
+    );
+  }
+
+  // Show error state if no sets loaded
+  if (setNames.length === 0) {
+    return (
+      <View style={combineStyles(layoutStyles.container, layoutStyles.centered)}>
+        <Ionicons name="warning-outline" size={48} color={colors.error} />
+        <Text style={combineStyles(textStyles.h4, styles.errorText)}>
+          No question sets available
+        </Text>
+        <Button
+          title="Retry"
+          variant="primary"
+          size="md"
+          onPress={loadSets}
+          style={styles.retryButton}
+        />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={layoutStyles.container}>
@@ -221,7 +303,6 @@ export default function QuestionSet() {
       </View>
 
       <View style={layoutStyles.content}>
-
         {/* Set Selection Section */}
         <View style={layoutStyles.section}>
           <Text style={textStyles.h4}>Choose Question Set</Text>
@@ -229,7 +310,7 @@ export default function QuestionSet() {
             💡 Tap any category to preview its questions
           </Text>
           <View style={styles.categoryList}>
-            {categories.map((category) => (
+            {setNames.map((category) => (
               <CategoryItem key={category} category={category} />
             ))}
           </View>
@@ -405,8 +486,38 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
 
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: spacing.lg,
+    gap: spacing.sm,
+  },
+
+  loadingText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray500,
+    textAlign: 'center',
+  },
+
   startButton: {
     marginTop: spacing.lg,
     marginBottom: spacing.xl,
+  },
+
+  // Loading and error states
+  mainLoadingText: {
+    marginTop: spacing.md,
+    textAlign: 'center',
+    color: colors.gray600,
+  },
+
+  errorText: {
+    textAlign: 'center',
+    color: colors.error,
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+  },
+
+  retryButton: {
+    minWidth: 120,
   },
 });
