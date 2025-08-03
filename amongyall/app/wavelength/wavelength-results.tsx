@@ -100,24 +100,47 @@ export default function WavelengthResults() {
         return 0; // Outside goal zone
     }, [goalZoneStart, goalZoneEnd, isInGoalZone]);
 
+
+
     useEffect(() => {
         const previousScores = JSON.parse(previousScoresParam) as PlayerScore[];
+        const scalePlayer = params.firstPlayer as string || '';
+        
+        // First, calculate how many voting players landed in the goal zone
+        const votingPlayersInGoalZone = playerVotes.filter(vote => 
+            vote.selectedRow !== null && 
+            vote.hasVoted && 
+            isInGoalZone(vote.selectedRow)
+        ).length;
         
         const scores: PlayerScore[] = players.map(playerName => {
-            const vote = playerVotes.find(v => v.playerName === playerName);
-            const roundPoints = vote && vote.selectedRow !== null ? calculatePoints(vote.selectedRow) : 0;
+            let roundPoints = 0;
             
-            // Find previous score for this player, or start at 0
+            if (playerName === scalePlayer) {
+                // Scale player gets points equal to number of voting players in goal zone
+                roundPoints = votingPlayersInGoalZone;
+            } else {
+                // Regular voting players get points based on their position
+                const vote = playerVotes.find(v => v.playerName === playerName);
+                roundPoints = vote && vote.selectedRow !== null ? calculatePoints(vote.selectedRow) : 0;
+            }
+            
             const previousScore = previousScores.find(p => p.playerName === playerName)?.score || 0;
             
             return {
                 playerName,
-                score: previousScore + roundPoints, // Add current round to previous total
+                score: previousScore + roundPoints,
                 roundPoints
             };
         });
+        
+        console.log('Scale Player:', scalePlayer);
+        console.log('Voting Players in Goal Zone:', votingPlayersInGoalZone);
+        console.log('Final Scores:', scores);
+        
         setPlayerScores(scores);
-    }, [players, playerVotes, goalZoneStart, goalZoneEnd, previousScoresParam, calculatePoints]);
+    }, [players, playerVotes, goalZoneStart, goalZoneEnd, previousScoresParam, calculatePoints, params.firstPlayer, isInGoalZone]);
+
 
     const getPlayerColor = useCallback((playerName: string): string => {
         const playerIndex = players.indexOf(playerName);

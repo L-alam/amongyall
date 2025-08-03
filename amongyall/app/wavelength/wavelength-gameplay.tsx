@@ -42,23 +42,25 @@ export default function WavelengthGameplay() {
     const goalZoneStart = parseInt(params.goalZoneStart as string) || 8;
     const goalZoneEnd = parseInt(params.goalZoneEnd as string) || 12;
     
-    const [selectedPlayer, setSelectedPlayer] = useState<string>(players[0] || '');
     const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
     const [scaleAreaHeight, setScaleAreaHeight] = useState(0);
     const [playerVotes, setPlayerVotes] = useState<PlayerVote[]>([]);
     const previousScores = JSON.parse(params.playerScores as string || '[]') as PlayerScore[];
+    const scalePlayer = params.firstPlayer as string || '';
+    const votingPlayers = players.filter(player => player !== scalePlayer);
+    const [selectedPlayer, setSelectedPlayer] = useState<string>(votingPlayers[0] || '');
 
     const scaleSize = 40
 
     // Initialize player votes
     useEffect(() => {
-        const initialVotes: PlayerVote[] = players.map(player => ({
+        const initialVotes: PlayerVote[] = votingPlayers.map(player => ({
             playerName: player,
             selectedRow: null,
             hasVoted: false
         }));
         setPlayerVotes(initialVotes);
-    }, [players.length]);
+    }, [votingPlayers.length]); 
 
 
     // Memoized functions to prevent re-renders
@@ -71,6 +73,16 @@ export default function WavelengthGameplay() {
             )
         );
     }, []);
+
+    
+    useEffect(() => {
+        const initialVotes: PlayerVote[] = votingPlayers.map(player => ({
+            playerName: player,
+            selectedRow: null,
+            hasVoted: false
+        }));
+        setPlayerVotes(initialVotes);
+    }, [votingPlayers.length]);
 
 
     // Memoized pan gesture to prevent recreation on every render
@@ -130,7 +142,7 @@ export default function WavelengthGameplay() {
                 [{ text: 'OK' }]
             );
             return;
-        }
+        } 
 
         Alert.alert(
             'Reveal Scores',
@@ -259,7 +271,7 @@ export default function WavelengthGameplay() {
 
                             {/* Player list */}
                             <View style={styles.playerList}>
-                                {players.map((player) => {
+                                {votingPlayers.map((player) => {
                                     const playerColor = getPlayerColor(player);
                                     return (
                                         <TouchableOpacity
