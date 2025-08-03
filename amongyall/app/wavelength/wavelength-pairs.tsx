@@ -29,6 +29,10 @@ export default function WavelengthPairs() {
   const players = JSON.parse(params.players as string || '[]') as string[];
   const firstPlayer = params.firstPlayer as string || '';
   
+  // Get existing scores and player history if this is a subsequent round
+  const existingScores = JSON.parse(params.playerScores as string || '[]');
+  const existingHistory = JSON.parse(params.playerHistory as string || '[]');
+  
   const [allPairs, setAllPairs] = useState<WavelengthPair[]>([]);
   const [selectedPair, setSelectedPair] = useState<WavelengthPair | null>(null);
   const [loading, setLoading] = useState(true);
@@ -104,7 +108,8 @@ export default function WavelengthPairs() {
         players: JSON.stringify(players),
         firstPlayer: firstPlayer,
         selectedPair: JSON.stringify(wordPair),
-        playerScores: JSON.stringify([]), // Start with empty scores
+        playerScores: JSON.stringify(existingScores), // Pass existing scores
+        playerHistory: JSON.stringify(existingHistory), // Pass player history
       }
     });
   };
@@ -124,7 +129,8 @@ export default function WavelengthPairs() {
           players: JSON.stringify(players),
           firstPlayer: firstPlayer,
           selectedPair: JSON.stringify(randomWordPair),
-          playerScores: JSON.stringify([]),
+          playerScores: JSON.stringify(existingScores), // Pass existing scores
+          playerHistory: JSON.stringify(existingHistory), // Pass player history
         }
       });
     } catch (error) {
@@ -304,8 +310,9 @@ export default function WavelengthPairs() {
       {/* First Player Display */}
       <View style={styles.firstPlayerContainer}>
         <Text style={styles.firstPlayerText}>
-          First player: <Text style={styles.firstPlayerName}>{firstPlayer}</Text>
+          Player: <Text style={styles.firstPlayerName}>{firstPlayer}</Text>
         </Text>
+        
       </View>
 
       {/* Action Buttons */}
@@ -561,6 +568,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray100,
     borderBottomWidth: 1,
     borderBottomColor: colors.gray200,
+    alignItems: 'center',
   },
 
   firstPlayerText: {
@@ -572,6 +580,13 @@ const styles = StyleSheet.create({
   firstPlayerName: {
     fontWeight: typography.fontWeight.semibold,
     color: colors.secondary,
+  },
+
+  roundIndicatorText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.warning,
+    fontWeight: typography.fontWeight.semibold,
+    marginTop: spacing.xs,
   },
 
   // Action Buttons

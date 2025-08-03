@@ -23,12 +23,18 @@ interface PlayerScore {
     roundPoints: number;
 }
 
+interface PlayerHistory {
+    playerName: string;
+    hasSeenScale: boolean;
+}
+
 export default function WavelengthGameStart() {
     const params = useLocalSearchParams();
     const players = JSON.parse(params.players as string || '[]') as string[];
     const firstPlayer = params.firstPlayer as string || '';
     const selectedPair = params.selectedPair ? JSON.parse(params.selectedPair as string) as WordPairs : null;
     const previousScores = JSON.parse(params.playerScores as string || '[]') as PlayerScore[];
+    const playerHistory = JSON.parse(params.playerHistory as string || '[]') as PlayerHistory[];
     
     const [currentPair, setCurrentPair] = useState<WordPairs | null>(null);
     const [selectedPlayer, setSelectedPlayer] = useState<string>(firstPlayer);
@@ -153,6 +159,7 @@ export default function WavelengthGameStart() {
                 goalZoneEnd: goalZoneEnd.toString(),
                 playerScores: JSON.stringify(previousScores),
                 firstPlayer: firstPlayer, // Ensure first player is passed
+                playerHistory: JSON.stringify(playerHistory), // Pass player history
             }
         });
     };

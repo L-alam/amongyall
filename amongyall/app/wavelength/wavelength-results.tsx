@@ -26,6 +26,11 @@ interface PlayerScore {
     roundPoints: number;
 }
 
+interface PlayerHistory {
+    playerName: string;
+    hasSeenScale: boolean;
+}
+
 // Player colors for up to 8 players
 const PLAYER_COLORS = [
     '#FF6B6B', // Red
@@ -55,8 +60,22 @@ export default function WavelengthResults() {
     const goalZoneStart = useMemo(() => parseInt(params.goalZoneStart as string) || 8, [params.goalZoneStart]);
     const goalZoneEnd = useMemo(() => parseInt(params.goalZoneEnd as string) || 12, [params.goalZoneEnd]);
     
+    // Parse player history to track who has seen scales
+    const playerHistory = useMemo(() => {
+        try {
+            return JSON.parse(params.playerHistory as string || '[]') as PlayerHistory[];
+        } catch {
+            // Initialize history if not provided - mark current player as having seen scale
+            const currentPlayer = params.firstPlayer as string || '';
+            return players.map(player => ({
+                playerName: player,
+                hasSeenScale: player === currentPlayer
+            }));
+        }
+    }, [params.playerHistory, params.firstPlayer, players]);
+    
     const [playerScores, setPlayerScores] = useState<PlayerScore[]>([]);
-    const [previousPlayer, setPreviousPlayer] = useState<string>('');
+    const [showFinalScoreboard, setShowFinalScoreboard] = useState(false);
 
     const previousScoresParam = useMemo(() => params.previousScores as string || '[]', [params.previousScores]);
 
@@ -81,8 +100,6 @@ export default function WavelengthResults() {
         return 0; // Outside goal zone
     }, [goalZoneStart, goalZoneEnd, isInGoalZone]);
 
-
-
     useEffect(() => {
         const previousScores = JSON.parse(previousScoresParam) as PlayerScore[];
         
@@ -100,7 +117,7 @@ export default function WavelengthResults() {
             };
         });
         setPlayerScores(scores);
-    }, [players, playerVotes, goalZoneStart, goalZoneEnd, previousScoresParam]);
+    }, [players, playerVotes, goalZoneStart, goalZoneEnd, previousScoresParam, calculatePoints]);
 
     const getPlayerColor = useCallback((playerName: string): string => {
         const playerIndex = players.indexOf(playerName);
@@ -167,45 +184,116 @@ export default function WavelengthResults() {
         );
     }, [getPlayerColor]);
 
-    const handleRestart = () => {
+    // Determine next player logic
+    const getNextPlayerInfo = useCallback(() => {
+        // Find players who haven't seen a scale yet
+        const unseenPlayers = playerHistory.filter(p => !p.hasSeenScale).map(p => p.playerName);
+        
+        if (unseenPlayers.length > 0) {
+            // If there are players who haven't seen a scale, prioritize them
+            if (unseenPlayers.length === 1) {
+                return {
+                    nextPlayer: unseenPlayers[0],
+                    isAutomatic: true,
+                    message: `${unseenPlayers[0]} hasn't seen a scale yet`
+                };
+            } else {
+                return {
+                    nextPlayer: null,
+                    isAutomatic: false,
+                    message: `${unseenPlayers.length} players haven't seen a scale yet`
+                };
+            }
+        } else {
+            // All players have seen a scale, any player can go
+            return {
+                nextPlayer: null,
+                isAutomatic: false,
+                message: 'All players have seen a scale - choose any player'
+            };
+        }
+    }, [playerHistory]);
+
+    const handleHome = () => {
+        setShowFinalScoreboard(true);
+    };
+
+    const handleBackToSetup = () => {
+        router.push('/wavelength/wavelength-setup');
+    };
+
+    const handleNextRound = () => {
+        const nextPlayerInfo = getNextPlayerInfo();
+        
+        if (nextPlayerInfo.isAutomatic && nextPlayerInfo.nextPlayer) {
+            // Automatically assign the next player
+            navigateToNextRound(nextPlayerInfo.nextPlayer);
+        } else {
+            // Show selection options
+            showNextPlayerOptions();
+        }
+    };
+
+    const showNextPlayerOptions = () => {
+        const nextPlayerInfo = getNextPlayerInfo();
+        const unseenPlayers = playerHistory.filter(p => !p.hasSeenScale).map(p => p.playerName);
+        const availablePlayers = unseenPlayers.length > 0 ? unseenPlayers : players;
+
         Alert.alert(
-            'Restart Game',
-            'Are you sure you want to start a new round?',
+            'Choose Next Player',
+            nextPlayerInfo.message,
             [
                 {
-                    text: 'Cancel',
-                    style: 'cancel',
+                    text: 'Random Player',
+                    onPress: () => {
+                        const randomPlayer = availablePlayers[Math.floor(Math.random() * availablePlayers.length)];
+                        navigateToNextRound(randomPlayer);
+                    }
                 },
                 {
-                    text: 'Yes, Restart',
-                    onPress: () => {
-                        router.push({
-                            pathname: '/wavelength/wavelength-setup',
-                            params: {
-                                players: JSON.stringify(players),
-                            }
-                        });
-                    },
+                    text: 'Choose Player',
+                    onPress: () => showPlayerSelection(availablePlayers)
                 },
+                {
+                    text: 'Cancel',
+                    style: 'cancel'
+                }
             ]
         );
     };
 
-    const handleNextPlayer = () => {
-        // Select a random player that's different from the previous one
-        const availablePlayers = players.filter(player => player !== previousPlayer);
-        const randomPlayer = availablePlayers.length > 0 
-            ? availablePlayers[Math.floor(Math.random() * availablePlayers.length)]
-            : players[Math.floor(Math.random() * players.length)];
+    const showPlayerSelection = (availablePlayers: string[]) => {
+        const buttons = availablePlayers.map(player => ({
+            text: player,
+            onPress: () => navigateToNextRound(player)
+        }));
         
-        setPreviousPlayer(randomPlayer);
-    
-        // Navigate back to gamestart for the reveal process
+        buttons.push({
+            text: 'Cancel',
+            style: 'cancel' as const
+        });
+
+        Alert.alert(
+            'Select Next Player',
+            'Who should see the next scale?',
+            buttons
+        );
+    };
+
+    const navigateToNextRound = (nextPlayer: string) => {
+        // Update player history
+        const updatedHistory = playerHistory.map(p => 
+            p.playerName === nextPlayer ? { ...p, hasSeenScale: true } : p
+        );
+
+        // Navigate to pairs selection for next round
         router.push({
-            pathname: '/wavelength/wavelength-gamestart',
+            pathname: '/wavelength/wavelength-pairs',
             params: {
                 players: JSON.stringify(players),
-                playerScores: JSON.stringify(playerScores),
+                firstPlayer: nextPlayer,
+                playerScores: JSON.stringify(playerScores), // Pass current scores
+                playerHistory: JSON.stringify(updatedHistory) // Pass updated history
             }
         });
     };
@@ -231,15 +319,72 @@ export default function WavelengthResults() {
         }
     };
 
-    const handleBackToHome = () => {
-        router.push('/');
-    };
+    // Final Scoreboard Modal
+    if (showFinalScoreboard) {
+        return (
+            <View style={styles.finalScoreboardContainer}>
+                <View style={styles.finalScoreboardContent}>
+                    <Text style={styles.finalScoreboardTitle}>Final Scores</Text>
+                    
+                    <View style={styles.finalScoresList}>
+                        {playerScores
+                            .sort((a, b) => b.score - a.score)
+                            .map((playerScore, index) => {
+                                const playerColor = getPlayerColor(playerScore.playerName);
+                                return (
+                                    <View
+                                        key={playerScore.playerName}
+                                        style={[
+                                            styles.finalScoreItem,
+                                            index === 0 && styles.finalWinnerItem
+                                        ]}
+                                    >
+                                        <View style={styles.finalScoreLeft}>
+                                            <Text style={styles.finalScorePosition}>
+                                                {index + 1}.
+                                            </Text>
+                                            <View style={[
+                                                styles.playerColorIndicator,
+                                                { backgroundColor: playerColor }
+                                            ]} />
+                                            <Text style={[
+                                                styles.finalScorePlayerName,
+                                                index === 0 && styles.finalWinnerText
+                                            ]}>
+                                                {playerScore.playerName}
+                                            </Text>
+                                        </View>
+                                        <Text style={[
+                                            styles.finalScoreValue,
+                                            index === 0 && styles.finalWinnerText
+                                        ]}>
+                                            {playerScore.score}
+                                        </Text>
+                                    </View>
+                                );
+                            })}
+                    </View>
+
+                    <View style={styles.finalButtonContainer}>
+                        <Button
+                            title="New Game"
+                            variant="primary"
+                            size="lg"
+                            icon="refresh-outline"
+                            onPress={handleBackToSetup}
+                            style={styles.finalButton}
+                        />
+                    </View>
+                </View>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
             {/* Header - visible on black background */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.headerButton} onPress={handleBackToHome}>
+                <TouchableOpacity style={styles.headerButton} onPress={handleHome}>
                     <Ionicons name="home-outline" size={layout.iconSize.sm} color={colors.white} />
                 </TouchableOpacity>
 
@@ -310,11 +455,11 @@ export default function WavelengthResults() {
                             {/* Action Buttons */}
                             <View style={styles.buttonContainer}>
                                 <Button
-                                    title="RESTART"
+                                    title="HOME"
                                     variant="outline"
                                     size="sm"
-                                    icon="refresh-outline"
-                                    onPress={handleRestart}
+                                    icon="home-outline"
+                                    onPress={handleHome}
                                     style={styles.actionButton}
                                 />
                                 <Button
@@ -322,7 +467,7 @@ export default function WavelengthResults() {
                                     variant="secondary"
                                     size="sm"
                                     icon="play-outline"
-                                    onPress={handleNextPlayer}
+                                    onPress={handleNextRound}
                                     style={styles.actionButton}
                                 />
                             </View>
@@ -489,13 +634,13 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.xs, // Reduced from spacing.sm
-        paddingHorizontal: spacing.xs, // Reduced from spacing.sm
-        borderRadius: 6, // Reduced from 8
+        paddingVertical: spacing.xs, 
+        paddingHorizontal: spacing.xs, 
+        borderRadius: 6, 
         backgroundColor: colors.gray100,
         borderWidth: 1,
         borderColor: colors.gray200,
-        minHeight: 32, // Smaller minimum height
+        minHeight: 32, 
     },
     
     winnerItem: {
@@ -512,13 +657,13 @@ const styles = StyleSheet.create({
     },
     
     playerColorIndicator: {
-        width: 10, // Reduced from 12
-        height: 10, // Reduced from 12
-        borderRadius: 5, // Reduced from 6
+        width: 10, 
+        height: 10, 
+        borderRadius: 5, 
     },
     
     playerScoreText: {
-        fontSize: typography.fontSize.xs, // Reduced from sm
+        fontSize: typography.fontSize.xs, 
         color: colors.gray700,
         fontWeight: typography.fontWeight.medium,
     },
@@ -540,7 +685,7 @@ const styles = StyleSheet.create({
     },
     
     totalScoreText: {
-        fontSize: typography.fontSize.sm, // Reduced from base
+        fontSize: typography.fontSize.sm, 
         fontWeight: typography.fontWeight.bold,
         color: colors.gray800,
     },
@@ -572,8 +717,8 @@ const styles = StyleSheet.create({
         borderBottomWidth: 0,
         flexDirection: 'row',
         paddingHorizontal: 4,
-        overflow: 'hidden', // Changed from 'visible' to prevent circles from extending outside
-        position: 'relative', // Add relative positioning for better circle containment
+        overflow: 'hidden', 
+        position: 'relative', 
     },
 
     scaleRowRight: {
@@ -656,5 +801,94 @@ const styles = StyleSheet.create({
         fontWeight: typography.fontWeight.bold,
         color: colors.white,
         textAlign: 'center',
+    },
+
+    // Final Scoreboard Modal Styles
+    finalScoreboardContainer: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: spacing.lg,
+    },
+
+    finalScoreboardContent: {
+        backgroundColor: colors.white,
+        borderRadius: 16,
+        padding: spacing.xl,
+        width: '100%',
+        maxWidth: 400,
+        alignItems: 'center',
+    },
+
+    finalScoreboardTitle: {
+        fontSize: typography.fontSize['2xl'],
+        fontWeight: typography.fontWeight.bold,
+        color: colors.primary,
+        marginBottom: spacing.lg,
+        textAlign: 'center',
+    },
+
+    finalScoresList: {
+        width: '100%',
+        marginBottom: spacing.xl,
+    },
+
+    finalScoreItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.lg,
+        borderRadius: 8,
+        backgroundColor: colors.gray100,
+        marginBottom: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.gray200,
+    },
+
+    finalWinnerItem: {
+        backgroundColor: colors.success + '20',
+        borderColor: colors.success,
+        borderWidth: 2,
+    },
+
+    finalScoreLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+        flex: 1,
+    },
+
+    finalScorePosition: {
+        fontSize: typography.fontSize.lg,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.gray600,
+        minWidth: 24,
+    },
+
+    finalScorePlayerName: {
+        fontSize: typography.fontSize.base,
+        color: colors.gray700,
+        fontWeight: typography.fontWeight.medium,
+    },
+
+    finalWinnerText: {
+        color: colors.success,
+        fontWeight: typography.fontWeight.bold,
+    },
+
+    finalScoreValue: {
+        fontSize: typography.fontSize.xl,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.gray800,
+    },
+
+    finalButtonContainer: {
+        width: '100%',
+    },
+
+    finalButton: {
+        width: '100%',
     },
 });
