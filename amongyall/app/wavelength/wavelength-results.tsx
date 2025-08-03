@@ -647,6 +647,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-start',
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.md,
+        flex: 1, // Add this
     },
     
     resultsHeaderText: {
@@ -667,21 +668,21 @@ const styles = StyleSheet.create({
     
     playerList: {
         flex: 1,
-        gap: spacing.sm,
-        marginBottom: spacing.md,
+        paddingVertical: spacing.sm,
+        gap: spacing.xs,
     },
     
     playerScoreItem: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.xs, 
-        paddingHorizontal: spacing.xs, 
-        borderRadius: 6, 
+        paddingVertical: spacing.xs, // Reduce back to xs for 8 players
+        paddingHorizontal: spacing.xs, // Reduce back to xs
+        borderRadius: 4, // Smaller radius
         backgroundColor: colors.gray100,
         borderWidth: 1,
         borderColor: colors.gray200,
-        minHeight: 32, 
+        minHeight: 28, // Reduce from 48 to fit more players
     },
     
     winnerItem: {
@@ -704,15 +705,17 @@ const styles = StyleSheet.create({
     },
     
     playerColorIndicator: {
-        width: 10, 
-        height: 10, 
-        borderRadius: 5, 
+        width: 8, // Reduce from 10
+        height: 8, // Reduce from 10
+        borderRadius: 4, // Reduce from 5
     },
     
     playerScoreText: {
-        fontSize: typography.fontSize.xs, 
+        fontSize: typography.fontSize.xs, // Keep small
         color: colors.gray700,
         fontWeight: typography.fontWeight.medium,
+        flex: 1,
+        numberOfLines: 1, // Prevent text wrapping
     },
     
     winnerText: {
@@ -727,17 +730,18 @@ const styles = StyleSheet.create({
     
     scoreContainer: {
         alignItems: 'flex-end',
-        gap: 2,
+        gap: 1, // Reduce gap
+        minWidth: 24, // Ensure consistent width
     },
     
     roundPointsText: {
-        fontSize: typography.fontSize.xs,
+        fontSize: 10, // Make even smaller
         fontWeight: typography.fontWeight.medium,
         // color set dynamically to player color
     },
     
     totalScoreText: {
-        fontSize: typography.fontSize.sm, 
+        fontSize: typography.fontSize.xs, // Reduce from sm
         fontWeight: typography.fontWeight.bold,
         color: colors.gray800,
     },
@@ -766,11 +770,11 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        borderBottomWidth: 0,
+        borderBottomWidth: 1, // Add this back (was 0)
         flexDirection: 'row',
         paddingHorizontal: 4,
-        overflow: 'hidden', 
-        position: 'relative', 
+        overflow: 'hidden',
+        position: 'relative',
     },
 
     scaleRowRight: {

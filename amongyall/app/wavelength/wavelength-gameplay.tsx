@@ -480,6 +480,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-start',
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.md,
+        flex: 1, // Add this
     },
     
     currentPlayerText: {
@@ -500,20 +501,22 @@ const styles = StyleSheet.create({
     
     playerList: {
         flex: 1,
-        gap: spacing.xs,
-        marginBottom: spacing.md,
+        justifyContent: 'center', // Change from 'space-evenly' to 'center'
+        paddingVertical: spacing.sm,
+        gap: spacing.xs, // Add back the gap for closer spacing
     },
     
     playerButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: spacing.xs,
+        paddingVertical: spacing.md, // Increase to make taller
         paddingHorizontal: spacing.sm,
         borderRadius: 8,
         backgroundColor: colors.gray100,
         gap: spacing.xs,
         borderWidth: 2,
         borderColor: 'transparent',
+        minHeight: 48, // Increase from 40
     },
     
     playerColorIndicator: {
@@ -569,10 +572,10 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        borderBottomWidth: 1,
+        borderBottomWidth: 1, // Add this back
         flexDirection: 'row',
         paddingHorizontal: 4,
-        overflow: 'visible', // Allow overlapping circles to extend beyond bounds
+        overflow: 'visible',
     },
 
     // ENHANCED: Original vote indicators for 1-2 players
