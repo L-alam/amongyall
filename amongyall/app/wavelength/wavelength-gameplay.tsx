@@ -23,6 +23,17 @@ interface PlayerVote {
     hasVoted: boolean;
 }
 
+interface PlayerScore {
+    playerName: string;
+    score: number;
+    roundPoints: number;
+}
+
+interface PlayerHistory {
+    playerName: string;
+    hasSeenScale: boolean;
+}
+
 // Player colors for up to 8 players
 const PLAYER_COLORS = [
     '#FF6B6B', // Red
@@ -41,18 +52,21 @@ export default function WavelengthGameplay() {
     const currentPair = JSON.parse(params.currentPair as string || '{}') as WordPairs;
     const goalZoneStart = parseInt(params.goalZoneStart as string) || 8;
     const goalZoneEnd = parseInt(params.goalZoneEnd as string) || 12;
+    const previousScores = JSON.parse(params.playerScores as string || '[]') as PlayerScore[];
+    const playerHistory = JSON.parse(params.playerHistory as string || '[]') as PlayerHistory[];
+    const scalePlayer = params.firstPlayer as string || '';
+    
+    // Filter out the scale player from voting
+    const votingPlayers = players.filter(player => player !== scalePlayer);
     
     const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
     const [scaleAreaHeight, setScaleAreaHeight] = useState(0);
     const [playerVotes, setPlayerVotes] = useState<PlayerVote[]>([]);
-    const previousScores = JSON.parse(params.playerScores as string || '[]') as PlayerScore[];
-    const scalePlayer = params.firstPlayer as string || '';
-    const votingPlayers = players.filter(player => player !== scalePlayer);
     const [selectedPlayer, setSelectedPlayer] = useState<string>(votingPlayers[0] || '');
 
-    const scaleSize = 40
+    const scaleSize = 40;
 
-    // Initialize player votes
+    // Initialize player votes for voting players only
     useEffect(() => {
         const initialVotes: PlayerVote[] = votingPlayers.map(player => ({
             playerName: player,
@@ -60,8 +74,7 @@ export default function WavelengthGameplay() {
             hasVoted: false
         }));
         setPlayerVotes(initialVotes);
-    }, [votingPlayers.length]); 
-
+    }, [votingPlayers.length]);
 
     // Memoized functions to prevent re-renders
     const updatePlayerVote = useCallback((playerName: string, rowIndex: number) => {
@@ -73,17 +86,6 @@ export default function WavelengthGameplay() {
             )
         );
     }, []);
-
-    
-    useEffect(() => {
-        const initialVotes: PlayerVote[] = votingPlayers.map(player => ({
-            playerName: player,
-            selectedRow: null,
-            hasVoted: false
-        }));
-        setPlayerVotes(initialVotes);
-    }, [votingPlayers.length]);
-
 
     // Memoized pan gesture to prevent recreation on every render
     const panGesture = useMemo(() => 
@@ -110,8 +112,6 @@ export default function WavelengthGameplay() {
             })
     , [scaleAreaHeight, scaleSize, selectedRowIndex, selectedPlayer, updatePlayerVote]);
 
-
-
     const handlePlayerSelect = useCallback((playerName: string) => {
         setSelectedPlayer(playerName);
         // Load this player's current vote if they have one
@@ -119,13 +119,10 @@ export default function WavelengthGameplay() {
         setSelectedRowIndex(playerVote?.selectedRow || null);
     }, [playerVotes]);
 
-
     const handleRowPress = useCallback((rowIndex: number) => {
         setSelectedRowIndex(rowIndex);
         updatePlayerVote(selectedPlayer, rowIndex);
     }, [selectedPlayer, updatePlayerVote]);
-
-
 
     const handleRevealScores = () => {
         const allVoted = playerVotes.every(vote => vote.hasVoted);
@@ -170,11 +167,12 @@ export default function WavelengthGameplay() {
                 goalZoneEnd: goalZoneEnd.toString(),
                 playerVotes: JSON.stringify(playerVotes),
                 previousScores: JSON.stringify(previousScores),
+                playerHistory: JSON.stringify(playerHistory),
+                firstPlayer: scalePlayer, // Pass the scale player
             }
         });
     };
 
-    
     const getPlayerColor = useCallback((playerName: string): string => {
         const playerIndex = players.indexOf(playerName);
         return PLAYER_COLORS[playerIndex % PLAYER_COLORS.length];
@@ -269,7 +267,12 @@ export default function WavelengthGameplay() {
                                 {selectedPlayer}'s turn
                             </Text>
 
-                            {/* Player list */}
+                            {/* Scale player indicator */}
+                            <Text style={styles.scalePlayerText}>
+                                Scale: {scalePlayer}
+                            </Text>
+
+                            {/* Player list - only voting players */}
                             <View style={styles.playerList}>
                                 {votingPlayers.map((player) => {
                                     const playerColor = getPlayerColor(player);
@@ -484,6 +487,14 @@ const styles = StyleSheet.create({
         fontWeight: typography.fontWeight.semibold,
         color: colors.secondary,
         textAlign: 'center',
+        marginBottom: spacing.sm,
+    },
+
+    scalePlayerText: {
+        fontSize: typography.fontSize.xs,
+        fontWeight: typography.fontWeight.medium,
+        color: colors.warning,
+        textAlign: 'center',
         marginBottom: spacing.md,
     },
     
@@ -616,21 +627,8 @@ const styles = StyleSheet.create({
         elevation: 4, // Higher elevation for better layering
     },
 
-    // ENHANCED: Count badge for 5+ players
-    countBadge: {
-        backgroundColor: colors.gray600,
-    },
-
     scaleVoteCircleText: {
         fontSize: 10,
-        fontWeight: typography.fontWeight.bold,
-        color: colors.white,
-        textAlign: 'center',
-    },
-
-    // ENHANCED: Text for count badge
-    countBadgeText: {
-        fontSize: 8,
         fontWeight: typography.fontWeight.bold,
         color: colors.white,
         textAlign: 'center',

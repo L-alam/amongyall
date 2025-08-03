@@ -60,19 +60,21 @@ export default function WavelengthResults() {
     const goalZoneStart = useMemo(() => parseInt(params.goalZoneStart as string) || 8, [params.goalZoneStart]);
     const goalZoneEnd = useMemo(() => parseInt(params.goalZoneEnd as string) || 12, [params.goalZoneEnd]);
     
+    // Get the scale player from params
+    const scalePlayer = useMemo(() => params.firstPlayer as string || '', [params.firstPlayer]);
+    
     // Parse player history to track who has seen scales
     const playerHistory = useMemo(() => {
         try {
             return JSON.parse(params.playerHistory as string || '[]') as PlayerHistory[];
         } catch {
             // Initialize history if not provided - mark current player as having seen scale
-            const currentPlayer = params.firstPlayer as string || '';
             return players.map(player => ({
                 playerName: player,
-                hasSeenScale: player === currentPlayer
+                hasSeenScale: player === scalePlayer
             }));
         }
-    }, [params.playerHistory, params.firstPlayer, players]);
+    }, [params.playerHistory, scalePlayer, players]);
     
     const [playerScores, setPlayerScores] = useState<PlayerScore[]>([]);
     const [showFinalScoreboard, setShowFinalScoreboard] = useState(false);
@@ -100,18 +102,19 @@ export default function WavelengthResults() {
         return 0; // Outside goal zone
     }, [goalZoneStart, goalZoneEnd, isInGoalZone]);
 
-
-
     useEffect(() => {
         const previousScores = JSON.parse(previousScoresParam) as PlayerScore[];
-        const scalePlayer = params.firstPlayer as string || '';
         
-        // First, calculate how many voting players landed in the goal zone
+        // Count how many voting players landed in the goal zone
         const votingPlayersInGoalZone = playerVotes.filter(vote => 
             vote.selectedRow !== null && 
             vote.hasVoted && 
             isInGoalZone(vote.selectedRow)
         ).length;
+        
+        console.log('Scale Player:', scalePlayer);
+        console.log('Voting Players in Goal Zone:', votingPlayersInGoalZone);
+        console.log('Player Votes:', playerVotes);
         
         const scores: PlayerScore[] = players.map(playerName => {
             let roundPoints = 0;
@@ -119,10 +122,12 @@ export default function WavelengthResults() {
             if (playerName === scalePlayer) {
                 // Scale player gets points equal to number of voting players in goal zone
                 roundPoints = votingPlayersInGoalZone;
+                console.log(`Scale player ${playerName} gets ${roundPoints} points`);
             } else {
                 // Regular voting players get points based on their position
                 const vote = playerVotes.find(v => v.playerName === playerName);
                 roundPoints = vote && vote.selectedRow !== null ? calculatePoints(vote.selectedRow) : 0;
+                console.log(`Voting player ${playerName} gets ${roundPoints} points`);
             }
             
             const previousScore = previousScores.find(p => p.playerName === playerName)?.score || 0;
@@ -134,13 +139,9 @@ export default function WavelengthResults() {
             };
         });
         
-        console.log('Scale Player:', scalePlayer);
-        console.log('Voting Players in Goal Zone:', votingPlayersInGoalZone);
         console.log('Final Scores:', scores);
-        
         setPlayerScores(scores);
-    }, [players, playerVotes, goalZoneStart, goalZoneEnd, previousScoresParam, calculatePoints, params.firstPlayer, isInGoalZone]);
-
+    }, [players, playerVotes, goalZoneStart, goalZoneEnd, previousScoresParam, calculatePoints, scalePlayer, isInGoalZone]);
 
     const getPlayerColor = useCallback((playerName: string): string => {
         const playerIndex = players.indexOf(playerName);
@@ -430,18 +431,25 @@ export default function WavelengthResults() {
                                 RESULTS
                             </Text>
 
+                            {/* Scale player indicator */}
+                            <Text style={styles.scalePlayerIndicator}>
+                                Scale: {scalePlayer} (+{playerScores.find(p => p.playerName === scalePlayer)?.roundPoints || 0})
+                            </Text>
+
                             {/* Player scores list */}
                             <View style={styles.playerList}>
                                 {playerScores
                                     .sort((a, b) => b.score - a.score) // Sort by score descending
                                     .map((playerScore, index) => {
                                         const playerColor = getPlayerColor(playerScore.playerName);
+                                        const isScalePlayer = playerScore.playerName === scalePlayer;
                                         return (
                                             <View
                                                 key={playerScore.playerName}
                                                 style={[
                                                     styles.playerScoreItem,
-                                                    index === 0 && styles.winnerItem // Highlight winner
+                                                    index === 0 && styles.winnerItem, // Highlight winner
+                                                    isScalePlayer && styles.scalePlayerItem // Highlight scale player
                                                 ]}
                                             >
                                                 <View style={styles.playerScoreLeft}>
@@ -451,9 +459,11 @@ export default function WavelengthResults() {
                                                     ]} />
                                                     <Text style={[
                                                         styles.playerScoreText,
-                                                        index === 0 && styles.winnerText
+                                                        index === 0 && styles.winnerText,
+                                                        isScalePlayer && styles.scalePlayerText
                                                     ]}>
                                                         {playerScore.playerName}
+                                                        {isScalePlayer && ' (Scale)'}
                                                     </Text>
                                                 </View>
                                                 <View style={styles.scoreContainer}>
@@ -644,7 +654,15 @@ const styles = StyleSheet.create({
         fontWeight: typography.fontWeight.bold,
         color: colors.primary,
         textAlign: 'center',
-        marginBottom: spacing.lg,
+        marginBottom: spacing.sm,
+    },
+
+    scalePlayerIndicator: {
+        fontSize: typography.fontSize.xs,
+        fontWeight: typography.fontWeight.medium,
+        color: colors.warning,
+        textAlign: 'center',
+        marginBottom: spacing.md,
     },
     
     playerList: {
@@ -671,6 +689,12 @@ const styles = StyleSheet.create({
         borderColor: colors.success,
         borderWidth: 2,
     },
+
+    scalePlayerItem: {
+        backgroundColor: colors.warning + '10',
+        borderColor: colors.warning,
+        borderWidth: 1,
+    },
     
     playerScoreLeft: {
         flexDirection: 'row',
@@ -694,6 +718,11 @@ const styles = StyleSheet.create({
     winnerText: {
         color: colors.success,
         fontWeight: typography.fontWeight.bold,
+    },
+
+    scalePlayerText: {
+        color: colors.warning,
+        fontWeight: typography.fontWeight.semibold,
     },
     
     scoreContainer: {
