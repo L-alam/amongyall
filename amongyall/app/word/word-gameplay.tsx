@@ -111,22 +111,24 @@ export default function WordGameplay() {
     return [styles.wordButtonText, styles.inactiveWordText];
   };
 
-  // Calculate responsive grid layout based on number of words
+  // Calculate responsive grid layout based on number of words - Enhanced for better visibility
   const getGridLayout = (wordCount: number) => {
     if (wordCount <= 4) {
-      return { wordsPerRow: 2, cardHeight: 100 };
+      return { wordsPerRow: 2, cardHeight: 140 };
     } else if (wordCount <= 6) {
-      return { wordsPerRow: 2, cardHeight: 90 };
+      return { wordsPerRow: 2, cardHeight: 120 };
     } else if (wordCount <= 8) {
-      return { wordsPerRow: 2, cardHeight: 80 };
+      return { wordsPerRow: 2, cardHeight: 110 };
+    } else if (wordCount <= 12) {
+      return { wordsPerRow: 3, cardHeight: 100 };
     } else {
-      return { wordsPerRow: 3, cardHeight: 70 };
+      return { wordsPerRow: 3, cardHeight: 90 };
     }
   };
 
   const { wordsPerRow, cardHeight } = getGridLayout(displayWords.length);
   const horizontalPadding = spacing.lg;
-  const cardSpacing = spacing.sm;
+  const cardSpacing = spacing.md;
   const totalSpacing = horizontalPadding * 2 + cardSpacing * (wordsPerRow - 1);
   const cardWidth = (screenWidth - totalSpacing) / wordsPerRow;
 
@@ -181,7 +183,7 @@ export default function WordGameplay() {
           </View>
         )}
 
-        {/* Words grid */}
+        {/* Words grid - Full screen below instruction */}
         <View style={styles.wordsContainer}>
           {displayWords.length > 0 ? (
             <View style={styles.wordsGrid}>
@@ -255,7 +257,7 @@ const styles = StyleSheet.create({
 
   gameInfo: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
     paddingHorizontal: spacing.md,
   },
 
@@ -268,6 +270,7 @@ const styles = StyleSheet.create({
   instructionText: {
     textAlign: 'center',
     color: colors.gray500,
+    marginBottom: spacing.lg,
   },
 
   resultInfo: {
@@ -287,11 +290,12 @@ const styles = StyleSheet.create({
 
   wordsContainer: {
     flex: 1,
-    justifyContent: 'center',
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
   },
 
   wordsGrid: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -300,58 +304,63 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
     width: '100%',
-    gap: spacing.sm,
+    gap: spacing.md,
   },
 
   wordButton: {
-    backgroundColor: colors.gray100,
-    borderRadius: 12,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.sm,
+    backgroundColor: colors.gray800, // Dark background
+    borderRadius: 16,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: colors.gray200,
+    borderColor: colors.gray700,
     shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
 
   correctWordButton: {
     backgroundColor: colors.success,
     borderColor: colors.success,
+    shadowColor: colors.success,
+    shadowOpacity: 0.4,
   },
 
   incorrectWordButton: {
     backgroundColor: colors.error,
     borderColor: colors.error,
+    shadowColor: colors.error,
+    shadowOpacity: 0.4,
   },
 
   inactiveWordButton: {
-    backgroundColor: colors.gray200,
-    borderColor: colors.gray300,
+    backgroundColor: colors.gray600,
+    borderColor: colors.gray500,
     opacity: 0.6,
   },
 
   wordButtonText: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.gray700,
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.white, // White text
     textAlign: 'center',
-    lineHeight: typography.fontSize.sm * 1.2,
+    lineHeight: typography.fontSize.base * 1.3,
   },
 
   resultWordText: {
     color: colors.white,
     fontWeight: typography.fontWeight.bold,
+    fontSize: typography.fontSize.lg,
   },
 
   inactiveWordText: {
-    color: colors.gray500,
+    color: colors.gray300,
   },
 
   backButtonContainer: {
@@ -374,11 +383,5 @@ const styles = StyleSheet.create({
     color: colors.error,
     textAlign: 'center',
     marginBottom: spacing.md,
-  },
-
-  debugText: {
-    fontSize: typography.fontSize.xs,
-    color: colors.gray500,
-    textAlign: 'center',
   },
 });

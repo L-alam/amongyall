@@ -19,7 +19,7 @@ import { Button } from '../../components/Button';
 export default function WordSetup() {
   const [playerCount, setPlayerCount] = useState(4);
   const [playerName, setPlayerName] = useState('');
-  const [players, setPlayers] = useState(['MAX', 'ORLANDO', 'JOHN', 'POUYA']);
+  const [players, setPlayers] = useState(['MAX', 'ORLANDO', 'JOHN', 'LABEEB']);
   const [selectedTheme, setSelectedTheme] = useState('Hobbies');
   const [numCards, setNumCards] = useState(8);
 

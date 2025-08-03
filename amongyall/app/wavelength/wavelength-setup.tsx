@@ -18,7 +18,7 @@ import { Button } from '../../components/Button';
 export default function WavelengthSetup() {
   const [playerCount, setPlayerCount] = useState(4);
   const [playerName, setPlayerName] = useState('');
-  const [players, setPlayers] = useState(['MAX', 'ORLANDO', 'JOHN', 'POUYA']);
+  const [players, setPlayers] = useState(['MAX', 'ORLANDO', 'JOHN', 'LABEEB']);
   const [firstPlayerMode, setFirstPlayerMode] = useState<'random' | 'selected'>('random');
   const [selectedFirstPlayer, setSelectedFirstPlayer] = useState('');
 
