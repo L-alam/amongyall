@@ -2,13 +2,11 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StatusBar, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-
 import { colors, spacing, layout, typography } from '../constants/theme';
 import { textStyles, layoutStyles, gameStyles, combineStyles } from '../utils/styles';
 import { Button } from '../components/Button';
 
 export default function Index() {
-
   const handleGameModePress = (gameMode: string) => {
     switch (gameMode) {
       case 'Word Chameleon':
@@ -37,7 +35,7 @@ export default function Index() {
       
       {/* Header with settings */}
       <View style={layoutStyles.header}>
-        <View /> {/* Spacer for center alignment */}
+        <View style={{ flex: 1 }} />
         <TouchableOpacity 
           style={styles.settingsButton} 
           onPress={handleSettingsPress}
