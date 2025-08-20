@@ -465,13 +465,22 @@ export default function WordTheme() {
         <Text style={combineStyles(textStyles.h4, styles.errorText)}>
           No themes available
         </Text>
-        <Button
-          title="Retry"
-          variant="primary"
-          size="md"
-          onPress={loadThemes}
-          style={styles.retryButton}
-        />
+        <View style={styles.backButtonContainer}>
+          <Button
+            title="Retry"
+            variant="primary"
+            size="md"
+            onPress={loadThemes}
+            style={styles.retryButton}
+          />
+          <Button
+            title="Back to Home"
+            variant="primary"
+            size="md"
+            onPress={handleBack}
+            style={styles.retryButton}
+          />
+        </View>
       </View>
     );
   }
@@ -966,4 +975,14 @@ const styles = StyleSheet.create({
   retryButton: {
     minWidth: 120,
   },
+  
+  backButton: {
+    minWidth: 120,
+  },
+
+  backButtonContainer: {
+    flexDirection: "column", 
+    gap: 10,  // spaces out children evenly
+  },
+
 });
