@@ -14,9 +14,9 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="index" />
-        <Stack.Screen name="word-setup" />
-        <Stack.Screen name="question-setup" />
-        <Stack.Screen name="wavelength-setup" />
+        <Stack.Screen name="word/word-setup" />
+        <Stack.Screen name="question/question-setup" />
+        <Stack.Screen name="wavelength/wavelength-setup" />
         <Stack.Screen name="word/word-ai-theme" />
       </Stack>
     </GestureHandlerRootView>

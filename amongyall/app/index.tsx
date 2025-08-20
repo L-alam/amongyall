@@ -1,13 +1,11 @@
-import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StatusBar } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, StatusBar, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-import { colors, spacing, layout } from '../constants/theme';
+import { colors, spacing, layout, typography } from '../constants/theme';
 import { textStyles, layoutStyles, gameStyles, combineStyles } from '../utils/styles';
 import { Button } from '../components/Button';
-
-import { testConnection } from '../lib/supabase';
 
 export default function Index() {
 
@@ -27,18 +25,11 @@ export default function Index() {
     }
   };
 
-  useEffect(() => {
-    testConnection();
-  }, []);
-
-
   // SETTINGS
   const handleSettingsPress = () => {
     // TODO: Navigate to settings screen
     console.log('Settings pressed');
   };
-
-
 
   return (
     <View style={layoutStyles.container}>
@@ -78,23 +69,23 @@ export default function Index() {
         <View style={styles.buttonContainer}>
           <Button
             title="Word Chameleon"
-            icon="chatbox-outline"
+            variant="primary"
             size="lg"
             onPress={() => handleGameModePress('Word Chameleon')}
             style={styles.gameButton}
           />
-
+          
           <Button
             title="Question Chameleon"
-            icon="help-circle-outline"
+            variant="primary"
             size="lg"
             onPress={() => handleGameModePress('Question Chameleon')}
             style={styles.gameButton}
           />
-
+          
           <Button
             title="WaveLength"
-            icon="radio-outline"
+            variant="primary"
             size="lg"
             onPress={() => handleGameModePress('WaveLength')}
             style={styles.gameButton}
@@ -105,24 +96,26 @@ export default function Index() {
   );
 }
 
-
-// Component-specific styles (only what's unique to this screen)
-const styles = {
+const styles = StyleSheet.create({
   settingsButton: {
     padding: spacing.sm,
   },
+  
   logoContainer: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
   },
+  
   subtitle: {
-    marginBottom: spacing['2xl'],
-    textAlign: 'center' as const,
+    textAlign: 'center',
+    marginBottom: spacing.xl,
   },
+  
   buttonContainer: {
-    width: "100%" as const,
-    gap: spacing.lg,
+    width: '100%',
+    gap: spacing.md,
   },
+  
   gameButton: {
     width: '100%',
   },
-};
+});
