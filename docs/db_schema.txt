@@ -1,0 +1,73 @@
+create table public.pairs (
+  id uuid not null default gen_random_uuid (),
+  term_0 text null,
+  term_1 text null,
+  is_custom boolean null default false,
+  created_at timestamp without time zone null default now(),
+  constraint pairs_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create table public.question_set (
+  id uuid not null default gen_random_uuid (),
+  name text not null,
+  is_premium boolean null default false,
+  is_custom boolean null default false,
+  created_by uuid null,
+  created_at timestamp without time zone null default now(),
+  constraint question_set_pkey primary key (id),
+  constraint question_set_name_key unique (name),
+  constraint question_set_created_by_fkey foreign KEY (created_by) references auth.users (id)
+) TABLESPACE pg_default;
+
+create table public.questions (
+  id uuid not null default gen_random_uuid (),
+  set_id uuid null,
+  main_question text null,
+  spy_question text null,
+  created_at timestamp without time zone null default now(),
+  constraint questions_pkey primary key (id),
+  constraint questions_set_id_fkey foreign KEY (set_id) references question_set (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create table public.theme_words (
+  id uuid not null default gen_random_uuid (),
+  theme_id uuid null,
+  word text null,
+  created_at timestamp without time zone null default now(),
+  constraint theme_words_pkey primary key (id),
+  constraint theme_words_theme_id_fkey foreign KEY (theme_id) references themes (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create table public.themes (
+  id uuid not null default gen_random_uuid (),
+  name text not null,
+  is_premium boolean null default false,
+  is_custom boolean null default false,
+  created_at timestamp without time zone null default now(),
+  constraint themes_pkey primary key (id),
+  constraint themes_name_key unique (name)
+) TABLESPACE pg_default;
+
+create table public.user_pairs (
+  user_id uuid not null,
+  pair_id uuid not null,
+  constraint user_pairs_pkey primary key (user_id, pair_id),
+  constraint user_pairs_pair_id_fkey foreign KEY (pair_id) references pairs (id),
+  constraint user_pairs_user_id_fkey foreign KEY (user_id) references auth.users (id)
+) TABLESPACE pg_default;
+
+create table public.user_sets (
+  user_id uuid not null,
+  set_id uuid not null,
+  constraint user_sets_pkey primary key (user_id, set_id),
+  constraint user_sets_set_id_fkey foreign KEY (set_id) references question_set (id),
+  constraint user_sets_user_id_fkey foreign KEY (user_id) references auth.users (id)
+) TABLESPACE pg_default;
+
+create table public.user_themes (
+  user_id uuid not null,
+  theme_id uuid not null,
+  constraint user_themes_pkey primary key (user_id, theme_id),
+  constraint user_themes_theme_id_fkey foreign KEY (theme_id) references themes (id),
+  constraint user_themes_user_id_fkey foreign KEY (user_id) references auth.users (id)
+) TABLESPACE pg_default;

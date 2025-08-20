@@ -134,7 +134,7 @@ export default function WordTheme() {
 
   // Go back to the player setup screen
   const handleBack = () => {
-    router.back();
+    router.push('/');
   };
 
   const handleStartGame = () => {
