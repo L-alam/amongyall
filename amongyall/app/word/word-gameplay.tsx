@@ -150,9 +150,9 @@ export default function WordGameplay() {
         <View style={styles.headerSpacer} />
         
         <Text style={textStyles.h2}>
-          {gameState === 'playing' && 'DISCUSS'}
-          {gameState === 'spy_wins' && 'SPY WINS!'}
-          {gameState === 'group_wins' && 'GROUP WINS!'}
+          {gameState === 'playing' && <Text>DISCUSS</Text>}
+          {gameState === 'spy_wins' && <Text>SPY WINS!</Text>}
+          {gameState === 'group_wins' && <Text>GROUP WINS!</Text>}
         </Text>
         
         <View style={styles.headerSpacer} />

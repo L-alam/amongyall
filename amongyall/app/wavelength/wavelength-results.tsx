@@ -463,7 +463,7 @@ export default function WavelengthResults() {
                                                         isScalePlayer && styles.scalePlayerText
                                                     ]}>
                                                         {playerScore.playerName}
-                                                        {isScalePlayer && ' (Scale)'}
+                                                        {isScalePlayer && <Text> (Scale)</Text>}
                                                     </Text>
                                                 </View>
                                                 <View style={styles.scoreContainer}>

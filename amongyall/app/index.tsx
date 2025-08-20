@@ -1,11 +1,14 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StatusBar, StyleSheet } from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 import { colors, spacing, layout, typography } from '../constants/theme';
 import { textStyles, layoutStyles, gameStyles, combineStyles } from '../utils/styles';
 import { Button } from '../components/Button';
+
+console.log('Index.tsx is rendering');
 
 export default function Index() {
 

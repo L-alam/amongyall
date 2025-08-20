@@ -7,9 +7,12 @@ import { createClient, processLock } from '@supabase/supabase-js'
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_KEY;
 
+
 if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing Supabase environment variables');
-  }
+  console.error('Missing Supabase environment variables');
+  // You can still throw an error, but make it simpler:
+  throw new Error('Config error');
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
