@@ -1,3 +1,5 @@
+// Assigns all the players a word and a spy and a confirmation screen before the game starts
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Pressable, SafeAreaView, Alert, } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,7 +24,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface PlayerCard {
     playerId: number;
@@ -398,8 +400,8 @@ const styles = StyleSheet.create({
 
     // Flip card container
     flipCard: {
-        width: screenWidth - spacing.lg * 2,
-        height: 300,
+        width: screenWidth - spacing.lg * 4,
+        height: screenHeight - spacing.lg * 20,
         marginBottom: spacing.xl,
     },
 

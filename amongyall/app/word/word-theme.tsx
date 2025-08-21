@@ -1,3 +1,5 @@
+// Screen that allows user to choose number of cards, theme, random theme
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -592,7 +594,7 @@ export default function WordTheme() {
         </TouchableOpacity>
       </View>
 
-      {/* Fixed Number of Cards Controls */}
+      {/* Number of Cards Controls */}
       <View style={styles.cardControlsContainer}>
         <Text style={textStyles.h4}>Number Of Cards: {numCards}</Text>
         <View style={styles.cardCountControls}>
@@ -729,7 +731,7 @@ export default function WordTheme() {
           <Button
             title={isSelectingRandom ? "Selecting..." : "Random Theme"}
             variant="outline"
-            size="lg"
+            size="md"
             icon="shuffle-outline"
             onPress={handleRandomTheme}
             disabled={isSelectingRandom}
@@ -738,7 +740,7 @@ export default function WordTheme() {
           <Button
             title="Create Custom"
             variant="outline"
-            size="lg"
+            size="md"
             icon="add-outline"
             onPress={handleCreateCustomTheme}
             style={styles.bottomButtonHalf}

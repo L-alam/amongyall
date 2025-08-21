@@ -121,9 +121,14 @@ export const getThemeWithWords = async (themeName: string): Promise<ThemeWithWor
 
 
 
-
-// Create a custom theme with words
 export const createCustomTheme = async (themeName: string, words: string[]): Promise<Theme> => {
+  // Get current user session
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  
+  if (userError || !user) {
+    throw new Error('User must be authenticated to create custom themes');
+  }
+
   // First check if theme name already exists
   const { data: existingTheme, error: checkError } = await supabase
     .from('themes')
@@ -140,14 +145,14 @@ export const createCustomTheme = async (themeName: string, words: string[]): Pro
     throw new Error(`Theme with name "${themeName}" already exists`);
   }
 
-  // Create the theme
+  // Create the theme with explicit created_by field
   const { data: newTheme, error: themeError } = await supabase
     .from('themes')
     .insert({
       name: themeName,
       is_premium: false,
       is_custom: true,
-      // created_by will be set automatically if user is authenticated
+      created_by: user.id  // Explicitly set the created_by field
     })
     .select()
     .single();
@@ -181,12 +186,23 @@ export const createCustomTheme = async (themeName: string, words: string[]): Pro
   return newTheme;
 };
 
+
+
 // Get user's custom themes (if you want to show user's created themes)
 export const getUserCustomThemes = async (): Promise<Theme[]> => {
+  // Get current user session
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  
+  if (userError || !user) {
+    console.log('User not authenticated, returning empty array');
+    return [];
+  }
+
   const { data, error } = await supabase
     .from('themes')
     .select('*')
     .eq('is_custom', true)
+    .eq('created_by', user.id)  // Only get themes created by current user
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -197,20 +213,30 @@ export const getUserCustomThemes = async (): Promise<Theme[]> => {
   return data || [];
 };
 
-// Delete a custom theme (if you want to allow deletion)
+
 export const deleteCustomTheme = async (themeId: string): Promise<void> => {
+  // Get current user session
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  
+  if (userError || !user) {
+    throw new Error('User must be authenticated to delete themes');
+  }
+
   // Words will be deleted automatically due to CASCADE
   const { error } = await supabase
     .from('themes')
     .delete()
     .eq('id', themeId)
-    .eq('is_custom', true); // Safety check to only delete custom themes
+    .eq('is_custom', true)
+    .eq('created_by', user.id);  // Ensure user owns the theme
 
   if (error) {
     console.error('Error deleting custom theme:', error);
     throw error;
   }
 };
+
+
 
 // Check if theme name is available
 export const isThemeNameAvailable = async (themeName: string): Promise<boolean> => {

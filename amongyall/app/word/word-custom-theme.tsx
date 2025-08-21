@@ -234,6 +234,39 @@ export default function WordCustomTheme() {
         </TouchableOpacity>
       </View>
 
+        {/* Number of Cards Controls */}
+        <View style={styles.cardControlsContainer}>
+        <Text style={textStyles.h4}>Number Of Cards: {numCards}</Text>
+        <View style={styles.cardCountControls}>
+          <TouchableOpacity 
+            style={[
+              styles.countButton,
+              numCards <= MIN_CARDS && styles.countButtonDisabled
+            ]}
+            onPress={decreaseCards}
+            disabled={numCards <= MIN_CARDS}
+          >
+            <Text style={[
+              styles.countButtonText,
+              numCards <= MIN_CARDS && styles.countButtonTextDisabled
+            ]}>−</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[
+              styles.countButton,
+              numCards >= MAX_CARDS && styles.countButtonDisabled
+            ]}
+            onPress={increaseCards}
+            disabled={numCards >= MAX_CARDS}
+          >
+            <Text style={[
+              styles.countButtonText,
+              numCards >= MAX_CARDS && styles.countButtonTextDisabled
+            ]}>+</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* Scrollable Content */}
       <ScrollView 
         style={styles.scrollableContent}
@@ -269,39 +302,6 @@ export default function WordCustomTheme() {
             <Text style={styles.characterCount}>
               {themeName.length}/50 characters
             </Text>
-          </View>
-
-          {/* Number of Cards Controls */}
-          <View style={layoutStyles.section}>
-            <Text style={textStyles.h4}>Number Of Words: {numCards}</Text>
-            <View style={styles.cardCountControls}>
-              <TouchableOpacity 
-                style={[
-                  styles.countButton,
-                  numCards <= MIN_CARDS && styles.countButtonDisabled
-                ]}
-                onPress={decreaseCards}
-                disabled={numCards <= MIN_CARDS}
-              >
-                <Text style={[
-                  styles.countButtonText,
-                  numCards <= MIN_CARDS && styles.countButtonTextDisabled
-                ]}>−</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[
-                  styles.countButton,
-                  numCards >= MAX_CARDS && styles.countButtonDisabled
-                ]}
-                onPress={increaseCards}
-                disabled={numCards >= MAX_CARDS}
-              >
-                <Text style={[
-                  styles.countButtonText,
-                  numCards >= MAX_CARDS && styles.countButtonTextDisabled
-                ]}>+</Text>
-              </TouchableOpacity>
-            </View>
           </View>
 
           {/* Words Section */}
@@ -626,5 +626,16 @@ const styles = StyleSheet.create({
     color: colors.gray600,
     textAlign: 'center',
     lineHeight: typography.fontSize.sm * 1.4,
+  },
+
+  cardControlsContainer: {
+    flexDirection: 'row', 
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray200,
   },
 });
