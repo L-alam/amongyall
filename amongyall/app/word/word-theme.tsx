@@ -35,6 +35,7 @@ export default function WordTheme() {
   const [expandedTheme, setExpandedTheme] = useState<string | null>(null);
   const [customThemesExpanded, setCustomThemesExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSelectingRandom, setIsSelectingRandom] = useState(false);
 
   // Constraints for numCards
   const MIN_CARDS = 4;
@@ -142,9 +143,25 @@ export default function WordTheme() {
     router.push('/');
   };
 
-  const handleStartGame = () => {
+  const handleStartGame = async () => {
+    let gameTheme = selectedTheme;
+    let words: string[] = [];
+
+    // If we have a preview for the selected theme, use those words
     const preview = themePreviews[selectedTheme];
-    if (!preview || preview.words.length === 0) {
+    if (preview && preview.words.length > 0) {
+      words = preview.words;
+    } else {
+      // Otherwise, generate new words for the selected theme
+      try {
+        words = await getRandomWordsFromTheme(selectedTheme, numCards);
+      } catch (error) {
+        Alert.alert('Error', 'Failed to load words for the selected theme.');
+        return;
+      }
+    }
+
+    if (words.length === 0) {
       Alert.alert('Error', 'No words available for the selected theme.');
       return;
     }
@@ -153,12 +170,64 @@ export default function WordTheme() {
     router.push({
       pathname: '/word/word-gamestart',
       params: {
-        theme: selectedTheme,
+        theme: gameTheme,
         numCards: numCards.toString(),
         players: JSON.stringify(players),
-        words: JSON.stringify(preview.words)
+        words: JSON.stringify(words)
       }
     });
+  };
+
+  const handleRandomTheme = async () => {
+    setIsSelectingRandom(true);
+    
+    try {
+      // Get all available themes (regular + custom)
+      const allThemes = [...themeNames, ...customThemes.map(t => t.name)];
+      
+      if (allThemes.length === 0) {
+        Alert.alert('Error', 'No themes available.');
+        return;
+      }
+
+      // Select a random theme
+      const randomIndex = Math.floor(Math.random() * allThemes.length);
+      const randomTheme = allThemes[randomIndex];
+      
+      // Set as selected theme
+      setSelectedTheme(randomTheme);
+      
+      // Pre-load words for the random theme to ensure it's playable
+      try {
+        const words = await getRandomWordsFromTheme(randomTheme, numCards);
+        if (words.length > 0) {
+          // Update preview with the loaded words
+          setThemePreviews(prev => ({
+            ...prev,
+            [randomTheme]: {
+              themeName: randomTheme,
+              words,
+              loading: false
+            }
+          }));
+          
+          Alert.alert(
+            'Random Theme Selected!', 
+            `"${randomTheme}" has been selected`,
+            [{ text: 'OK' }]
+          );
+        } else {
+          throw new Error('No words available');
+        }
+      } catch (error) {
+        Alert.alert('Error', `The random theme "${randomTheme}" has no words available. Please try again.`);
+      }
+    } catch (error) {
+      console.error('Error selecting random theme:', error);
+      Alert.alert('Error', 'Failed to select random theme. Please try again.');
+    } finally {
+      setIsSelectingRandom(false);
+    }
   };
 
   const handleCreateCustomTheme = () => {
@@ -171,33 +240,13 @@ export default function WordTheme() {
     });
   };
 
-  const handleRandomTheme = () => {
-    // Combine all available themes
-    const allThemes = [...themeNames, ...customThemes.map(t => t.name)];
-    
-    if (allThemes.length === 0) {
-      Alert.alert('Error', 'No themes available for random selection.');
-      return;
-    }
-    
-    // Select a random theme
-    const randomIndex = Math.floor(Math.random() * allThemes.length);
-    const randomTheme = allThemes[randomIndex];
-    
-    setSelectedTheme(randomTheme);
-    
-    // Optionally show a brief confirmation
-    Alert.alert('Random Theme Selected', `Selected: ${randomTheme}`);
-  };
-
   const handleThemePress = (themeName: string) => {
-    // Only set as selected theme, don't toggle expansion
+    // Only set as selected theme, don't auto-expand
     setSelectedTheme(themeName);
   };
 
-  // Add a new function for handling preview expansion
-  const handleThemePreview = (themeName: string) => {
-    // Toggle expansion only
+  const handleThemeExpand = (themeName: string) => {
+    // Toggle expansion when chevron is pressed
     if (expandedTheme === themeName) {
       setExpandedTheme(null);
     } else {
@@ -209,6 +258,11 @@ export default function WordTheme() {
   const handleCustomThemePress = (theme: Theme) => {
     // Same logic as regular themes
     handleThemePress(theme.name);
+  };
+
+  const handleCustomThemeExpand = (theme: Theme) => {
+    // Same logic as regular themes
+    handleThemeExpand(theme.name);
   };
 
   const handleDeleteCustomTheme = async (theme: Theme) => {
@@ -323,7 +377,7 @@ export default function WordTheme() {
         <View style={styles.themeItemRow}>
           <TouchableOpacity
             style={combineStyles(
-              styles.themeItemButton,
+              styles.themeItemContent,
               isSelected && styles.themeItemSelected
             )}
             onPress={() => handleThemePress(theme)}
@@ -337,8 +391,8 @@ export default function WordTheme() {
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={styles.previewToggleButton}
-            onPress={() => handleThemePreview(theme)}
+            style={styles.expandButton}
+            onPress={() => handleThemeExpand(theme)}
           >
             <Ionicons 
               name={isExpanded ? "chevron-down-outline" : "chevron-forward-outline"}
@@ -401,20 +455,18 @@ export default function WordTheme() {
         <View style={styles.themeItemRow}>
           <TouchableOpacity
             style={combineStyles(
-              styles.themeItemButton,
+              styles.themeItemContent,
               styles.customThemeItem,
               isSelected && styles.themeItemSelected
             )}
             onPress={() => handleCustomThemePress(theme)}
           >
-            <View style={styles.customThemeInfo}>
-              <Text style={combineStyles(
-                textStyles.body,
-                isSelected && styles.themeTextSelected
-              )}>
-                {theme.name}
-              </Text>
-            </View>
+            <Text style={combineStyles(
+              textStyles.body,
+              isSelected && styles.themeTextSelected
+            )}>
+              {theme.name}
+            </Text>
           </TouchableOpacity>
           
           <View style={styles.customThemeActions}>
@@ -429,9 +481,10 @@ export default function WordTheme() {
                 color={colors.error} 
               />
             </TouchableOpacity>
+            
             <TouchableOpacity
-              style={styles.previewToggleButton}
-              onPress={() => handleThemePreview(theme.name)}
+              style={styles.expandButton}
+              onPress={() => handleCustomThemeExpand(theme)}
             >
               <Ionicons 
                 name={isExpanded ? "chevron-down-outline" : "chevron-forward-outline"}
@@ -613,7 +666,7 @@ export default function WordTheme() {
         </View>
 
         <Text style={styles.expandHint}>
-          💡 Tap any theme to select it, tap the arrow to preview words
+          💡 Tap a theme to select it, tap the arrow to preview its words
         </Text>
 
         {/* Custom Themes Section */}
@@ -672,22 +725,23 @@ export default function WordTheme() {
       {/* Fixed Bottom Buttons */}
       <View style={styles.bottomButtonsContainer}>
         <View style={styles.bottomButtonRow}>
+
           <Button
-            title="Random Theme"
+            title={isSelectingRandom ? "Selecting..." : "Random Theme"}
             variant="outline"
             size="lg"
             icon="shuffle-outline"
             onPress={handleRandomTheme}
-            style={styles.halfButton}
+            disabled={isSelectingRandom}
+            style={styles.bottomButtonHalf}
           />
-          
           <Button
             title="Create Custom"
             variant="outline"
             size="lg"
             icon="add-outline"
             onPress={handleCreateCustomTheme}
-            style={styles.halfButton}
+            style={styles.bottomButtonHalf}
           />
         </View>
         
@@ -857,26 +911,22 @@ const styles = StyleSheet.create({
   themeItemContainer: {
     // Container for theme item and its preview
   },
-  
+
+  // New row structure for theme items
   themeItemRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.gray300,
     borderRadius: 8,
     backgroundColor: colors.white,
+    overflow: 'hidden',
   },
-
-  themeItemButton: {
+  
+  themeItemContent: {
     flex: 1,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-  },
-
-  previewToggleButton: {
-    padding: spacing.md,
-    borderLeftWidth: 1,
-    borderLeftColor: colors.gray200,
+    backgroundColor: colors.white,
   },
 
   customThemeItem: {
@@ -884,24 +934,37 @@ const styles = StyleSheet.create({
   },
   
   themeItemSelected: {
-    borderColor: colors.secondary, 
-    backgroundColor: colors.secondary + '10', 
+    borderColor: colors.secondary,
+    backgroundColor: colors.secondary + '10',
   },
   
   themeTextSelected: {
-    color: colors.secondary, 
-    fontWeight: typography.fontWeight.semibold, 
+    color: colors.secondary,
+    fontWeight: typography.fontWeight.semibold,
   },
 
-  // Custom Theme Item Specific
-  customThemeInfo: {
+  expandButton: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: colors.gray200,
+  },
+
+  // Custom Theme Actions
+  customThemeActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
   },
 
-  customThemeIcon: {
-    marginRight: spacing.sm,
+  deleteButton: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: colors.gray200,
   },
 
   // No Results Message
@@ -925,16 +988,6 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     color: colors.gray500,
     textAlign: 'center',
-  },
-
-  customThemeActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-
-  deleteButton: {
-    padding: spacing.xs,
   },
 
   // Theme Preview Styles
@@ -1011,7 +1064,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
 
-  halfButton: {
+  bottomButtonHalf: {
     flex: 1,
   },
 
@@ -1043,7 +1096,6 @@ const styles = StyleSheet.create({
 
   backButtonContainer: {
     flexDirection: "column", 
-    gap: 10,
+    gap: 10,  // spaces out children evenly
   },
-
 });
