@@ -134,6 +134,11 @@ export default function WordTheme() {
 
   // Go back to the player setup screen
   const handleBack = () => {
+    router.back();
+  };
+
+  // Go back to the player setup screen
+  const handleCancel = () => {
     router.push('/');
   };
 
@@ -166,11 +171,33 @@ export default function WordTheme() {
     });
   };
 
-  const handleThemePress = (themeName: string) => {
-    // Set as selected theme
-    setSelectedTheme(themeName);
+  const handleRandomTheme = () => {
+    // Combine all available themes
+    const allThemes = [...themeNames, ...customThemes.map(t => t.name)];
     
-    // Toggle expansion
+    if (allThemes.length === 0) {
+      Alert.alert('Error', 'No themes available for random selection.');
+      return;
+    }
+    
+    // Select a random theme
+    const randomIndex = Math.floor(Math.random() * allThemes.length);
+    const randomTheme = allThemes[randomIndex];
+    
+    setSelectedTheme(randomTheme);
+    
+    // Optionally show a brief confirmation
+    Alert.alert('Random Theme Selected', `Selected: ${randomTheme}`);
+  };
+
+  const handleThemePress = (themeName: string) => {
+    // Only set as selected theme, don't toggle expansion
+    setSelectedTheme(themeName);
+  };
+
+  // Add a new function for handling preview expansion
+  const handleThemePreview = (themeName: string) => {
+    // Toggle expansion only
     if (expandedTheme === themeName) {
       setExpandedTheme(null);
     } else {
@@ -246,7 +273,6 @@ export default function WordTheme() {
     }
   };
 
-
   // Calculate grid layout for two columns
   const cardWidth = (screenWidth - spacing.lg * 2 - spacing.md * 3) / 2; // Account for container padding and gap
   const cardHeight = 60;
@@ -269,7 +295,6 @@ export default function WordTheme() {
     return false;
   });
 
-  
   const filteredCustomThemes = customThemes.filter(theme => {
     // Check if theme name matches
     if (theme.name.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -295,25 +320,33 @@ export default function WordTheme() {
 
     return (
       <View style={styles.themeItemContainer}>
-        <TouchableOpacity
-          style={combineStyles(
-            styles.themeItem,
-            isSelected && styles.themeItemSelected
-          )}
-          onPress={() => handleThemePress(theme)}
-        >
-          <Text style={combineStyles(
-            textStyles.body,
-            isSelected && styles.themeTextSelected
-          )}>
-            {theme}
-          </Text>
-          <Ionicons 
-            name={isExpanded ? "chevron-down-outline" : "chevron-forward-outline"}
-            size={layout.iconSize.sm} 
-            color={isSelected ? colors.secondary : colors.gray400} 
-          />
-        </TouchableOpacity>
+        <View style={styles.themeItemRow}>
+          <TouchableOpacity
+            style={combineStyles(
+              styles.themeItemButton,
+              isSelected && styles.themeItemSelected
+            )}
+            onPress={() => handleThemePress(theme)}
+          >
+            <Text style={combineStyles(
+              textStyles.body,
+              isSelected && styles.themeTextSelected
+            )}>
+              {theme}
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.previewToggleButton}
+            onPress={() => handleThemePreview(theme)}
+          >
+            <Ionicons 
+              name={isExpanded ? "chevron-down-outline" : "chevron-forward-outline"}
+              size={layout.iconSize.sm} 
+              color={isSelected ? colors.secondary : colors.gray400} 
+            />
+          </TouchableOpacity>
+        </View>
         
         {/* Theme Preview Expansion */}
         {isExpanded && (
@@ -365,15 +398,15 @@ export default function WordTheme() {
 
     return (
       <View style={styles.themeItemContainer}>
-        <TouchableOpacity
-          style={combineStyles(
-            styles.themeItem,
-            styles.customThemeItem,
-            isSelected && styles.themeItemSelected
-          )}
-          onPress={() => handleCustomThemePress(theme)}
-        >
-          <View style={styles.customThemeHeader}>
+        <View style={styles.themeItemRow}>
+          <TouchableOpacity
+            style={combineStyles(
+              styles.themeItemButton,
+              styles.customThemeItem,
+              isSelected && styles.themeItemSelected
+            )}
+            onPress={() => handleCustomThemePress(theme)}
+          >
             <View style={styles.customThemeInfo}>
               <Text style={combineStyles(
                 textStyles.body,
@@ -382,26 +415,32 @@ export default function WordTheme() {
                 {theme.name}
               </Text>
             </View>
-            <View style={styles.customThemeActions}>
-              <TouchableOpacity 
-                style={styles.deleteButton}
-                onPress={() => handleDeleteCustomTheme(theme)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons 
-                  name="trash-outline" 
-                  size={layout.iconSize.sm} 
-                  color={colors.error} 
-                />
-              </TouchableOpacity>
+          </TouchableOpacity>
+          
+          <View style={styles.customThemeActions}>
+            <TouchableOpacity 
+              style={styles.deleteButton}
+              onPress={() => handleDeleteCustomTheme(theme)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons 
+                name="trash-outline" 
+                size={layout.iconSize.sm} 
+                color={colors.error} 
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.previewToggleButton}
+              onPress={() => handleThemePreview(theme.name)}
+            >
               <Ionicons 
                 name={isExpanded ? "chevron-down-outline" : "chevron-forward-outline"}
                 size={layout.iconSize.sm} 
                 color={isSelected ? colors.secondary : colors.gray400} 
               />
-            </View>
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
         
         {/* Theme Preview Expansion */}
         {isExpanded && (
@@ -495,7 +534,7 @@ export default function WordTheme() {
         
         <Text style={textStyles.h2}>Word Chameleon</Text>
         
-        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+        <TouchableOpacity style={styles.headerButton} onPress={handleCancel}>
           <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
       </View>
@@ -574,7 +613,7 @@ export default function WordTheme() {
         </View>
 
         <Text style={styles.expandHint}>
-          💡 Tap any theme to preview its words
+          💡 Tap any theme to select it, tap the arrow to preview words
         </Text>
 
         {/* Custom Themes Section */}
@@ -632,14 +671,25 @@ export default function WordTheme() {
 
       {/* Fixed Bottom Buttons */}
       <View style={styles.bottomButtonsContainer}>
-        <Button
-          title="Create Custom Theme"
-          variant="outline"
-          size="lg"
-          icon="add-outline"
-          onPress={handleCreateCustomTheme}
-          style={styles.bottomButton}
-        />
+        <View style={styles.bottomButtonRow}>
+          <Button
+            title="Random Theme"
+            variant="outline"
+            size="lg"
+            icon="shuffle-outline"
+            onPress={handleRandomTheme}
+            style={styles.halfButton}
+          />
+          
+          <Button
+            title="Create Custom"
+            variant="outline"
+            size="lg"
+            icon="add-outline"
+            onPress={handleCreateCustomTheme}
+            style={styles.halfButton}
+          />
+        </View>
         
         <Button
           title="START GAME"
@@ -671,8 +721,10 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
 
-  // Fixed Card Controls
   cardControlsContainer: {
+    flexDirection: 'row', 
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
     backgroundColor: colors.white,
@@ -683,7 +735,6 @@ const styles = StyleSheet.create({
   cardCountControls: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.md, 
   },
   
   countButton: {
@@ -726,7 +777,7 @@ const styles = StyleSheet.create({
     color: colors.gray500,
     fontStyle: 'italic',
     marginTop: spacing.xs,
-    marginBottom: spacing.md, // Reduced from spacing.lg
+    marginBottom: spacing.md,
   },
 
   // Search Field
@@ -760,7 +811,7 @@ const styles = StyleSheet.create({
 
   // Custom Themes Section
   customThemesSection: {
-    marginBottom: spacing.md, // Reduced from spacing.xl
+    marginBottom: spacing.md,
   },
 
   customThemesHeader: {
@@ -769,10 +820,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    backgroundColor: colors.gray100, // Changed from warning color
+    backgroundColor: colors.gray100,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.gray200, // Changed from warning color
+    borderColor: colors.gray200,
     marginBottom: spacing.sm,
   },
 
@@ -807,21 +858,29 @@ const styles = StyleSheet.create({
     // Container for theme item and its preview
   },
   
-  themeItem: {
+  themeItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md, 
-    paddingHorizontal: spacing.lg, 
     borderWidth: 1,
-    borderColor: colors.gray300, 
+    borderColor: colors.gray300,
     borderRadius: 8,
     backgroundColor: colors.white,
   },
 
+  themeItemButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+
+  previewToggleButton: {
+    padding: spacing.md,
+    borderLeftWidth: 1,
+    borderLeftColor: colors.gray200,
+  },
+
   customThemeItem: {
     backgroundColor: colors.gray50,
-    borderColor: colors.gray300, // Changed from warning color
   },
   
   themeItemSelected: {
@@ -835,13 +894,6 @@ const styles = StyleSheet.create({
   },
 
   // Custom Theme Item Specific
-  customThemeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-
   customThemeInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -954,6 +1006,15 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
 
+  bottomButtonRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+
+  halfButton: {
+    flex: 1,
+  },
+
   bottomButton: {
     width: '100%',
   },
@@ -982,7 +1043,7 @@ const styles = StyleSheet.create({
 
   backButtonContainer: {
     flexDirection: "column", 
-    gap: 10,  // spaces out children evenly
+    gap: 10,
   },
 
 });
