@@ -121,13 +121,6 @@ export default function Index() {
               <Text style={styles.userStatusText}>
                 Welcome back, {user?.user_metadata?.full_name || 'Player'}! 🎮
               </Text>
-            ) : !anonymousEnabled ? (
-              <Text style={styles.userStatusText}>
-                <Text 
-                  style={styles.signInLink} 
-                  onPress={() => setShowLoginModal(true)}
-                >Sign in to start playing</Text> and save your progress
-              </Text>
             ) : null}
           </View>
         )}

@@ -1,4 +1,4 @@
-// lib/themeService.ts (Updated)
+// lib/themeService.ts (Fixed - Works without authentication)
 import { supabase } from './supabase';
 import { authService } from './authService';
 
@@ -122,12 +122,10 @@ export const getThemeWithWords = async (themeName: string): Promise<ThemeWithWor
 };
 
 export const createCustomTheme = async (themeName: string, words: string[]): Promise<Theme> => {
-  // Get current user (anonymous or authenticated)
+  // Get current user ID if available, but don't require it
   const userId = authService.getUserId();
   
-  if (!userId) {
-    throw new Error('User must be authenticated (including anonymous) to create themes');
-  }
+  console.log('Creating theme with user ID:', userId || 'anonymous');
 
   // First check if theme name already exists
   const { data: existingTheme, error: checkError } = await supabase
@@ -145,15 +143,21 @@ export const createCustomTheme = async (themeName: string, words: string[]): Pro
     throw new Error(`Theme with name "${themeName}" already exists`);
   }
 
-  // Create the theme with user attribution
+  // Create the theme - allow null created_by for anonymous users
+  const themeData: any = {
+    name: themeName,
+    is_premium: false,
+    is_custom: true,
+  };
+
+  // Only add created_by if we have a user ID
+  if (userId) {
+    themeData.created_by = userId;
+  }
+
   const { data: newTheme, error: themeError } = await supabase
     .from('themes')
-    .insert({
-      name: themeName,
-      is_premium: false,
-      is_custom: true,
-      created_by: userId, // Now we include the user ID (anonymous or authenticated)
-    })
+    .insert(themeData)
     .select()
     .single();
 
@@ -183,6 +187,7 @@ export const createCustomTheme = async (themeName: string, words: string[]): Pro
     throw wordsError;
   }
 
+  console.log('Theme created successfully:', newTheme.name);
   return newTheme;
 };
 
@@ -191,7 +196,9 @@ export const getUserCustomThemes = async (): Promise<Theme[]> => {
   const userId = authService.getUserId();
   
   if (!userId) {
-    return []; // No user, no themes
+    // If no user ID, return empty array (could return all themes if you want)
+    console.log('No user ID - returning empty themes list');
+    return [];
   }
 
   const { data, error } = await supabase
@@ -209,7 +216,7 @@ export const getUserCustomThemes = async (): Promise<Theme[]> => {
   return data || [];
 };
 
-// Get all custom themes (for browsing)
+// Get all custom themes (for browsing - includes anonymous themes)
 export const getAllCustomThemes = async (): Promise<Theme[]> => {
   const { data, error } = await supabase
     .from('themes')
@@ -225,20 +232,42 @@ export const getAllCustomThemes = async (): Promise<Theme[]> => {
   return data || [];
 };
 
+// Get themes created by anonymous users (no created_by)
+export const getAnonymousCustomThemes = async (): Promise<Theme[]> => {
+  const { data, error } = await supabase
+    .from('themes')
+    .select('*')
+    .eq('is_custom', true)
+    .is('created_by', null)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching anonymous custom themes:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
 export const deleteCustomTheme = async (themeId: string): Promise<void> => {
   const userId = authService.getUserId();
   
-  if (!userId) {
-    throw new Error('User must be authenticated to delete themes');
-  }
-
-  // Words will be deleted automatically due to CASCADE
-  const { error } = await supabase
+  // Build the delete query
+  let query = supabase
     .from('themes')
     .delete()
     .eq('id', themeId)
-    .eq('is_custom', true)
-    .eq('created_by', userId); // Only delete user's own themes
+    .eq('is_custom', true);
+
+  // If user is authenticated, only allow deleting their own themes
+  // If not authenticated, allow deleting anonymous themes (created_by is null)
+  if (userId) {
+    query = query.eq('created_by', userId);
+  } else {
+    query = query.is('created_by', null);
+  }
+
+  const { error } = await query;
 
   if (error) {
     console.error('Error deleting custom theme:', error);
@@ -264,4 +293,21 @@ export const isThemeNameAvailable = async (themeName: string): Promise<boolean> 
   }
 
   return false; // Name is taken
+};
+
+// Helper function to check if current user can delete a theme
+export const canDeleteTheme = (theme: Theme): boolean => {
+  const userId = authService.getUserId();
+  
+  // If user is authenticated, they can delete their own themes
+  if (userId && theme.created_by === userId) {
+    return true;
+  }
+  
+  // If user is not authenticated, they can delete anonymous themes
+  if (!userId && !theme.created_by) {
+    return true;
+  }
+  
+  return false;
 };

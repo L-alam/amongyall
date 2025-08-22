@@ -1,10 +1,12 @@
 import { supabase } from './supabase';
+import { authService } from './authService';
 
 export interface WavelengthPair {
   id: string;
   term_0: string;
   term_1: string;
   is_custom: boolean;
+  created_by?: string;
   created_at?: string;
 }
 
@@ -60,6 +62,47 @@ export const getCustomPairs = async (): Promise<WavelengthPair[]> => {
   return data || [];
 };
 
+// Get user's custom pairs (authenticated users only)
+export const getUserCustomPairs = async (): Promise<WavelengthPair[]> => {
+  const userId = authService.getUserId();
+  
+  if (!userId) {
+    console.log('No user ID - returning empty pairs list');
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('pairs')
+    .select('*')
+    .eq('is_custom', true)
+    .eq('created_by', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching user custom pairs:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+// Get anonymous custom pairs (created_by is null)
+export const getAnonymousCustomPairs = async (): Promise<WavelengthPair[]> => {
+  const { data, error } = await supabase
+    .from('pairs')
+    .select('*')
+    .eq('is_custom', true)
+    .is('created_by', null)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching anonymous custom pairs:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
 // Get a random pair from all pairs
 export const getRandomPair = async (): Promise<WordPairs | null> => {
   try {
@@ -107,7 +150,7 @@ export const getRandomPairs = async (count: number, customOnly: boolean = false)
     
     if (allPairs.length === 0) return [];
     
-    // Shuffle the array and take the requested count
+    // Shuffle and take requested count
     const shuffled = [...allPairs].sort(() => Math.random() - 0.5);
     const selectedPairs = shuffled.slice(0, Math.min(count, allPairs.length));
     
@@ -121,57 +164,71 @@ export const getRandomPairs = async (count: number, customOnly: boolean = false)
   }
 };
 
-// Create a custom pair
+// Create a new custom pair (works with or without authentication)
 export const createCustomPair = async (term0: string, term1: string): Promise<WavelengthPair> => {
   // Validate input
-  if (!term0.trim() || !term1.trim()) {
+  if (!term0?.trim() || !term1?.trim()) {
     throw new Error('Both terms must be provided and cannot be empty');
   }
 
-  // Check if this exact pair already exists
-  const { data: existingPair, error: checkError } = await supabase
-    .from('pairs')
-    .select('id')
-    .eq('term_0', term0.trim())
-    .eq('term_1', term1.trim())
-    .single();
+  // Get current user ID if available
+  const userId = authService.getUserId();
+  
+  console.log('Creating pair with user ID:', userId || 'anonymous');
 
-  if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found" error
-    console.error('Error checking pair existence:', checkError);
-    throw checkError;
+  // Check if pair already exists (in either direction)
+  const exists = await pairExists(term0.trim(), term1.trim());
+  if (exists) {
+    throw new Error('This pair already exists');
   }
 
-  if (existingPair) {
-    throw new Error(`Pair "${term0}" ↔ "${term1}" already exists`);
+  // Create the pair data
+  const pairData: any = {
+    term_0: term0.trim(),
+    term_1: term1.trim(),
+    is_custom: true,
+  };
+
+  // Only add created_by if we have a user ID
+  if (userId) {
+    pairData.created_by = userId;
   }
 
-  // Create the new pair
-  const { data: newPair, error: createError } = await supabase
+  const { data: newPair, error } = await supabase
     .from('pairs')
-    .insert({
-      term_0: term0.trim(),
-      term_1: term1.trim(),
-      is_custom: true,
-    })
+    .insert(pairData)
     .select()
     .single();
 
-  if (createError) {
-    console.error('Error creating custom pair:', createError);
-    throw createError;
+  if (error) {
+    console.error('Error creating custom pair:', error);
+    throw error;
   }
 
+  console.log('Pair created successfully:', `${newPair.term_0} / ${newPair.term_1}`);
   return newPair;
 };
 
 // Delete a custom pair
 export const deleteCustomPair = async (pairId: string): Promise<void> => {
-  // Safety check to only delete custom pairs
-  const { error } = await supabase
+  const userId = authService.getUserId();
+
+  // Build the delete query
+  let query = supabase
     .from('pairs')
     .delete()
     .eq('id', pairId)
     .eq('is_custom', true);
+
+  // If user is authenticated, only allow deleting their own pairs
+  // If not authenticated, allow deleting anonymous pairs
+  if (userId) {
+    query = query.eq('created_by', userId);
+  } else {
+    query = query.is('created_by', null);
+  }
+
+  const { error } = await query;
 
   if (error) {
     console.error('Error deleting custom pair:', error);
@@ -182,21 +239,30 @@ export const deleteCustomPair = async (pairId: string): Promise<void> => {
 // Update a custom pair
 export const updateCustomPair = async (pairId: string, term0: string, term1: string): Promise<WavelengthPair> => {
   // Validate input
-  if (!term0.trim() || !term1.trim()) {
+  if (!term0?.trim() || !term1?.trim()) {
     throw new Error('Both terms must be provided and cannot be empty');
   }
 
-  // Update the pair (only if it's custom)
-  const { data: updatedPair, error } = await supabase
+  const userId = authService.getUserId();
+
+  // Build the update query
+  let query = supabase
     .from('pairs')
     .update({
       term_0: term0.trim(),
       term_1: term1.trim(),
     })
     .eq('id', pairId)
-    .eq('is_custom', true)
-    .select()
-    .single();
+    .eq('is_custom', true);
+
+  // Ensure user can only update their own pairs
+  if (userId) {
+    query = query.eq('created_by', userId);
+  } else {
+    query = query.is('created_by', null);
+  }
+
+  const { data: updatedPair, error } = await query.select().single();
 
   if (error) {
     console.error('Error updating custom pair:', error);
@@ -204,7 +270,7 @@ export const updateCustomPair = async (pairId: string, term0: string, term1: str
   }
 
   if (!updatedPair) {
-    throw new Error('Pair not found or is not a custom pair');
+    throw new Error('Pair not found or you do not have permission to update it');
   }
 
   return updatedPair;
@@ -251,6 +317,23 @@ export const getPairsCount = async (): Promise<{ total: number; custom: number; 
   const builtin = total - custom;
 
   return { total, custom, builtin };
+};
+
+// Helper function to check if current user can delete a pair
+export const canDeletePair = (pair: WavelengthPair): boolean => {
+  const userId = authService.getUserId();
+  
+  // If user is authenticated, they can delete their own pairs
+  if (userId && pair.created_by === userId) {
+    return true;
+  }
+  
+  // If user is not authenticated, they can delete anonymous pairs
+  if (!userId && !pair.created_by) {
+    return true;
+  }
+  
+  return false;
 };
 
 // Convert database pair to game format (maintaining compatibility with existing code)
