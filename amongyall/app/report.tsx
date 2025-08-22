@@ -1,11 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Linking, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors, spacing, layout, typography } from '../constants/theme';
-
-
 
 const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSe-tRu1HtSY-JYlWhLEUKZhMMdBIaKh7D6h1QcRne7G538NUQ/viewform?usp=dialog';
 
@@ -26,6 +24,14 @@ export default function ReportScreen() {
     }
   };
 
+  // Current work status and known issues
+  const currentNotes = [
+    "Settings - Not yet functional",
+    "Profile customization",
+    "Push notifications",
+    "Dark mode toggle"
+  ];
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header with Back Button */}
@@ -40,28 +46,51 @@ export default function ReportScreen() {
       </View>
 
       {/* Main Content */}
-      <View style={styles.content}>
-        <View style={styles.messageContainer}>
-          <Text style={styles.title}>Issue Reporting</Text>
-          
-          <Text style={styles.message}>
-            Thanks for testing the Amongyall App. Please use this form to report any issues. Please also submit any suggestions you have. It would be greatly appreciated.
-          </Text>
-          
-          <Text style={styles.signature}>
-            THANK YOU - Labeeber
-          </Text>
+      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
+          <View style={styles.messageContainer}>
+            <Text style={styles.title}>Issue Reporting</Text>
+            
+            <Text style={styles.message}>
+              Thanks for testing the Amongyall App. Please use this form to report any issues. Please also submit any suggestions you have. It would be greatly appreciated.
+            </Text>
+            
+            <Text style={styles.signature}>
+              THANK YOU - Labeeber
+            </Text>
+          </View>
+
+          {/* Form Button */}
+          <TouchableOpacity 
+            style={styles.formButton}
+            onPress={handleOpenForm}
+          >
+            <Ionicons name="open-outline" size={20} color={colors.white} />
+            <Text style={styles.formButtonText}>Open Report Form</Text>
+          </TouchableOpacity>
+
+
+        {/* Developer Notes Section */}
+        <View style={styles.notesContainer}>
+            <View style={styles.notesHeader}>
+              <Ionicons name="information-circle" size={20} color={colors.primary} />
+              <Text style={styles.notesTitle}>Developer Notes</Text>
+            </View>
+            
+            <Text style={styles.notesSubtitle}>Working on:</Text>
+            <View style={styles.notesList}>
+              {currentNotes.map((note, index) => (
+                <View key={index} style={styles.noteItem}>
+                  <Text style={styles.bulletPoint}>•</Text>
+                  <Text style={styles.noteText}>{note}</Text>
+                </View>
+              ))}
+            </View>
         </View>
 
-        {/* Form Button */}
-        <TouchableOpacity 
-          style={styles.formButton}
-          onPress={handleOpenForm}
-        >
-          <Ionicons name="open-outline" size={20} color={colors.white} />
-          <Text style={styles.formButtonText}>Open Report Form</Text>
-        </TouchableOpacity>
-      </View>
+
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -89,11 +118,13 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.medium,
     marginLeft: spacing.sm,
   },
-  content: {
+  scrollContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  },
+  content: {
     paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+    alignItems: 'center',
   },
   messageContainer: {
     backgroundColor: colors.white,
@@ -131,6 +162,64 @@ const styles = StyleSheet.create({
     color: colors.gray800,
     textAlign: 'center',
     marginTop: spacing.md,
+  },
+  notesContainer: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+    marginTop: spacing.xl,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+    maxWidth: 400,
+    width: '100%',
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+  },
+  notesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  notesTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.gray800,
+    marginLeft: spacing.sm,
+  },
+  notesSubtitle: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.gray700,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  notesList: {
+    marginBottom: spacing.sm,
+  },
+  noteItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.xs,
+  },
+  bulletPoint: {
+    color: colors.primary,
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.bold,
+    marginRight: spacing.sm,
+    marginTop: 2,
+  },
+  noteText: {
+    flex: 1,
+    fontSize: typography.fontSize.sm,
+    color: colors.gray600,
+    lineHeight: 20,
   },
   formButton: {
     flexDirection: 'row',
