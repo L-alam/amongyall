@@ -60,9 +60,20 @@ export default function Index() {
   return (
     <View style={layoutStyles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+
+      
       
       {/* Header with settings and auth button */}
       <View style={layoutStyles.header}>
+        {/* Report Issues Button - Top Left */}
+        <TouchableOpacity 
+          style={[styles.headerButton, styles.reportButton]}
+          onPress={() => router.push('/report')}
+        >
+          <Ionicons name="bug-outline" size={16} color={colors.black} />
+          <Text style={styles.reportButtonText}>Report Issues</Text>
+        </TouchableOpacity>
+
         <View style={{ flex: 1 }} />
         
         {/* Auth Button (Sign In / Profile) */}
@@ -122,6 +133,9 @@ export default function Index() {
                 Welcome back, {user?.user_metadata?.full_name || 'Player'}! 🎮
               </Text>
             ) : null}
+            <Text style={combineStyles(textStyles.subtitle, styles.subtitle)}>
+              Test Version
+            </Text>
           </View>
         )}
 
@@ -222,5 +236,26 @@ const styles = StyleSheet.create({
   },
   gameButton: {
     marginBottom: spacing.sm,
+  },
+  reportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  reportButtonText: {
+    color: colors.black,
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.medium,
+    marginLeft: 4,
   },
 });
