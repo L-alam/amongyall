@@ -51,6 +51,7 @@ export const useAuth = () => {
     session: authState.session,
     isAnonymous: authState.isAnonymous,
     isLoading: authState.isLoading,
+    anonymousEnabled: authState.anonymousEnabled,
     
     // Computed values
     isAuthenticated: authService.isAuthenticated(),

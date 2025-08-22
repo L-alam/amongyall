@@ -1,4 +1,4 @@
-// app/index.tsx
+// app/index.tsx (Updated)
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StatusBar, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +10,7 @@ import { useAuth } from '../hooks/useAuth';
 import { SocialLoginModal } from '../components/SocialLoginModal';
 
 export default function Index() {
-  const { user, isAnonymous, isPermanentUser, isLoading } = useAuth();
+  const { user, isAnonymous, isPermanentUser, isLoading, anonymousEnabled } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   const handleGameModePress = (gameMode: string) => {
@@ -120,6 +120,13 @@ export default function Index() {
             ) : isPermanentUser ? (
               <Text style={styles.userStatusText}>
                 Welcome back, {user?.user_metadata?.full_name || 'Player'}! 🎮
+              </Text>
+            ) : !anonymousEnabled ? (
+              <Text style={styles.userStatusText}>
+                <Text 
+                  style={styles.signInLink} 
+                  onPress={() => setShowLoginModal(true)}
+                >Sign in to start playing</Text> and save your progress
               </Text>
             ) : null}
           </View>

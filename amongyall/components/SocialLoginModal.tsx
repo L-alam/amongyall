@@ -89,8 +89,9 @@ export const SocialLoginModal: React.FC<SocialLoginModalProps> = ({
 
           <View style={styles.buttonsContainer}>
             {renderSocialButton('google', 'Continue with Google', '#4285F4')}
-            {renderSocialButton('apple', 'Continue with Apple', '#000000')}
-            {renderSocialButton('facebook', 'Continue with Facebook', '#1877F2')}
+            {/* Apple and Facebook temporarily disabled - focus on Google first */}
+            {/* {renderSocialButton('apple', 'Continue with Apple', '#000000')} */}
+            {/* {renderSocialButton('facebook', 'Continue with Facebook', '#1877F2')} */}
           </View>
 
           <View style={styles.footer}>

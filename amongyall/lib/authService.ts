@@ -1,3 +1,4 @@
+// lib/authService.ts (Updated)
 import { supabase } from './supabase';
 import { Session, User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -13,6 +14,7 @@ export interface AuthState {
   session: Session | null;
   isAnonymous: boolean;
   isLoading: boolean;
+  anonymousEnabled: boolean; // Track if anonymous is available
 }
 
 class AuthService {
@@ -21,7 +23,8 @@ class AuthService {
     user: null,
     session: null,
     isAnonymous: false,
-    isLoading: true
+    isLoading: true,
+    anonymousEnabled: true
   };
 
   constructor() {
@@ -43,11 +46,12 @@ class AuthService {
           user: session.user,
           session,
           isAnonymous: session.user.is_anonymous || false,
-          isLoading: false
+          isLoading: false,
+          anonymousEnabled: true
         });
       } else {
-        // No session - create anonymous session
-        await this.createAnonymousSession();
+        // No session - try to create anonymous session
+        await this.tryCreateAnonymousSession();
       }
 
       // Listen for auth changes
@@ -68,7 +72,40 @@ class AuthService {
         user: null,
         session: null,
         isAnonymous: false,
-        isLoading: false
+        isLoading: false,
+        anonymousEnabled: false
+      });
+    }
+  }
+
+  private async tryCreateAnonymousSession() {
+    try {
+      const { data, error } = await supabase.auth.signInAnonymously();
+      
+      if (error) {
+        console.log('Anonymous sign-ins are disabled or failed:', error.message);
+        // Set state to show no user but not loading
+        this.updateAuthState({
+          user: null,
+          session: null,
+          isAnonymous: false,
+          isLoading: false,
+          anonymousEnabled: false
+        });
+        return;
+      }
+
+      console.log('Anonymous session created:', data.user?.id);
+      // State will be updated via onAuthStateChange
+      
+    } catch (error) {
+      console.error('Error creating anonymous session:', error);
+      this.updateAuthState({
+        user: null,
+        session: null,
+        isAnonymous: false,
+        isLoading: false,
+        anonymousEnabled: false
       });
     }
   }
@@ -96,7 +133,11 @@ class AuthService {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'yourapp://auth/callback', // Replace with your app's deep link
+          redirectTo: 'amongyall://auth/callback', // Use your actual app scheme
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         }
       });
 
@@ -105,6 +146,7 @@ class AuthService {
         return { user: null, error };
       }
 
+      console.log('Google sign-in initiated successfully');
       return { user: data.user, error: null };
     } catch (error) {
       console.error('Error in signInWithGoogle:', error);
@@ -117,7 +159,7 @@ class AuthService {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
-          redirectTo: 'yourapp://auth/callback', // Replace with your app's deep link
+          redirectTo: 'amongyall://auth/callback', // Use your actual app scheme
         }
       });
 
@@ -138,7 +180,7 @@ class AuthService {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: {
-          redirectTo: 'yourapp://auth/callback', // Replace with your app's deep link
+          redirectTo: 'amongyall://auth/callback', // Use your actual app scheme
         }
       });
 
@@ -180,8 +222,10 @@ class AuthService {
         return { error };
       }
 
-      // After signing out, create a new anonymous session
-      await this.createAnonymousSession();
+      // After signing out, try to create a new anonymous session if enabled
+      if (this.currentState.anonymousEnabled) {
+        await this.tryCreateAnonymousSession();
+      }
       
       return { error: null };
     } catch (error) {
@@ -236,6 +280,10 @@ class AuthService {
 
   getUserId(): string | null {
     return this.currentState.user?.id || null;
+  }
+
+  isAnonymousEnabled(): boolean {
+    return this.currentState.anonymousEnabled;
   }
 }
 
