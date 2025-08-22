@@ -1,7 +1,13 @@
-// lib/authService.ts (Updated)
+// lib/authService.ts (Fixed for Safari/WebBrowser issues)
 import { supabase } from './supabase';
 import { Session, User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
+
+// This is required for Expo WebBrowser
+WebBrowser.maybeCompleteAuthSession();
 
 export interface AnonymousUser {
   id: string;
@@ -14,7 +20,7 @@ export interface AuthState {
   session: Session | null;
   isAnonymous: boolean;
   isLoading: boolean;
-  anonymousEnabled: boolean; // Track if anonymous is available
+  anonymousEnabled: boolean;
 }
 
 class AuthService {
@@ -29,7 +35,75 @@ class AuthService {
 
   constructor() {
     this.initializeAuth();
+    this.setupLinkingListener();
   }
+
+  private setupLinkingListener() {
+    // Listen for deep links when the app is already open
+    const subscription = Linking.addEventListener('url', this.handleDeepLink);
+    
+    // Check if app was opened via deep link
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        this.handleDeepLink({ url });
+      }
+    });
+
+    return () => subscription?.remove();
+  }
+
+  private handleDeepLink = async ({ url }: { url: string }) => {
+    console.log('Deep link received:', url);
+    
+    if (url.includes('auth/callback') || url.includes('#access_token')) {
+      try {
+        // Handle both URL formats
+        let accessToken: string | null = null;
+        let refreshToken: string | null = null;
+        let error: string | null = null;
+        let errorDescription: string | null = null;
+
+        if (url.includes('#access_token')) {
+          // Hash fragment format (common with OAuth)
+          const hashPart = url.split('#')[1];
+          const params = new URLSearchParams(hashPart);
+          accessToken = params.get('access_token');
+          refreshToken = params.get('refresh_token');
+          error = params.get('error');
+          errorDescription = params.get('error_description');
+        } else {
+          // Query parameter format
+          const urlObj = new URL(url);
+          accessToken = urlObj.searchParams.get('access_token');
+          refreshToken = urlObj.searchParams.get('refresh_token');
+          error = urlObj.searchParams.get('error');
+          errorDescription = urlObj.searchParams.get('error_description');
+        }
+
+        if (error) {
+          console.error('OAuth error:', error, errorDescription);
+          return;
+        }
+
+        if (accessToken) {
+          console.log('Setting session from deep link...');
+          
+          const { data, error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+          });
+
+          if (sessionError) {
+            console.error('Error setting session from deep link:', sessionError);
+          } else {
+            console.log('Session set successfully from deep link:', data.user?.email);
+          }
+        }
+      } catch (error) {
+        console.error('Error handling deep link:', error);
+      }
+    }
+  };
 
   private async initializeAuth() {
     try {
@@ -56,7 +130,7 @@ class AuthService {
 
       // Listen for auth changes
       supabase.auth.onAuthStateChange((event, session) => {
-        console.log('Auth state changed:', event, session?.user?.id);
+        console.log('Auth state changed:', event, session?.user?.email || 'no user');
         
         this.updateAuthState({
           user: session?.user || null,
@@ -84,7 +158,6 @@ class AuthService {
       
       if (error) {
         console.log('Anonymous sign-ins are disabled or failed:', error.message);
-        // Set state to show no user but not loading
         this.updateAuthState({
           user: null,
           session: null,
@@ -96,7 +169,6 @@ class AuthService {
       }
 
       console.log('Anonymous session created:', data.user?.id);
-      // State will be updated via onAuthStateChange
       
     } catch (error) {
       console.error('Error creating anonymous session:', error);
@@ -130,10 +202,12 @@ class AuthService {
 
   async signInWithGoogle(): Promise<{ user: User | null; error: any }> {
     try {
+      // For Expo, we need to use the Supabase hosted redirect
+      // This avoids the Safari "can't connect to server" issue
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'amongyall://auth/callback', // Use your actual app scheme
+          // Use web redirect that will work with WebBrowser
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -142,12 +216,51 @@ class AuthService {
       });
 
       if (error) {
-        console.error('Error signing in with Google:', error);
+        console.error('Error creating Google OAuth URL:', error);
         return { user: null, error };
       }
 
-      console.log('Google sign-in initiated successfully');
-      return { user: data.user, error: null };
+      if (!data.url) {
+        return { user: null, error: new Error('No OAuth URL returned') };
+      }
+
+      console.log('Opening Google OAuth URL:', data.url);
+
+      // Configure WebBrowser options for better compatibility
+      const browserOptions: WebBrowser.AuthSessionOptions = {
+        showInRecents: false,
+      };
+
+      // Add iOS-specific options
+      if (Platform.OS === 'ios') {
+        browserOptions.preferEphemeralSession = false; // Try persistent session
+      }
+
+      // Open the OAuth URL in the browser
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        undefined, // Let Supabase handle the redirect
+        browserOptions
+      );
+
+      console.log('WebBrowser result:', result);
+
+      if (result.type === 'success' && result.url) {
+        // Handle the callback URL
+        await this.handleDeepLink({ url: result.url });
+        
+        // Wait a bit for the session to be set
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        return { user: this.getCurrentUser(), error: null };
+      } else if (result.type === 'cancel') {
+        console.log('User cancelled Google sign-in');
+        return { user: null, error: new Error('User cancelled sign-in') };
+      } else {
+        console.log('OAuth flow failed or dismissed');
+        return { user: null, error: new Error('OAuth flow failed') };
+      }
+
     } catch (error) {
       console.error('Error in signInWithGoogle:', error);
       return { user: null, error };
@@ -158,17 +271,33 @@ class AuthService {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
-        options: {
-          redirectTo: 'amongyall://auth/callback', // Use your actual app scheme
-        }
       });
 
-      if (error) {
-        console.error('Error signing in with Apple:', error);
-        return { user: null, error };
+      if (error || !data.url) {
+        return { user: null, error: error || new Error('No OAuth URL returned') };
       }
 
-      return { user: data.user, error: null };
+      const browserOptions: WebBrowser.AuthSessionOptions = {
+        showInRecents: false,
+      };
+
+      if (Platform.OS === 'ios') {
+        browserOptions.preferEphemeralSession = false;
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        undefined,
+        browserOptions
+      );
+
+      if (result.type === 'success' && result.url) {
+        await this.handleDeepLink({ url: result.url });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return { user: this.getCurrentUser(), error: null };
+      }
+
+      return { user: null, error: new Error('OAuth flow failed') };
     } catch (error) {
       console.error('Error in signInWithApple:', error);
       return { user: null, error };
@@ -179,17 +308,33 @@ class AuthService {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
-        options: {
-          redirectTo: 'amongyall://auth/callback', // Use your actual app scheme
-        }
       });
 
-      if (error) {
-        console.error('Error signing in with Facebook:', error);
-        return { user: null, error };
+      if (error || !data.url) {
+        return { user: null, error: error || new Error('No OAuth URL returned') };
       }
 
-      return { user: data.user, error: null };
+      const browserOptions: WebBrowser.AuthSessionOptions = {
+        showInRecents: false,
+      };
+
+      if (Platform.OS === 'ios') {
+        browserOptions.preferEphemeralSession = false;
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        undefined,
+        browserOptions
+      );
+
+      if (result.type === 'success' && result.url) {
+        await this.handleDeepLink({ url: result.url });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return { user: this.getCurrentUser(), error: null };
+      }
+
+      return { user: null, error: new Error('OAuth flow failed') };
     } catch (error) {
       console.error('Error in signInWithFacebook:', error);
       return { user: null, error };
@@ -197,10 +342,6 @@ class AuthService {
   }
 
   async linkAnonymousToSocial(provider: 'google' | 'apple' | 'facebook'): Promise<{ user: User | null; error: any }> {
-    // This will convert an anonymous account to a permanent one
-    // Supabase handles the linking automatically when you sign in with OAuth
-    // while having an anonymous session
-    
     switch (provider) {
       case 'google':
         return this.signInWithGoogle();
