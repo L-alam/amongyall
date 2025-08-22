@@ -62,41 +62,41 @@ class UserProfileService {
   // Get user statistics
   async getUserStats(): Promise<UserStats> {
     const userId = authService.getUserId();
-    if (!userId) {
-      return {
-        games_played: 0,
-        themes_created: 0,
-        questions_created: 0,
-        pairs_created: 0,
-      };
-    }
-
+    
     try {
-      // Count themes created by user
-      const { count: themesCount } = await supabase
-        .from('themes')
-        .select('id', { count: 'exact', head: true })
-        .eq('created_by', userId)
-        .eq('is_custom', true);
+      let themesCount = 0;
+      let questionsCount = 0; 
+      let pairsCount = 0;
 
-      // Count question sets created by user
-      const { count: questionsCount } = await supabase
-        .from('question_set')
-        .select('id', { count: 'exact', head: true })
-        .eq('created_by', userId);
+      if (userId) {
+        // Authenticated user - count their content
+        const [themes, questions, pairs] = await Promise.all([
+          supabase.from('themes').select('id', { count: 'exact', head: true }).eq('created_by', userId).eq('is_custom', true),
+          supabase.from('question_set').select('id', { count: 'exact', head: true }).eq('created_by', userId),
+          supabase.from('pairs').select('id', { count: 'exact', head: true }).eq('created_by', userId).eq('is_custom', true)
+        ]);
 
-      // Count pairs created by user
-      const { count: pairsCount } = await supabase
-        .from('pairs')
-        .select('id', { count: 'exact', head: true })
-        .eq('created_by', userId)
-        .eq('is_custom', true);
+        themesCount = themes.count || 0;
+        questionsCount = questions.count || 0;
+        pairsCount = pairs.count || 0;
+      } else {
+        // Anonymous user - count anonymous content (created_by is null)
+        const [themes, questions, pairs] = await Promise.all([
+          supabase.from('themes').select('id', { count: 'exact', head: true }).is('created_by', null).eq('is_custom', true),
+          supabase.from('question_set').select('id', { count: 'exact', head: true }).is('created_by', null),
+          supabase.from('pairs').select('id', { count: 'exact', head: true }).is('created_by', null).eq('is_custom', true)
+        ]);
+
+        themesCount = themes.count || 0;
+        questionsCount = questions.count || 0;
+        pairsCount = pairs.count || 0;
+      }
 
       return {
         games_played: 0, // You can implement game tracking later
-        themes_created: themesCount || 0,
-        questions_created: questionsCount || 0,
-        pairs_created: pairsCount || 0,
+        themes_created: themesCount,
+        questions_created: questionsCount,
+        pairs_created: pairsCount,
       };
     } catch (error) {
       console.error('Error fetching user stats:', error);

@@ -67,10 +67,25 @@ export const getUserCustomPairs = async (): Promise<WavelengthPair[]> => {
   const userId = authService.getUserId();
   
   if (!userId) {
-    console.log('No user ID - returning empty pairs list');
-    return [];
+    // If no user ID, return anonymous pairs (pairs with created_by = null)
+    console.log('No user ID - returning anonymous pairs');
+    
+    const { data, error } = await supabase
+      .from('pairs')
+      .select('*')
+      .eq('is_custom', true)
+      .is('created_by', null)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching anonymous custom pairs:', error);
+      throw error;
+    }
+
+    return data || [];
   }
 
+  // User is authenticated - return their pairs
   const { data, error } = await supabase
     .from('pairs')
     .select('*')

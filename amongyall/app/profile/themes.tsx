@@ -13,20 +13,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors, spacing, layout, typography } from '../../constants/theme';
 import { textStyles, layoutStyles } from '../../utils/styles';
-import { getUserCustomThemes, deleteCustomTheme, Theme } from '../../lib/themeService';
+import { getUserCustomThemes, deleteCustomTheme, getAllCustomThemes, Theme } from '../../lib/themeService';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function ProfileThemesScreen() {
+  const { isAuthenticated } = useAuth();
   const [themes, setThemes] = useState<Theme[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadThemes = async () => {
     try {
-      const userThemes = await getUserCustomThemes();
+      // Load user's themes if authenticated, or all custom themes if not
+      const userThemes = isAuthenticated ? await getUserCustomThemes() : await getAllCustomThemes();
       setThemes(userThemes);
     } catch (error) {
       console.error('Error loading themes:', error);
-      Alert.alert('Error', 'Failed to load your themes');
+      Alert.alert('Error', 'Failed to load themes');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -35,7 +38,7 @@ export default function ProfileThemesScreen() {
 
   useEffect(() => {
     loadThemes();
-  }, []);
+  }, [isAuthenticated]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -47,6 +50,14 @@ export default function ProfileThemesScreen() {
   };
 
   const handleDeleteTheme = (theme: Theme) => {
+    // Only allow deletion if user created it or it's anonymous
+    const canDelete = isAuthenticated ? theme.created_by : !theme.created_by;
+    
+    if (!canDelete) {
+      Alert.alert('Cannot Delete', 'You can only delete themes you created.');
+      return;
+    }
+
     Alert.alert(
       'Delete Theme',
       `Are you sure you want to delete "${theme.name}"? This action cannot be undone.`,
@@ -68,25 +79,32 @@ export default function ProfileThemesScreen() {
     );
   };
 
-  const renderThemeItem = ({ item }: { item: Theme }) => (
-    <View style={styles.themeCard}>
-      <View style={styles.themeInfo}>
-        <Text style={styles.themeName}>{item.name}</Text>
-        <Text style={styles.themeDate}>
-          Created {new Date(item.created_at || '').toLocaleDateString()}
-        </Text>
+  const renderThemeItem = ({ item }: { item: Theme }) => {
+    const canDelete = isAuthenticated ? item.created_by : !item.created_by;
+    
+    return (
+      <View style={styles.themeCard}>
+        <View style={styles.themeInfo}>
+          <Text style={styles.themeName}>{item.name}</Text>
+          <Text style={styles.themeDate}>
+            Created {new Date(item.created_at || '').toLocaleDateString()}
+            {!item.created_by && ' (Anonymous)'}
+          </Text>
+        </View>
+        
+        {canDelete && (
+          <View style={styles.themeActions}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleDeleteTheme(item)}
+            >
+              <Ionicons name="trash-outline" size={20} color={colors.error} />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
-      
-      <View style={styles.themeActions}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => handleDeleteTheme(item)}
-        >
-          <Ionicons name="trash-outline" size={20} color={colors.error} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={layoutStyles.container}>
@@ -96,7 +114,9 @@ export default function ProfileThemesScreen() {
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
         
-        <Text style={textStyles.h2}>My Themes</Text>
+        <Text style={textStyles.h2}>
+          {isAuthenticated ? 'My Themes' : 'Custom Themes'}
+        </Text>
         
         <View style={styles.headerButton} />
       </View>
@@ -105,14 +125,17 @@ export default function ProfileThemesScreen() {
       <View style={layoutStyles.content}>
         {loading ? (
           <View style={[layoutStyles.centered, { flex: 1 }]}>
-            <Text style={textStyles.body}>Loading your themes...</Text>
+            <Text style={textStyles.body}>Loading themes...</Text>
           </View>
         ) : themes.length === 0 ? (
           <View style={[layoutStyles.centered, { flex: 1 }]}>
             <Ionicons name="list-outline" size={48} color={colors.gray400} />
             <Text style={styles.emptyTitle}>No Custom Themes Yet</Text>
             <Text style={styles.emptySubtitle}>
-              Create your first custom theme to see it here
+              {isAuthenticated 
+                ? "Create your first custom theme to see it here"
+                : "No custom themes have been created yet"
+              }
             </Text>
           </View>
         ) : (

@@ -668,7 +668,7 @@ export default function WordTheme() {
         </View>
 
         <Text style={styles.expandHint}>
-          💡 Tap a theme to select it, tap the arrow to preview its words
+          💡 Tap a theme to select it, tap the arrow to preview
         </Text>
 
         {/* Custom Themes Section */}

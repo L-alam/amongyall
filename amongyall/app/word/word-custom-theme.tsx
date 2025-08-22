@@ -227,7 +227,7 @@ export default function WordCustomTheme() {
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
         
-        <Text style={textStyles.h2}>Create Custom Theme</Text>
+        <Text style={textStyles.h2}>Custom Theme</Text>
         
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
           <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />

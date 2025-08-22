@@ -196,11 +196,27 @@ export const getUserCustomThemes = async (): Promise<Theme[]> => {
   const userId = authService.getUserId();
   
   if (!userId) {
-    // If no user ID, return empty array (could return all themes if you want)
-    console.log('No user ID - returning empty themes list');
-    return [];
+    // If no user ID, return anonymous themes (themes with created_by = null)
+    console.log('No user ID - fetching anonymous themes');
+    
+    const { data, error } = await supabase
+      .from('themes')
+      .select('*')
+      .eq('is_custom', true)
+      .is('created_by', null)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching anonymous custom themes:', error);
+      throw error;
+    }
+
+    console.log('Found anonymous themes:', data?.length || 0);
+    return data || [];
   }
 
+  // User is authenticated - return their themes
+  console.log('Fetching themes for user:', userId);
   const { data, error } = await supabase
     .from('themes')
     .select('*')
@@ -213,6 +229,7 @@ export const getUserCustomThemes = async (): Promise<Theme[]> => {
     throw error;
   }
 
+  console.log('Found user themes:', data?.length || 0);
   return data || [];
 };
 
