@@ -9,14 +9,16 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lalam.amongyall"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/user-circle.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.lalam.amongyall"
     },
     "web": {
       "bundler": "metro",

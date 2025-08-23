@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "5ca35d0d-be67-4c80-9e99-71d166723c05"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.lalam.amongyall",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}

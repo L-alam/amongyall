@@ -28,9 +28,8 @@ export default function ReportScreen() {
   const currentNotes = [
     "Settings - Not yet functional",
     "Explanation Button on how to play the games",
-    "Push notifications",
-    "Dark mode toggle",
-    "Game History/Stats (Maybe idk)"
+    "More default question sets",
+    "Custom question sets"
   ];
 
   return (
