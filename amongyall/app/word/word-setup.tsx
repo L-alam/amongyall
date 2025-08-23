@@ -1,10 +1,10 @@
-// Add player Screen
-
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { playerStorageService } from '../../lib/playerStorageService';
+import { useEffect } from 'react';
 
 import { colors, spacing, layout, typography } from '../../constants/theme';
 import { 
@@ -21,7 +21,7 @@ import { Button } from '../../components/Button';
 export default function WordSetup() {
   const [playerCount, setPlayerCount] = useState(4);
   const [playerName, setPlayerName] = useState('');
-  const [players, setPlayers] = useState(['MAX', 'ORLANDO', 'JOHN', 'LABEEB']);
+  const [players, setPlayers] = useState<string[]>([]);
   const [selectedTheme, setSelectedTheme] = useState('Hobbies');
   const [numCards, setNumCards] = useState(8);
 
@@ -29,7 +29,9 @@ export default function WordSetup() {
   const MIN_CARDS = 4;
   const MAX_CARDS = 16;
 
-  const themes = ['Drinks', 'Hobbies', 'Room', 'Vegetables', 'Sports'];
+  useEffect(() => {
+    loadSavedPlayers();
+  }, []);
 
   // Go back to the home screen
   const handleBack = () => {
@@ -37,7 +39,12 @@ export default function WordSetup() {
   };
 
 
-  const handleTheme = () => {
+  const handleTheme = async () => {
+    // Save players before navigating
+    if (players.length > 0) {
+      await playerStorageService.savePlayers(players);
+    }
+    
     router.push({
       pathname: '/word/word-theme',
       params: { 
@@ -46,6 +53,7 @@ export default function WordSetup() {
       }
     });
   };
+  
 
   const handleAddPlayer = () => {
     if (playerName.trim() && players.length < 8) {
@@ -55,10 +63,14 @@ export default function WordSetup() {
     }
   };
 
-  const handleRemovePlayer = (index: number) => {
+  const handleRemovePlayer = async (index: number) => {
+    const playerToRemove = players[index];
     const newPlayers = players.filter((_, i) => i !== index);
     setPlayers(newPlayers);
     setPlayerCount(newPlayers.length);
+    
+    // Remove from persistent storage as well
+    await playerStorageService.removePlayer(playerToRemove);
   };
 
   const increaseCards = () => {
@@ -83,8 +95,18 @@ export default function WordSetup() {
     });
   };
 
-  const handleStart = () => {
-    console.log('Starting Word Chameleon with:', { players, theme: selectedTheme });
+
+  const loadSavedPlayers = async () => {
+    try {
+      const savedPlayers = await playerStorageService.getSavedPlayers();
+      setPlayers(savedPlayers);
+      setPlayerCount(savedPlayers.length);
+    } catch (error) {
+      console.error('Error loading saved players:', error);
+      // If there's an error, start with empty array instead of preset names
+      setPlayers([]);
+      setPlayerCount(0);
+    }
   };
 
   return (

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { playerStorageService } from '../../lib/playerStorageService';
+import { useEffect } from 'react'; 
 
 import { colors, spacing, layout, typography } from '../../constants/theme';
 import { 
@@ -18,17 +20,26 @@ import { Button } from '../../components/Button';
 export default function WavelengthSetup() {
   const [playerCount, setPlayerCount] = useState(4);
   const [playerName, setPlayerName] = useState('');
-  const [players, setPlayers] = useState(['MAX', 'ORLANDO', 'JOHN', 'LABEEB']);
+  const [players, setPlayers] = useState<string[]>([]);
   const [gameQuestions, setGameQuestions] = useState(["How old is your best friend?", "How many bones have you broken?"])
 
   const sets = ['Sports', 'Food', 'Music', 'Movies', 'Random'];
+
+  useEffect(() => {
+    loadSavedPlayers();
+  }, []);
 
   // Go back to the home screen
   const handleBack = () => {
     router.back();
   };
 
-  const handleSet = () => {
+  const handleSet = async () => {
+    // Save players before navigating
+    if (players.length > 0) {
+      await playerStorageService.savePlayers(players);
+    }
+  
     router.push({
       pathname: '/question/question-set',
       params: {
@@ -46,10 +57,27 @@ export default function WavelengthSetup() {
     }
   };
 
-  const handleRemovePlayer = (index: number) => {
+  
+  const handleRemovePlayer = async (index: number) => {
+    const playerToRemove = players[index];
     const newPlayers = players.filter((_, i) => i !== index);
     setPlayers(newPlayers);
     setPlayerCount(newPlayers.length);
+    
+    // Remove from persistent storage as well
+    await playerStorageService.removePlayer(playerToRemove);
+  };
+
+  const loadSavedPlayers = async () => {
+    try {
+      const savedPlayers = await playerStorageService.getSavedPlayers();
+      setPlayers(savedPlayers);
+      setPlayerCount(savedPlayers.length);
+    } catch (error) {
+      console.error('Error loading saved players:', error);
+      setPlayers([]);
+      setPlayerCount(0);
+    }
   };
 
 
