@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { playerStorageService } from '../../lib/playerStorageService';
 import { useEffect } from 'react';
+import { Alert } from 'react-native'; 
 
 import { colors, spacing, layout, typography } from '../../constants/theme';
 import { 
@@ -40,6 +41,16 @@ export default function WordSetup() {
 
 
   const handleTheme = async () => {
+    // Validate minimum players
+    if (players.length < 3) {
+      Alert.alert(
+        'Not Enough Players', 
+        'You need at least 3 players to start the game. Please add more players.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+  
     // Save players before navigating
     if (players.length > 0) {
       await playerStorageService.savePlayers(players);
@@ -85,7 +96,22 @@ export default function WordSetup() {
     }
   };
   
-  const handleAITheme = () => {
+  const handleAITheme = async () => {
+    // Validate minimum players
+    if (players.length < 3) {
+      Alert.alert(
+        'Not Enough Players', 
+        'You need at least 3 players to start the game. Please add more players.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+  
+    // Save players before navigating
+    if (players.length > 0) {
+      await playerStorageService.savePlayers(players);
+    }
+  
     router.push({
       pathname: '/word/word-ai-theme',
       params: { 
@@ -178,11 +204,19 @@ export default function WordSetup() {
         {/* Start Button using our Button component */}
         <Button
           title="NEXT"
-          variant="primary"
-          size="lg"
           onPress={handleTheme}
-          style={styles.startButton}
+          variant="primary"
+          disabled={players.length < 3}
+          style={players.length < 3 ? { opacity: 0.5 } : {}}
         />
+
+        {players.length < 3 && (
+          <View style={{ alignItems: 'center', marginTop: 12 }}>
+            <Text style={{ color: colors.gray600 || '#FF6B6B', fontSize: 14 }}>
+              Add at least {3 - players.length} player{3 - players.length > 1 ? 's' : ''} to continue
+            </Text>
+          </View>
+        )}
       </View>
     </ScrollView>
   );

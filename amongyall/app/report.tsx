@@ -27,7 +27,7 @@ export default function ReportScreen() {
   // Current work status and known issues
   const currentNotes = [
     "Settings - Not yet functional",
-    "Profile customization",
+    "Explanation Button on how to play the games",
     "Push notifications",
     "Dark mode toggle",
     "Game History/Stats (Maybe idk)"
