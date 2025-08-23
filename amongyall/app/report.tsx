@@ -29,7 +29,8 @@ export default function ReportScreen() {
     "Settings - Not yet functional",
     "Profile customization",
     "Push notifications",
-    "Dark mode toggle"
+    "Dark mode toggle",
+    "Game History/Stats (Maybe idk)"
   ];
 
   return (
