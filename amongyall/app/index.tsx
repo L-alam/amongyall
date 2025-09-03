@@ -65,16 +65,6 @@ export default function Index() {
       
       {/* Header with settings and auth button */}
       <View style={layoutStyles.header}>
-        {/* Report Issues Button - Top Left */}
-        <TouchableOpacity 
-          style={[styles.headerButton, styles.reportButton]}
-          onPress={() => router.push('/report')}
-        >
-          <Ionicons name="bug-outline" size={16} color={colors.black} />
-          <Text style={styles.reportButtonText}>Report Issues</Text>
-        </TouchableOpacity>
-
-        <View style={{ flex: 1 }} />
         
         {/* Auth Button (Sign In / Profile) */}
         <TouchableOpacity 
