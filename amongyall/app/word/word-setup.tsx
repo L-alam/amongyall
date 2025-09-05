@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { playerStorageService } from '../../lib/playerStorageService';
 import { useEffect } from 'react';
 import { Alert } from 'react-native'; 
 
-import { colors, spacing, layout, typography } from '../../constants/theme';
+import { colors, spacing, layout, typography, borderRadius, shadows } from '../../constants/theme';
 import { 
   textStyles, 
   layoutStyles, 
@@ -17,7 +17,6 @@ import {
   combineStyles 
 } from '../../utils/styles';
 import { Button } from '../../components/Button';
-
 
 export default function WordSetup() {
   const [playerCount, setPlayerCount] = useState(4);
@@ -38,7 +37,6 @@ export default function WordSetup() {
   const handleBack = () => {
     router.back();
   };
-
 
   const handleTheme = async () => {
     // Validate minimum players
@@ -64,7 +62,6 @@ export default function WordSetup() {
       }
     });
   };
-  
 
   const handleAddPlayer = () => {
     if (playerName.trim() && players.length < 8) {
@@ -121,7 +118,6 @@ export default function WordSetup() {
     });
   };
 
-
   const loadSavedPlayers = async () => {
     try {
       const savedPlayers = await playerStorageService.getSavedPlayers();
@@ -136,202 +132,274 @@ export default function WordSetup() {
   };
 
   return (
-    <ScrollView style={layoutStyles.container}>
-      {/* Header */}
+    <SafeAreaView style={styles.container}>
+      {/* Fixed Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
+          <Ionicons name="arrow-back" size={layout.iconSize.lg} color={colors.primary} />
         </TouchableOpacity>
         
-        <Text style={textStyles.h2}>Word Chameleon</Text>
-        
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-          <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
+          <Ionicons name="close" size={layout.iconSize.lg} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
-      <View style={layoutStyles.content}>
-
+      {/* Scrollable Content */}
+      <ScrollView 
+        style={styles.scrollContent}
+        contentContainerStyle={styles.scrollContentContainer}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Add Players Section */}
-        <View style={layoutStyles.section}>
-          <Text style={textStyles.h4}>ADD PLAYERS</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>ADD PLAYERS</Text>
           
+          {/* Enhanced Player Input */}
           <View style={styles.playerInputContainer}>
             <TextInput
               style={styles.playerInput}
-              placeholder="Player name"
+              placeholder="Enter player name"
               placeholderTextColor={colors.gray400}
               value={playerName}
               onChangeText={setPlayerName}
+              returnKeyType="done"
+              onSubmitEditing={handleAddPlayer}
             />
-            <TouchableOpacity style={styles.addButton} onPress={handleAddPlayer}>
+            <TouchableOpacity 
+              style={styles.addButton} 
+              onPress={handleAddPlayer}
+              disabled={!playerName.trim() || players.length >= 8}
+            >
               <Ionicons 
-                name="add-circle-outline" 
-                size={layout.iconSize.md} 
-                color={colors.gray500} 
+                name="add-circle" 
+                size={layout.iconSize['2xl']} 
+                color={playerName.trim() && players.length < 8 ? colors.accent : colors.gray300} 
               />
             </TouchableOpacity>
           </View>
 
-          {/* Player List */}
+          {/* Enhanced Player List with Pills */}
           <View style={styles.playerList}>
             {players.map((player, index) => (
-              <View key={index} style={styles.playerItem}>
-                <Ionicons 
-                  name="person-circle-outline" 
-                  size={layout.iconSize.xl} 
-                  color={colors.primary} 
-                />
-                <Text style={combineStyles(textStyles.body, styles.playerName)}>
-                  {player}
-                </Text>
-                <TouchableOpacity onPress={() => handleRemovePlayer(index)}>
+              <View key={index} style={styles.playerPill}>
+                <View style={styles.playerPillContent}>
                   <Ionicons 
-                    name="close-circle-outline" 
-                    size={layout.iconSize.sm} 
-                    color={colors.gray400} 
+                    name="person-circle" 
+                    size={layout.iconSize.lg} 
+                    color={colors.primary} 
+                  />
+                  <Text style={styles.playerName}>
+                    {player}
+                  </Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.removeButton}
+                  onPress={() => handleRemovePlayer(index)}
+                >
+                  <Ionicons 
+                    name="close-circle" 
+                    size={layout.iconSize.md} 
+                    color={colors.gray500} 
                   />
                 </TouchableOpacity>
               </View>
             ))}
           </View>
 
-
+          {/* Player count indicator */}
+          {players.length > 0 && (
+            <Text style={styles.playerCountText}>
+              {players.length} player{players.length !== 1 ? 's' : ''} added
+            </Text>
+          )}
         </View>
 
-        
+        {/* Add some bottom padding to ensure content doesn't get hidden behind fixed footer */}
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
 
-        {/* Start Button using our Button component */}
+      {/* Fixed Footer */}
+      <View style={styles.footer}>
+        {players.length < 3 && (
+          <View style={styles.warningContainer}>
+            <Ionicons name="information-circle-outline" size={layout.iconSize.sm} color={colors.warning} />
+            <Text style={styles.warningText}>
+              Add at least {3 - players.length} more player{3 - players.length > 1 ? 's' : ''} to continue
+            </Text>
+          </View>
+        )}
+        
         <Button
           title="NEXT"
           onPress={handleTheme}
           variant="primary"
+          size="lg"
           disabled={players.length < 3}
-          style={players.length < 3 ? { opacity: 0.5 } : {}}
+          style={[
+            styles.nextButton,
+            players.length < 3 && styles.nextButtonDisabled
+          ]}
         />
-
-        {players.length < 3 && (
-          <View style={{ alignItems: 'center', marginTop: 12 }}>
-            <Text style={{ color: colors.gray600 || '#FF6B6B', fontSize: 14 }}>
-              Add at least {3 - players.length} player{3 - players.length > 1 ? 's' : ''} to continue
-            </Text>
-          </View>
-        )}
       </View>
-    </ScrollView>
+    </SafeAreaView>
   );
 }
 
-
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  
+  // Fixed Header Styles
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: spacing['3xl'],
-    paddingHorizontal: spacing.lg, 
-    paddingBottom: spacing.lg, 
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray200,
+    zIndex: 1,
   },
   
   headerButton: {
     padding: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+    ...shadows.sm,
   },
   
-  subtitle: {
-    textAlign: 'center',
-    marginBottom: spacing.xl, 
+  // Scrollable Content Styles
+  scrollContent: {
+    flex: 1,
   },
   
-  playerCountControls: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md, 
+  scrollContentContainer: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
   },
   
-  countButton: {
-    backgroundColor: colors.gray100, 
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  countButtonDisabled: {
-    backgroundColor: colors.gray200,
-    opacity: 0.5,
+  section: {
+    marginBottom: spacing.xl,
   },
   
-  countButtonText: {
-    fontSize: typography.fontSize.xl, 
-    fontWeight: typography.fontWeight.bold, 
-    color: colors.primary, 
-  },
-
-  countButtonTextDisabled: {
-    color: colors.gray400,
+  sectionTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.primary,
+    marginBottom: spacing.lg,
+    letterSpacing: typography.letterSpacing.wide,
   },
   
+  // Enhanced Player Input Styles
   playerInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.lg, 
-    marginTop: spacing.md,
+    marginBottom: spacing.xl,
+    gap: spacing.md,
   },
   
   playerInput: {
-    ...createInputStyle('default'), // Using our input factory!
     flex: 1,
+    height: 56, // Bigger input field
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.xl,
+    borderWidth: 2,
+    borderColor: colors.gray200,
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.primary,
+    ...shadows.sm,
   },
   
   addButton: {
-    marginLeft: spacing.sm, 
-    padding: spacing.sm, 
+    padding: spacing.xs,
   },
   
+  // Enhanced Player List Styles
   playerList: {
-    gap: spacing.sm, 
+    gap: spacing.md,
   },
   
-  playerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm, 
-    paddingVertical: spacing.xs, 
-  },
-  
-  playerName: {
-    flex: 1,
-    
-  },
-  
-  themeList: {
-    gap: spacing.sm, 
-    marginTop: spacing.md, 
-  },
-  
-  themeItem: {
+  playerPill: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.md, 
-    paddingHorizontal: spacing.lg, 
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.gray300, 
-    borderRadius: 8,
+    borderColor: colors.gray200,
+    ...shadows.sm,
   },
   
-  themeItemSelected: {
-    borderColor: colors.secondary, 
-    backgroundColor: colors.secondary + '10', 
+  playerPillContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: spacing.md,
   },
   
-  themeTextSelected: {
-    color: colors.secondary, 
-    fontWeight: typography.fontWeight.semibold, 
+  playerName: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.primary,
+    flex: 1,
   },
   
-  startButton: {
-    marginTop: spacing.lg, 
+  removeButton: {
+    padding: spacing.xs,
+    marginLeft: spacing.sm,
+  },
+  
+  playerCountText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray600,
+    textAlign: 'center',
+    marginTop: spacing.md,
+    fontWeight: typography.fontWeight.medium,
+  },
+  
+  bottomSpacer: {
+    height: spacing['6xl'], // Extra space to ensure content doesn't get hidden
+  },
+  
+  // Fixed Footer Styles
+  footer: {
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray200,
+    ...shadows.lg,
+  },
+  
+  warningContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  
+  warningText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.warning,
+    fontWeight: typography.fontWeight.medium,
+  },
+  
+  nextButton: {
+    width: '100%',
+  },
+  
+  nextButtonDisabled: {
+    opacity: 0.5,
   },
 });
