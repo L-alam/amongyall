@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,7 +7,7 @@ import { playerStorageService } from '../../lib/playerStorageService';
 import { useEffect } from 'react';
 import { Alert } from 'react-native'; 
 
-import { colors, spacing, layout, typography, borderRadius, shadows } from '../../constants/theme';
+import { colors, spacing, layout, typography } from '../../constants/theme';
 import { 
   textStyles, 
   layoutStyles, 
@@ -28,6 +28,10 @@ export default function WordSetup() {
   // Constraints for numCards
   const MIN_CARDS = 4;
   const MAX_CARDS = 16;
+
+  // Get screen dimensions for responsive design
+  const { width: screenWidth } = Dimensions.get('window');
+  const isSmallScreen = screenWidth < 380;
 
   useEffect(() => {
     loadSavedPlayers();
@@ -133,31 +137,47 @@ export default function WordSetup() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Fixed Header */}
+      {/* Fixed Header - Flat icons without borders/shadows */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={layout.iconSize.lg} color={colors.primary} />
+          <Ionicons 
+            name="arrow-back" 
+            size={isSmallScreen ? layout.iconSize.md : layout.iconSize.lg} 
+            color={colors.primary} 
+          />
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-          <Ionicons name="close" size={layout.iconSize.lg} color={colors.primary} />
+          <Ionicons 
+            name="close" 
+            size={isSmallScreen ? layout.iconSize.md : layout.iconSize.lg} 
+            color={colors.primary} 
+          />
         </TouchableOpacity>
       </View>
 
       {/* Scrollable Content */}
       <ScrollView 
         style={styles.scrollContent}
-        contentContainerStyle={styles.scrollContentContainer}
+        contentContainerStyle={[
+          styles.scrollContentContainer,
+          isSmallScreen && styles.scrollContentContainerSmall
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Add Players Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>ADD PLAYERS</Text>
+          <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleSmall]}>
+            ADD PLAYERS
+          </Text>
           
-          {/* Enhanced Player Input */}
-          <View style={styles.playerInputContainer}>
+          {/* Enhanced Player Input - Bigger text field and plus icon */}
+          <View style={[styles.playerInputContainer, isSmallScreen && styles.playerInputContainerSmall]}>
             <TextInput
-              style={styles.playerInput}
+              style={[
+                styles.playerInput,
+                isSmallScreen && styles.playerInputSmall
+              ]}
               placeholder="Enter player name"
               placeholderTextColor={colors.gray400}
               value={playerName}
@@ -172,23 +192,23 @@ export default function WordSetup() {
             >
               <Ionicons 
                 name="add-circle" 
-                size={layout.iconSize['2xl']} 
+                size={isSmallScreen ? layout.iconSize.xl : layout.iconSize['2xl']} 
                 color={playerName.trim() && players.length < 8 ? colors.accent : colors.gray300} 
               />
             </TouchableOpacity>
           </View>
 
           {/* Enhanced Player List with Pills */}
-          <View style={styles.playerList}>
+          <View style={[styles.playerList, isSmallScreen && styles.playerListSmall]}>
             {players.map((player, index) => (
-              <View key={index} style={styles.playerPill}>
+              <View key={index} style={[styles.playerPill, isSmallScreen && styles.playerPillSmall]}>
                 <View style={styles.playerPillContent}>
                   <Ionicons 
                     name="person-circle" 
-                    size={layout.iconSize.lg} 
+                    size={isSmallScreen ? layout.iconSize.md : layout.iconSize.lg} 
                     color={colors.primary} 
                   />
-                  <Text style={styles.playerName}>
+                  <Text style={[styles.playerName, isSmallScreen && styles.playerNameSmall]}>
                     {player}
                   </Text>
                 </View>
@@ -208,22 +228,26 @@ export default function WordSetup() {
 
           {/* Player count indicator */}
           {players.length > 0 && (
-            <Text style={styles.playerCountText}>
+            <Text style={[styles.playerCountText, isSmallScreen && styles.playerCountTextSmall]}>
               {players.length} player{players.length !== 1 ? 's' : ''} added
             </Text>
           )}
         </View>
 
-        {/* Add some bottom padding to ensure content doesn't get hidden behind fixed footer */}
+        {/* Bottom spacer to prevent content hiding behind footer */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* Fixed Footer */}
-      <View style={styles.footer}>
+      {/* Fixed Footer - Closer to bottom, no borders/shadows */}
+      <View style={[styles.footer, isSmallScreen && styles.footerSmall]}>
         {players.length < 3 && (
           <View style={styles.warningContainer}>
-            <Ionicons name="information-circle-outline" size={layout.iconSize.sm} color={colors.warning} />
-            <Text style={styles.warningText}>
+            <Ionicons 
+              name="information-circle-outline" 
+              size={layout.iconSize.sm} 
+              color={colors.black} 
+            />
+            <Text style={[styles.warningText, isSmallScreen && styles.warningTextSmall]}>
               Add at least {3 - players.length} more player{3 - players.length > 1 ? 's' : ''} to continue
             </Text>
           </View>
@@ -233,7 +257,7 @@ export default function WordSetup() {
           title="NEXT"
           onPress={handleTheme}
           variant="primary"
-          size="lg"
+          size={isSmallScreen ? "md" : "lg"}
           disabled={players.length < 3}
           style={[
             styles.nextButton,
@@ -251,7 +275,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   
-  // Fixed Header Styles
+  // Fixed Header - Clean, flat design without borders
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -259,19 +283,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     backgroundColor: colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-    zIndex: 1,
+    // Removed borderBottomWidth and borderBottomColor
   },
   
   headerButton: {
     padding: spacing.sm,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surface,
-    ...shadows.sm,
+    // Removed borderRadius, backgroundColor, and shadows
   },
   
-  // Scrollable Content Styles
+  // Scrollable Content
   scrollContent: {
     flex: 1,
   },
@@ -294,7 +314,7 @@ const styles = StyleSheet.create({
     letterSpacing: typography.letterSpacing.wide,
   },
   
-  // Enhanced Player Input Styles
+  // Enhanced Player Input - Bigger text field
   playerInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -303,25 +323,19 @@ const styles = StyleSheet.create({
   },
   
   playerInput: {
+    ...createInputStyle('default'),
     flex: 1,
     height: 56, // Bigger input field
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.xl,
-    borderWidth: 2,
-    borderColor: colors.gray200,
     fontSize: typography.fontSize.lg,
     fontWeight: typography.fontWeight.medium,
-    color: colors.primary,
-    ...shadows.sm,
   },
   
   addButton: {
     padding: spacing.xs,
+    // Removed any styling - just the icon
   },
   
-  // Enhanced Player List Styles
+  // Enhanced Player List with Pills
   playerList: {
     gap: spacing.md,
   },
@@ -330,13 +344,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.full,
+    backgroundColor: colors.surface || colors.gray100, // Light background for pills
+    borderRadius: 25, // Full pill shape
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
     borderWidth: 1,
     borderColor: colors.gray200,
-    ...shadows.sm,
   },
   
   playerPillContent: {
@@ -367,39 +380,86 @@ const styles = StyleSheet.create({
   },
   
   bottomSpacer: {
-    height: spacing['6xl'], // Extra space to ensure content doesn't get hidden
+    height: spacing['6xl'],
   },
   
-  // Fixed Footer Styles
+  // Fixed Footer - Closer to bottom, no borders/shadows
   footer: {
     backgroundColor: colors.background,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray200,
-    ...shadows.lg,
+    paddingBottom: spacing.md, // Reduced bottom padding to bring closer to edge
+    paddingTop: spacing.sm, // Reduced top padding
+    // Removed borderTopWidth, borderTopColor, and shadows
   },
   
   warningContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm, // Reduced margin
     gap: spacing.sm,
   },
   
   warningText: {
     fontSize: typography.fontSize.sm,
-    color: colors.warning,
+    color: colors.black, // Changed to black text
     fontWeight: typography.fontWeight.medium,
   },
   
   nextButton: {
     width: '100%',
+    // Button component handles its own styling - no additional shadow/border changes needed
   },
   
   nextButtonDisabled: {
     opacity: 0.5,
+  },
+  
+  // Responsive Styles for Small Screens
+  scrollContentContainerSmall: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.lg,
+  },
+  
+  sectionTitleSmall: {
+    fontSize: typography.fontSize.base,
+    marginBottom: spacing.md,
+  },
+  
+  playerInputContainerSmall: {
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  
+  playerInputSmall: {
+    height: 48,
+    paddingHorizontal: spacing.md,
+    fontSize: typography.fontSize.base,
+  },
+  
+  playerListSmall: {
+    gap: spacing.sm,
+  },
+  
+  playerPillSmall: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+  },
+  
+  playerNameSmall: {
+    fontSize: typography.fontSize.base,
+  },
+  
+  playerCountTextSmall: {
+    fontSize: typography.fontSize.xs,
+  },
+  
+  footerSmall: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  
+  warningTextSmall: {
+    fontSize: typography.fontSize.xs,
   },
 });
