@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, Animated, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { playerStorageService } from '../../lib/playerStorageService';
-import { useEffect } from 'react';
-import { Alert } from 'react-native';
 
 import { colors, spacing, layout, typography } from '../../constants/theme';
 import { 
@@ -17,6 +16,162 @@ import {
 } from '../../utils/styles';
 import { Button } from '../../components/Button';
 
+// Try to import gesture handler - with fallback
+let PanGestureHandler, State;
+try {
+  const gestureHandler = require('react-native-gesture-handler');
+  PanGestureHandler = gestureHandler.PanGestureHandler;
+  State = gestureHandler.State;
+} catch (error) {
+  console.log('react-native-gesture-handler not available');
+  PanGestureHandler = null;
+  State = null;
+}
+
+// Individual Player Pill Component with Swipe-to-Delete
+const PlayerPill = React.memo(({ player, index, onRemove, isSmallScreen }) => {
+  // Fix the useInsertionEffect error by using useRef properly
+  const translateX = React.useRef(new Animated.Value(0)).current;
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // If gesture handler is not available, render simple version
+  if (!PanGestureHandler || !State) {
+    return (
+      <View style={[styles.playerPillContainer, isSmallScreen && styles.playerPillContainerSmall]}>
+        <View style={[styles.playerPill, isSmallScreen && styles.playerPillSmall]}>
+          <View style={styles.playerPillContent}>
+            <Ionicons 
+              name="person-circle" 
+              size={isSmallScreen ? layout.iconSize.md : layout.iconSize.lg} 
+              color={colors.primary} 
+            />
+            <Text style={[styles.playerName, isSmallScreen && styles.playerNameSmall]}>
+              {player}
+            </Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.removeButton}
+            onPress={() => onRemove(index)}
+          >
+            <Ionicons 
+              name="close-circle" 
+              size={layout.iconSize.md} 
+              color={colors.gray500} 
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Memoize the gesture event to prevent recreations
+  const onGestureEvent = React.useMemo(
+    () => Animated.event(
+      [{ nativeEvent: { translationX: translateX } }],
+      { useNativeDriver: false }
+    ),
+    [translateX]
+  );
+
+  // Memoize the handler state change to prevent recreations
+  const onHandlerStateChange = React.useCallback((event) => {
+    if (event.nativeEvent.state === State.END) {
+      const { translationX } = event.nativeEvent;
+      
+      // If swiped more than 100px to the LEFT (negative), delete the player
+      if (translationX < -100) {
+        setIsDeleting(true);
+        // Animate out before deleting
+        Animated.timing(translateX, {
+          toValue: -400, // Slide completely off screen to the left
+          duration: 200,
+          useNativeDriver: false,
+        }).start(() => {
+          onRemove(index);
+        });
+      } else {
+        // Snap back to original position
+        Animated.spring(translateX, {
+          toValue: 0,
+          tension: 100,
+          friction: 8,
+          useNativeDriver: false,
+        }).start();
+      }
+    }
+  }, [translateX, onRemove, index]);
+
+  // Opacity interpolation for LEFT swipe (negative values)
+  const pillOpacity = translateX.interpolate({
+    inputRange: [-200, -100, 0],
+    outputRange: [0.4, 0.8, 1],
+    extrapolate: 'clamp',
+  });
+
+  // Red background shows when swiping LEFT (negative values)
+  const redBackgroundOpacity = translateX.interpolate({
+    inputRange: [-150, -50, 0],
+    outputRange: [1, 0.7, 0],
+    extrapolate: 'clamp',
+  });
+
+  return (
+    <View style={[styles.playerPillContainer, isSmallScreen && styles.playerPillContainerSmall]}>
+      {/* Red delete background - always full width, underneath */}
+      <Animated.View 
+        style={[
+          styles.deleteBackground,
+          {
+            opacity: redBackgroundOpacity,
+          }
+        ]} 
+      >
+        <Ionicons name="trash" size={layout.iconSize.md} color={colors.white} />
+      </Animated.View>
+      
+      {/* Swipeable pill */}
+      <PanGestureHandler
+        onGestureEvent={onGestureEvent}
+        onHandlerStateChange={onHandlerStateChange}
+        activeOffsetX={-10}  // Only activate on LEFT swipe (negative)
+        failOffsetX={10}     // Fail on RIGHT swipe (positive)
+        shouldCancelWhenOutside={true}
+      >
+        <Animated.View
+          style={[
+            styles.playerPill,
+            isSmallScreen && styles.playerPillSmall,
+            {
+              transform: [{ translateX }],
+              opacity: pillOpacity,
+            }
+          ]}
+        >
+          <View style={styles.playerPillContent}>
+            <Ionicons 
+              name="person-circle" 
+              size={isSmallScreen ? layout.iconSize.md : layout.iconSize.lg} 
+              color={colors.primary} 
+            />
+            <Text style={[styles.playerName, isSmallScreen && styles.playerNameSmall]}>
+              {player}
+            </Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.removeButton}
+            onPress={() => onRemove(index)}
+          >
+            <Ionicons 
+              name="close-circle" 
+              size={layout.iconSize.md} 
+              color={colors.gray500} 
+            />
+          </TouchableOpacity>
+        </Animated.View>
+      </PanGestureHandler>
+    </View>
+  );
+});
 
 export default function WavelengthSetup() {
   const [playerCount, setPlayerCount] = useState(4);
@@ -25,6 +180,10 @@ export default function WavelengthSetup() {
   const [firstPlayerMode, setFirstPlayerMode] = useState<'random' | 'selected'>('random');
   const [selectedFirstPlayer, setSelectedFirstPlayer] = useState('');
 
+  // Get screen dimensions for responsive design
+  const { width: screenWidth } = Dimensions.get('window');
+  const isSmallScreen = screenWidth < 380;
+
   useEffect(() => {
     loadSavedPlayers();
   }, []);
@@ -32,6 +191,10 @@ export default function WavelengthSetup() {
   // Go back to the home screen
   const handleBack = () => {
     router.back();
+  };
+
+  const handleCancel = () => {
+    router.push('/');
   };
 
   const handleBackToHome = () => {
@@ -68,9 +231,8 @@ export default function WavelengthSetup() {
          players: JSON.stringify(players),
          firstPlayer: firstPlayer,
       }
-    })
-  }
-  
+    });
+  };
 
   const loadSavedPlayers = async () => {
     try {
@@ -115,76 +277,101 @@ export default function WavelengthSetup() {
   };
 
   return (
-    <ScrollView style={layoutStyles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Fixed Header - Higher on screen */}
+      <View style={[styles.header, isSmallScreen && styles.headerSmall]}>
         <TouchableOpacity style={styles.headerButton} onPress={handleBackToHome}>
-          <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
+          <Ionicons 
+            name="arrow-back" 
+            size={isSmallScreen ? layout.iconSize.md : layout.iconSize.lg} 
+            color={colors.primary} 
+          />
         </TouchableOpacity>
         
-        <Text style={textStyles.h2}>Wavelength</Text>
-        
-        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-          <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
+        <TouchableOpacity style={styles.headerButton} onPress={handleCancel}>
+          <Ionicons 
+            name="close" 
+            size={isSmallScreen ? layout.iconSize.md : layout.iconSize.lg} 
+            color={colors.primary} 
+          />
         </TouchableOpacity>
       </View>
 
-      <View style={layoutStyles.content}>
-
+      {/* Scrollable Content */}
+      <ScrollView 
+        style={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContentContainer,
+          isSmallScreen && styles.scrollContentContainerSmall
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Add Players Section */}
-        <View style={layoutStyles.section}>
-          <Text style={textStyles.h4}>ADD PLAYERS</Text>
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleSmall]}>
+            ADD PLAYERS
+          </Text>
           
-          <View style={styles.playerInputContainer}>
+          {/* Enhanced Player Input - Bigger text field and plus icon */}
+          <View style={[styles.playerInputContainer, isSmallScreen && styles.playerInputContainerSmall]}>
             <TextInput
-              style={styles.playerInput}
-              placeholder="Player name"
+              style={[
+                styles.playerInput,
+                isSmallScreen && styles.playerInputSmall
+              ]}
+              placeholder="Enter player name"
               placeholderTextColor={colors.gray400}
               value={playerName}
               onChangeText={setPlayerName}
+              returnKeyType="done"
+              onSubmitEditing={handleAddPlayer}
             />
-            <TouchableOpacity style={styles.addButton} onPress={handleAddPlayer}>
+            <TouchableOpacity 
+              style={styles.addButton} 
+              onPress={handleAddPlayer}
+              disabled={!playerName.trim() || players.length >= 8}
+            >
               <Ionicons 
-                name="add-circle-outline" 
-                size={layout.iconSize.lg} 
-                color={colors.gray500} 
+                name="add-circle" 
+                size={isSmallScreen ? layout.iconSize.xl : layout.iconSize['2xl']} 
+                color={playerName.trim() && players.length < 8 ? colors.primaryLight : colors.gray300} 
               />
             </TouchableOpacity>
           </View>
 
-          {/* Player List */}
-          <View style={styles.playerList}>
+          {/* Enhanced Player List with Swipeable Pills */}
+          <View style={[styles.playerList, isSmallScreen && styles.playerListSmall]}>
             {players.map((player, index) => (
-              <View key={index} style={styles.playerItem}>
-                <Ionicons 
-                  name="person-circle-outline" 
-                  size={layout.iconSize.xl} 
-                  color={colors.primary} 
-                />
-                <Text style={combineStyles(textStyles.body, styles.playerName)}>
-                  {player}
-                </Text>
-                <TouchableOpacity onPress={() => handleRemovePlayer(index)}>
-                  <Ionicons 
-                    name="close-circle-outline" 
-                    size={layout.iconSize.sm} 
-                    color={colors.gray400} 
-                  />
-                </TouchableOpacity>
-              </View>
+              <PlayerPill
+                key={`${player}-${index}`}
+                player={player}
+                index={index}
+                onRemove={handleRemovePlayer}
+                isSmallScreen={isSmallScreen}
+              />
             ))}
           </View>
+
+          {/* Player count indicator */}
+          {players.length > 0 && (
+            <Text style={[styles.playerCountText, isSmallScreen && styles.playerCountTextSmall]}>
+              {players.length} player{players.length !== 1 ? 's' : ''} added
+            </Text>
+          )}
         </View>
 
-        {/* First Player Selection */}
-        <View style={layoutStyles.section}>
-          <Text style={textStyles.h4}>WHO GOES FIRST?</Text>
+        {/* First Player Selection Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleSmall]}>
+            WHO GOES FIRST?
+          </Text>
           
           <View style={styles.firstPlayerModeContainer}>
             <TouchableOpacity
               style={[
                 styles.firstPlayerModeButton,
-                firstPlayerMode === 'random' && styles.firstPlayerModeButtonSelected
+                firstPlayerMode === 'random' && styles.firstPlayerModeButtonSelected,
+                isSmallScreen && styles.firstPlayerModeButtonSmall
               ]}
               onPress={() => handleFirstPlayerModeChange('random')}
             >
@@ -195,7 +382,8 @@ export default function WavelengthSetup() {
               />
               <Text style={[
                 styles.firstPlayerModeText,
-                firstPlayerMode === 'random' && styles.firstPlayerModeTextSelected
+                firstPlayerMode === 'random' && styles.firstPlayerModeTextSelected,
+                isSmallScreen && styles.firstPlayerModeTextSmall
               ]}>
                 Random
               </Text>
@@ -204,7 +392,8 @@ export default function WavelengthSetup() {
             <TouchableOpacity
               style={[
                 styles.firstPlayerModeButton,
-                firstPlayerMode === 'selected' && styles.firstPlayerModeButtonSelected
+                firstPlayerMode === 'selected' && styles.firstPlayerModeButtonSelected,
+                isSmallScreen && styles.firstPlayerModeButtonSmall
               ]}
               onPress={() => handleFirstPlayerModeChange('selected')}
             >
@@ -215,24 +404,28 @@ export default function WavelengthSetup() {
               />
               <Text style={[
                 styles.firstPlayerModeText,
-                firstPlayerMode === 'selected' && styles.firstPlayerModeTextSelected
+                firstPlayerMode === 'selected' && styles.firstPlayerModeTextSelected,
+                isSmallScreen && styles.firstPlayerModeTextSmall
               ]}>
                 Choose
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Player Selection Dropdown (only show when 'selected' mode is active) */}
-          {firstPlayerMode === 'selected' && (
+          {/* Player Selection List (only show when 'selected' mode is active) */}
+          {firstPlayerMode === 'selected' && players.length > 0 && (
             <View style={styles.playerSelectionContainer}>
-              <Text style={styles.playerSelectionLabel}>Select first player:</Text>
+              <Text style={[styles.playerSelectionLabel, isSmallScreen && styles.playerSelectionLabelSmall]}>
+                Select first player:
+              </Text>
               <View style={styles.playerSelectionList}>
                 {players.map((player, index) => (
                   <TouchableOpacity
                     key={index}
                     style={[
                       styles.playerSelectionItem,
-                      selectedFirstPlayer === player && styles.playerSelectionItemSelected
+                      selectedFirstPlayer === player && styles.playerSelectionItemSelected,
+                      isSmallScreen && styles.playerSelectionItemSmall
                     ]}
                     onPress={() => setSelectedFirstPlayer(player)}
                   >
@@ -243,7 +436,8 @@ export default function WavelengthSetup() {
                     />
                     <Text style={[
                       styles.playerSelectionText,
-                      selectedFirstPlayer === player && styles.playerSelectionTextSelected
+                      selectedFirstPlayer === player && styles.playerSelectionTextSelected,
+                      isSmallScreen && styles.playerSelectionTextSmall
                     ]}>
                       {player}
                     </Text>
@@ -253,116 +447,229 @@ export default function WavelengthSetup() {
             </View>
           )}
         </View>
-        
-        {/* Next Button */}
-        <Button
-          title="NEXT"
-          onPress={handleNext}
-          variant="primary"
-          disabled={players.length < 3}
-          style={players.length < 3 ? { opacity: 0.5 } : {}}
-        />
 
+        {/* Bottom spacer to prevent content hiding behind footer */}
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+
+      {/* Fixed Footer - Closer to bottom, no borders/shadows */}
+      <View style={[styles.footer, isSmallScreen && styles.footerSmall]}>
         {players.length < 3 && (
-          <View style={{ alignItems: 'center', marginTop: 12 }}>
-            <Text style={{ color: colors.gray600 || '#FF6B6B', fontSize: 14 }}>
-              Add at least {3 - players.length} player{3 - players.length > 1 ? 's' : ''} to continue
+          <View style={styles.warningContainer}>
+            <Ionicons 
+              name="information-circle-outline" 
+              size={layout.iconSize.sm} 
+              color={colors.black} 
+            />
+            <Text style={[styles.warningText, isSmallScreen && styles.warningTextSmall]}>
+              Add at least {3 - players.length} more player{3 - players.length > 1 ? 's' : ''} to continue
             </Text>
           </View>
         )}
         
+        <Button
+          title="NEXT"
+          onPress={handleNext}
+          variant="primary"
+          size={isSmallScreen ? "md" : "lg"}
+          disabled={players.length < 3}
+          style={[
+            styles.nextButton,
+            players.length < 3 && styles.nextButtonDisabled
+          ]}
+        />
       </View>
-    </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  
+  // Fixed Header - Higher on screen, clean flat design
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: spacing['3xl'],
-    paddingHorizontal: spacing.lg, 
-    paddingBottom: spacing.lg, 
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm, // Reduced top padding to move higher
+    paddingBottom: spacing.sm, // Reduced bottom padding
+    backgroundColor: colors.background,
+  },
+  
+  headerSmall: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs, // Even smaller on small screens
+    paddingBottom: spacing.xs,
   },
   
   headerButton: {
     padding: spacing.sm,
+    // Flat design - no background, borders, or shadows
   },
   
-  subtitle: {
-    textAlign: 'center',
-    marginBottom: spacing.xl, 
+  // Scrollable Content
+  scrollContent: {
+    flex: 1,
   },
   
-  playerCountControls: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md, 
+  scrollContentContainer: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md, // Reduced from spacing.xl to start higher
   },
   
-  countButton: {
-    backgroundColor: colors.gray100, 
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  countButtonDisabled: {
-    backgroundColor: colors.gray200,
-    opacity: 0.5,
+  scrollContentContainerSmall: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm, // Reduced from spacing.lg
   },
   
-  countButtonText: {
-    fontSize: typography.fontSize.xl, 
-    fontWeight: typography.fontWeight.bold, 
-    color: colors.primary, 
-  },
-
-  countButtonTextDisabled: {
-    color: colors.gray400,
+  section: {
+    marginBottom: spacing.xl,
   },
   
+  sectionTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.primary,
+    marginBottom: spacing.lg,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  
+  sectionTitleSmall: {
+    fontSize: typography.fontSize.base,
+    marginBottom: spacing.md,
+  },
+  
+  // Enhanced Player Input - Bigger text field
   playerInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.lg, 
-    marginTop: spacing.md,
+    marginBottom: spacing.xl,
+    gap: spacing.md,
+  },
+  
+  playerInputContainerSmall: {
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
   },
   
   playerInput: {
     ...createInputStyle('default'),
     flex: 1,
+    height: 56, // Bigger input field
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.medium,
+  },
+  
+  playerInputSmall: {
+    height: 48,
+    paddingHorizontal: spacing.md,
+    fontSize: typography.fontSize.base,
   },
   
   addButton: {
-    marginLeft: spacing.sm, 
-    padding: spacing.sm, 
+    padding: spacing.xs,
+    // Flat design - just the icon
   },
   
+  // Enhanced Player List with Swipeable Pills
   playerList: {
-    gap: spacing.sm, 
+    gap: spacing.md,
   },
   
-  playerItem: {
+  playerListSmall: {
+    gap: spacing.sm,
+  },
+  
+  playerPillContainer: {
+    position: 'relative',
+    height: 56, // Fixed height for consistent animations
+  },
+  
+  playerPillContainerSmall: {
+    height: 48,
+  },
+  
+  deleteBackground: {
+    position: 'absolute',
+    left: 0,
+    right: 0, // Full width instead of dynamic width
+    top: 0,
+    bottom: 0,
+    backgroundColor: colors.error,
+    borderRadius: 25, // Same shape as player pill
+    justifyContent: 'center',
+    alignItems: 'center', // Center the trash icon
+    zIndex: 0, // Behind the player pill
+  },
+  
+  playerPill: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm, 
-    paddingVertical: spacing.xs, 
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface || colors.gray100,
+    borderRadius: 25,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.gray200,
+    zIndex: 1,
+  },
+  
+  playerPillSmall: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+  },
+  
+  playerPillContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: spacing.md,
   },
   
   playerName: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.primary,
     flex: 1,
+  },
+  
+  playerNameSmall: {
+    fontSize: typography.fontSize.base,
+  },
+  
+  removeButton: {
+    padding: spacing.xs,
+    marginLeft: spacing.sm,
+  },
+  
+  playerCountText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray600,
+    textAlign: 'center',
+    marginTop: spacing.md,
+    fontWeight: typography.fontWeight.medium,
+  },
+  
+  playerCountTextSmall: {
+    fontSize: typography.fontSize.xs,
   },
 
   // First Player Selection Styles
   firstPlayerModeContainer: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
 
   firstPlayerModeButton: {
@@ -372,11 +679,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.sm,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.gray300,
-    backgroundColor: colors.white,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.gray200,
+    backgroundColor: colors.surface || colors.white,
     gap: spacing.sm,
+  },
+
+  firstPlayerModeButtonSmall: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
 
   firstPlayerModeButtonSelected: {
@@ -388,6 +700,10 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.medium,
     color: colors.gray600,
+  },
+
+  firstPlayerModeTextSmall: {
+    fontSize: typography.fontSize.sm,
   },
 
   firstPlayerModeTextSelected: {
@@ -407,11 +723,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
 
+  playerSelectionLabelSmall: {
+    fontSize: typography.fontSize.xs,
+  },
+
   playerSelectionList: {
-    backgroundColor: colors.gray100,
-    borderRadius: 8,
+    backgroundColor: colors.surface || colors.gray100,
+    borderRadius: 12,
     padding: spacing.sm,
     gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.gray200,
   },
 
   playerSelectionItem: {
@@ -419,9 +741,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: 6,
+    borderRadius: 8,
     backgroundColor: colors.white,
     gap: spacing.sm,
+  },
+
+  playerSelectionItemSmall: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
   },
 
   playerSelectionItemSelected: {
@@ -434,12 +761,57 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  playerSelectionTextSmall: {
+    fontSize: typography.fontSize.sm,
+  },
+
   playerSelectionTextSelected: {
     color: colors.secondary,
     fontWeight: typography.fontWeight.semibold,
   },
   
-  startButton: {
-    marginTop: spacing.lg, 
+  bottomSpacer: {
+    height: spacing['6xl'],
+  },
+  
+  // Fixed Footer - Closer to bottom, no borders/shadows
+  footer: {
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg, // Reduced bottom padding to bring closer to edge
+    paddingTop: spacing.sm, // Reduced top padding
+    // Removed borderTopWidth, borderTopColor, and shadows
+  },
+  
+  footerSmall: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  
+  warningContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs, // Reduced margin
+    gap: spacing.sm,
+  },
+  
+  warningText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.black, // Changed to black text
+    fontWeight: typography.fontWeight.medium,
+  },
+  
+  warningTextSmall: {
+    fontSize: typography.fontSize.xs,
+  },
+  
+  nextButton: {
+    width: '100%',
+    // Button component handles its own styling
+  },
+  
+  nextButtonDisabled: {
+    opacity: 0.5,
   },
 });
