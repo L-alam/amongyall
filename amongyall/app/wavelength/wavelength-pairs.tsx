@@ -300,7 +300,6 @@ export default function WavelengthPairs() {
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
         
-        <Text style={textStyles.h2}>Wavelength</Text>
         
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
           <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
@@ -318,7 +317,7 @@ export default function WavelengthPairs() {
       {/* Action Buttons */}
       <View style={styles.actionButtonsContainer}>
         <Button
-          title="Random Pair"
+          title="Random"
           variant="outline"
           size="md"
           icon="shuffle-outline"
@@ -327,7 +326,7 @@ export default function WavelengthPairs() {
         />
         
         <Button
-          title="Create Custom"
+          title="Custom"
           variant="outline"
           size="md"
           icon="add-outline"
@@ -551,7 +550,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: spacing['3xl'],
     paddingHorizontal: spacing.lg, 
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.sm,
     backgroundColor: colors.white,
     borderBottomWidth: 1,
     borderBottomColor: colors.gray200,
@@ -599,6 +598,7 @@ const styles = StyleSheet.create({
   },
 
   actionButton: {
+    maxHeight: 50,
     flex: 1,
   },
 
