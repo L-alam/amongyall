@@ -252,6 +252,9 @@ export default function WordGameStart() {
     const handleBack = () => {
         router.back();
     };
+    const handleCancel = () => {
+      router.push('/');
+    };
 
     const currentPlayer = players[currentPlayerIndex];
     const currentCard = playerCards[currentPlayerIndex];
@@ -265,9 +268,8 @@ export default function WordGameStart() {
                 <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
               </TouchableOpacity>
               
-              <Text style={textStyles.h2}>Word Chameleon</Text>
               
-              <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+              <TouchableOpacity style={styles.headerButton} onPress={handleCancel}>
                 <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
               </TouchableOpacity>
             </View>
@@ -315,14 +317,14 @@ export default function WordGameStart() {
                     <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
                 </TouchableOpacity>
                 
-                <Text style={textStyles.h2}>Word Chameleon</Text>
+
                 
-                <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                <TouchableOpacity style={styles.headerButton} onPress={handleCancel}>
                     <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
                 </TouchableOpacity>
             </View>
 
-            <View style={combineStyles(layoutStyles.content, layoutStyles.centered)}>
+            <View style={combineStyles(layoutStyles.content, layoutStyles.centered, styles.contentContainer)}>
                 {/* Player instruction */}
                 <Text style={combineStyles(textStyles.h1, styles.playerInstruction)}>
                     Give the phone to:
@@ -400,10 +402,12 @@ const styles = StyleSheet.create({
 
     // Flip card container
     flipCard: {
-        width: screenWidth - spacing.lg * 4,
-        height: screenHeight - spacing.lg * 20,
-        marginBottom: spacing.xl,
-    },
+      width: screenWidth - spacing.lg * 2,
+      height: Math.min(screenHeight * 0.5, 400),
+      maxWidth: 600,
+      alignSelf: 'center',
+      marginBottom: spacing.xl,
+  },
 
     pressableContainer: {
         // Ensure the pressable area covers the entire card
@@ -550,4 +554,8 @@ const styles = StyleSheet.create({
     startButton: {
         width: '100%',
     },
+    
+    contentContainer: {
+      paddingTop: spacing.md,
+  },
 });
