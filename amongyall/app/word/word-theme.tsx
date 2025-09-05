@@ -39,9 +39,12 @@ export default function WordTheme() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSelectingRandom, setIsSelectingRandom] = useState(false);
 
-  // Constraints for numCards
-  const MIN_CARDS = 4;
-  const MAX_CARDS = 16;
+  // Card options for bubble selection
+  const CARD_OPTIONS = [4, 6, 8, 10];
+
+  const isSmallScreen = screenWidth < 380;
+  const isMediumScreen = screenWidth >= 380 && screenWidth < 768;
+  const isLargeScreen = screenWidth >= 768;
 
   // Load theme names and custom themes on component mount
   useEffect(() => {
@@ -317,18 +320,6 @@ export default function WordTheme() {
     loadThemePreview(themeName, true);
   };
 
-  const increaseCards = () => {
-    if (numCards < MAX_CARDS) {
-      setNumCards(numCards + 1);
-    }
-  };
-
-  const decreaseCards = () => {
-    if (numCards > MIN_CARDS) {
-      setNumCards(numCards - 1);
-    }
-  };
-
   // Calculate grid layout for two columns
   const cardWidth = (screenWidth - spacing.lg * 2 - spacing.md * 3) / 2; // Account for container padding and gap
   const cardHeight = 60;
@@ -582,49 +573,22 @@ export default function WordTheme() {
   return (
     <View style={layoutStyles.container}>
       {/* Fixed Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, isSmallScreen && styles.headerSmall]}>
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
+          <Ionicons 
+            name="arrow-back" 
+            size={isSmallScreen ? layout.iconSize.md : layout.iconSize.lg} 
+            color={colors.primary} 
+          />
         </TouchableOpacity>
-        
-        <Text style={textStyles.h2}>Word Chameleon</Text>
         
         <TouchableOpacity style={styles.headerButton} onPress={handleCancel}>
-          <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
+          <Ionicons 
+            name="close" 
+            size={isSmallScreen ? layout.iconSize.md : layout.iconSize.lg} 
+            color={colors.primary} 
+          />
         </TouchableOpacity>
-      </View>
-
-      {/* Number of Cards Controls */}
-      <View style={styles.cardControlsContainer}>
-        <Text style={textStyles.h4}>Number Of Cards: {numCards}</Text>
-        <View style={styles.cardCountControls}>
-          <TouchableOpacity 
-            style={[
-              styles.countButton,
-              numCards <= MIN_CARDS && styles.countButtonDisabled
-            ]}
-            onPress={decreaseCards}
-            disabled={numCards <= MIN_CARDS}
-          >
-            <Text style={[
-              styles.countButtonText,
-              numCards <= MIN_CARDS && styles.countButtonTextDisabled
-            ]}>−</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[
-              styles.countButton,
-              numCards >= MAX_CARDS && styles.countButtonDisabled
-            ]}
-            onPress={increaseCards}
-            disabled={numCards >= MAX_CARDS}
-          >
-            <Text style={[
-              styles.countButtonText,
-              numCards >= MAX_CARDS && styles.countButtonTextDisabled
-            ]}>+</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       {/* Scrollable Content Area */}
@@ -633,8 +597,30 @@ export default function WordTheme() {
         contentContainerStyle={styles.scrollContentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Theme Selection Header */}
-        <Text style={textStyles.h4}>Choose Theme</Text>
+
+        {/* Number of Cards Selection */}
+        <View style={styles.cardSelectionContainer}>
+          <Text style={styles.cardSelectionHeader}>Number of Cards</Text>
+          <View style={styles.cardOptionBubbles}>
+            {CARD_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.cardBubble,
+                  numCards === option && styles.cardBubbleSelected
+                ]}
+                onPress={() => setNumCards(option)}
+              >
+                <Text style={[
+                  styles.cardBubbleText,
+                  numCards === option && styles.cardBubbleTextSelected
+                ]}>
+                  {option}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
         
         {/* Search Field */}
         <View style={styles.searchContainer}>
@@ -727,9 +713,8 @@ export default function WordTheme() {
       {/* Fixed Bottom Buttons */}
       <View style={styles.bottomButtonsContainer}>
         <View style={styles.bottomButtonRow}>
-
           <Button
-            title={isSelectingRandom ? "Selecting..." : "Random Theme"}
+            title={isSelectingRandom ? "Selecting..." : "Random"}
             variant="outline"
             size="md"
             icon="shuffle-outline"
@@ -738,7 +723,7 @@ export default function WordTheme() {
             style={styles.bottomButtonHalf}
           />
           <Button
-            title="Create Custom"
+            title="Custom"
             variant="outline"
             size="md"
             icon="add-outline"
@@ -765,56 +750,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: spacing['3xl'],
+    paddingTop: spacing['4xl'],
     paddingHorizontal: spacing.lg, 
-    paddingBottom: spacing.lg,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.background,
   },
   
   headerButton: {
     padding: spacing.sm,
   },
 
-  cardControlsContainer: {
-    flexDirection: 'row', 
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-  },
-
-  cardCountControls: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  
-  countButton: {
-    backgroundColor: colors.gray100, 
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  countButtonDisabled: {
-    backgroundColor: colors.gray200,
-    opacity: 0.5,
-  },
-  
-  countButtonText: {
-    fontSize: typography.fontSize.xl, 
-    fontWeight: typography.fontWeight.bold, 
-    color: colors.primary, 
-  },
-
-  countButtonTextDisabled: {
-    color: colors.gray400,
+  headerSmall: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
   },
 
   // Scrollable Content
@@ -826,6 +775,54 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
+  },
+
+  // Card Selection Styles
+  cardSelectionContainer: {
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+
+  cardSelectionHeader: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.gray700,
+    marginBottom: spacing.md,
+  },
+
+  cardOptionBubbles: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+
+  cardBubble: {
+    backgroundColor: colors.gray100,
+    borderWidth: 2,
+    borderColor: colors.gray300,
+    borderRadius: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    minWidth: 40,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+
+  cardBubbleSelected: {
+    backgroundColor: colors.secondary + '20',
+    borderColor: colors.secondary,
+  },
+
+  cardBubbleText: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.gray700,
+  },
+
+  cardBubbleTextSelected: {
+    color: colors.secondary,
+    fontWeight: typography.fontWeight.bold,
   },
 
   expandHint: {
@@ -840,7 +837,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.gray100,
+    backgroundColor: colors.white,
     borderRadius: 8,
     paddingHorizontal: spacing.md,
     marginTop: spacing.md,
@@ -857,7 +854,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: spacing.md,
     fontSize: typography.fontSize.base,
-    color: colors.gray800,
+    color: colors.gray900,
   },
 
   clearSearchButton: {
@@ -1054,10 +1051,11 @@ const styles = StyleSheet.create({
   // Fixed Bottom Buttons
   bottomButtonsContainer: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: colors.gray200,
+    paddingBottom: spacing.xl,
     gap: spacing.md,
   },
 
@@ -1068,6 +1066,7 @@ const styles = StyleSheet.create({
 
   bottomButtonHalf: {
     flex: 1,
+    minHeight: 44,
   },
 
   bottomButton: {
@@ -1098,6 +1097,6 @@ const styles = StyleSheet.create({
 
   backButtonContainer: {
     flexDirection: "column", 
-    gap: 10,  // spaces out children evenly
+    gap: 10,
   },
 });
