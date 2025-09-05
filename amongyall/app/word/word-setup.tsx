@@ -28,9 +28,8 @@ try {
   State = null;
 }
 
-// Individual Player Pill Component with Swipe-to-Delete
+// Individual Player Pill Component with Optimized Swipe-to-Delete
 const PlayerPill = React.memo(({ player, index, onRemove, isSmallScreen }) => {
-  // Fix the useInsertionEffect error by using useRef properly
   const translateX = React.useRef(new Animated.Value(0)).current;
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -64,78 +63,83 @@ const PlayerPill = React.memo(({ player, index, onRemove, isSmallScreen }) => {
     );
   }
 
-  // Memoize the gesture event to prevent recreations
+  // OPTIMIZATION: Pre-calculate animated styles to reduce re-renders
+  const animatedStyles = React.useMemo(() => {
+    const pillOpacity = translateX.interpolate({
+      inputRange: [-200, -100, 0],
+      outputRange: [0.4, 0.8, 1],
+      extrapolate: 'clamp',
+    });
+
+    const redBackgroundOpacity = translateX.interpolate({
+      inputRange: [-150, -50, 0],
+      outputRange: [1, 0.7, 0],
+      extrapolate: 'clamp',
+    });
+
+    return { pillOpacity, redBackgroundOpacity };
+  }, [translateX]);
+
+  // OPTIMIZATION: Use native driver where possible and optimize gesture event
   const onGestureEvent = React.useMemo(
     () => Animated.event(
       [{ nativeEvent: { translationX: translateX } }],
-      { useNativeDriver: false }
+      { 
+        useNativeDriver: true, // Enable native driver for better performance
+        listener: null // Remove any additional listeners for performance
+      }
     ),
     [translateX]
   );
 
-  // Memoize the handler state change to prevent recreations
+  // OPTIMIZATION: Memoize and optimize handler state change
   const onHandlerStateChange = React.useCallback((event) => {
     if (event.nativeEvent.state === State.END) {
       const { translationX } = event.nativeEvent;
       
-      // FIXED: If swiped more than 100px to the LEFT (negative), delete the player
       if (translationX < -100) {
         setIsDeleting(true);
-        // Animate out before deleting
+        
+        // OPTIMIZATION: Use native driver for exit animation
         Animated.timing(translateX, {
-          toValue: -400, // Slide completely off screen to the left
-          duration: 200,
-          useNativeDriver: false,
+          toValue: -400,
+          duration: 150, // Slightly faster for snappier feel
+          useNativeDriver: true,
         }).start(() => {
           onRemove(index);
         });
       } else {
-        // Snap back to original position
+        // OPTIMIZATION: Use native driver for snap-back animation
         Animated.spring(translateX, {
           toValue: 0,
-          tension: 100,
-          friction: 8,
-          useNativeDriver: false,
+          tension: 120, // Slightly more tension for snappier feel
+          friction: 7,   // Less friction for smoother animation
+          useNativeDriver: true,
         }).start();
       }
     }
   }, [translateX, onRemove, index]);
 
-  // FIXED: Opacity interpolation for LEFT swipe (negative values)
-  const pillOpacity = translateX.interpolate({
-    inputRange: [-200, -100, 0],
-    outputRange: [0.4, 0.8, 1],
-    extrapolate: 'clamp',
-  });
-
-  // FIXED: Red background shows when swiping LEFT (negative values)
-  const redBackgroundOpacity = translateX.interpolate({
-    inputRange: [-150, -50, 0],
-    outputRange: [1, 0.7, 0],
-    extrapolate: 'clamp',
-  });
-
   return (
     <View style={[styles.playerPillContainer, isSmallScreen && styles.playerPillContainerSmall]}>
-      {/* Red delete background - always full width, underneath */}
+      {/* OPTIMIZATION: Simplified red background with direct animated style */}
       <Animated.View 
         style={[
           styles.deleteBackground,
-          {
-            opacity: redBackgroundOpacity,
-          }
+          { opacity: animatedStyles.redBackgroundOpacity }
         ]} 
       >
         <Ionicons name="trash" size={layout.iconSize.md} color={colors.white} />
       </Animated.View>
       
-      {/* Swipeable pill */}
+      {/* OPTIMIZATION: Swipeable pill with optimized gesture settings */}
       <PanGestureHandler
         onGestureEvent={onGestureEvent}
         onHandlerStateChange={onHandlerStateChange}
-        activeOffsetX={-10}  // FIXED: Only activate on LEFT swipe (negative)
-        failOffsetX={10}     // FIXED: Fail on RIGHT swipe (positive)
-        shouldCancelWhenOutside={true}
+        activeOffsetX={-8}    // Reduced threshold for more responsive feel
+        failOffsetX={8}       // Symmetric fail threshold
+        shouldCancelWhenOutside={false} // Keep gesture active outside bounds
+        simultaneousHandlers={[]}       // Prevent conflicts with other gestures
       >
         <Animated.View
           style={[
@@ -143,7 +147,7 @@ const PlayerPill = React.memo(({ player, index, onRemove, isSmallScreen }) => {
             isSmallScreen && styles.playerPillSmall,
             {
               transform: [{ translateX }],
-              opacity: pillOpacity,
+              opacity: animatedStyles.pillOpacity,
             }
           ]}
         >
@@ -353,7 +357,7 @@ export default function WordSetup() {
             </TouchableOpacity>
           </View>
 
-          {/* Enhanced Player List with Swipeable Pills */}
+          {/* Enhanced Player List with Optimized Swipeable Pills */}
           <View style={[styles.playerList, isSmallScreen && styles.playerListSmall]}>
             {players.map((player, index) => (
               <PlayerPill
@@ -421,20 +425,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm, // Reduced top padding to move higher
-    paddingBottom: spacing.sm, // Reduced bottom padding
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
     backgroundColor: colors.background,
   },
   
   headerSmall: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.xs, // Even smaller on small screens
+    paddingTop: spacing.xs,
     paddingBottom: spacing.xs,
   },
   
   headerButton: {
     padding: spacing.sm,
-    // Flat design - no background, borders, or shadows
   },
   
   // Scrollable Content
@@ -445,12 +448,12 @@ const styles = StyleSheet.create({
   scrollContentContainer: {
     flexGrow: 1,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md, // Reduced from spacing.xl to start higher
+    paddingTop: spacing.md,
   },
   
   scrollContentContainerSmall: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm, // Reduced from spacing.lg
+    paddingTop: spacing.sm,
   },
   
   section: {
@@ -486,7 +489,7 @@ const styles = StyleSheet.create({
   playerInput: {
     ...createInputStyle('default'),
     flex: 1,
-    height: 56, // Bigger input field
+    height: 56,
     fontSize: typography.fontSize.lg,
     fontWeight: typography.fontWeight.medium,
   },
@@ -499,10 +502,9 @@ const styles = StyleSheet.create({
   
   addButton: {
     padding: spacing.xs,
-    // Flat design - just the icon
   },
   
-  // Enhanced Player List with Swipeable Pills
+  // OPTIMIZATION: Enhanced Player List with better layout performance
   playerList: {
     gap: spacing.md,
   },
@@ -512,8 +514,8 @@ const styles = StyleSheet.create({
   },
   
   playerPillContainer: {
-    position: 'relative',
-    height: 56, // Fixed height for consistent animations
+    height: 56, // Fixed height prevents layout shifts
+    marginVertical: 2, // Small margin to prevent clipping during animations
   },
   
   playerPillContainerSmall: {
@@ -523,14 +525,14 @@ const styles = StyleSheet.create({
   deleteBackground: {
     position: 'absolute',
     left: 0,
-    right: 0, // Full width instead of dynamic width
+    right: 0,
     top: 0,
     bottom: 0,
     backgroundColor: colors.error,
-    borderRadius: 25, // Same shape as player pill
+    borderRadius: 25,
     justifyContent: 'center',
-    alignItems: 'center', // Center the trash icon
-    zIndex: 0, // Behind the player pill
+    alignItems: 'center',
+    zIndex: 0,
   },
   
   playerPill: {
@@ -595,13 +597,12 @@ const styles = StyleSheet.create({
     height: spacing['6xl'],
   },
   
-  // Fixed Footer - Closer to bottom, no borders/shadows
+  // Fixed Footer
   footer: {
     backgroundColor: colors.background,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl, // Reduced bottom padding to bring closer to edge
-    paddingTop: spacing.sm, // Reduced top padding
-    // Removed borderTopWidth, borderTopColor, and shadows
+    paddingBottom: spacing.xl,
+    paddingTop: spacing.sm,
   },
   
   footerSmall: {
@@ -613,13 +614,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.sm, // Reduced margin
+    marginBottom: spacing.sm,
     gap: spacing.sm,
   },
   
   warningText: {
     fontSize: typography.fontSize.sm,
-    color: colors.black, // Changed to black text
+    color: colors.black,
     fontWeight: typography.fontWeight.medium,
   },
   
@@ -629,7 +630,6 @@ const styles = StyleSheet.create({
   
   nextButton: {
     width: '100%',
-    // Button component handles its own styling
   },
   
   nextButtonDisabled: {
