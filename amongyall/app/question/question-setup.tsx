@@ -55,7 +55,7 @@ const PlayerPill = React.memo(({ player, index, onRemove, isSmallScreen }) => {
             <Ionicons 
               name="close-circle" 
               size={layout.iconSize.md} 
-              color={colors.gray500} 
+              color={colors.gray300} 
             />
           </TouchableOpacity>
         </View>
@@ -164,7 +164,7 @@ const PlayerPill = React.memo(({ player, index, onRemove, isSmallScreen }) => {
             <Ionicons 
               name="close-circle" 
               size={layout.iconSize.md} 
-              color={colors.gray500} 
+              color={colors.gray300} 
             />
           </TouchableOpacity>
         </Animated.View>
