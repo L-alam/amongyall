@@ -31,9 +31,8 @@ export default function WordAITheme() {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Constraints for numCards
-  const MIN_CARDS = 4;
-  const MAX_CARDS = 16;
+  // Card options for bubble selection
+  const CARD_OPTIONS = [4, 6, 8, 10];
 
   // Validation functions
   const areAllWordsValid = () => {
@@ -195,28 +194,6 @@ export default function WordAITheme() {
     });
   };
 
-  const increaseCards = () => {
-    if (numCards < MAX_CARDS) {
-      setNumCards(numCards + 1);
-      // Clear previous generation if count changes
-      if (hasGenerated) {
-        setHasGenerated(false);
-        setGeneratedWords([]);
-      }
-    }
-  };
-
-  const decreaseCards = () => {
-    if (numCards > MIN_CARDS) {
-      setNumCards(numCards - 1);
-      // Clear previous generation if count changes
-      if (hasGenerated) {
-        setHasGenerated(false);
-        setGeneratedWords([]);
-      }
-    }
-  };
-
   const handleTopicChange = (text: string) => {
     setTopic(text);
     // Clear previous generation if topic changes
@@ -235,6 +212,15 @@ export default function WordAITheme() {
     }
   };
 
+  const handleCardSelection = (option: number) => {
+    setNumCards(option);
+    // Clear previous generation if count changes
+    if (hasGenerated) {
+      setHasGenerated(false);
+      setGeneratedWords([]);
+    }
+  };
+
   // Calculate grid layout for two columns
   const cardWidth = (screenWidth - spacing.lg * 2 - spacing.md * 3) / 2;
   const cardHeight = 60;
@@ -246,9 +232,7 @@ export default function WordAITheme() {
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
-        
-        <Text style={textStyles.h2}>AI Word Generator</Text>
-        
+       
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
           <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
@@ -261,36 +245,31 @@ export default function WordAITheme() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Number of Cards Controls */}
-        <View style={layoutStyles.section}>
-          <Text style={textStyles.h4}>Number Of Cards: {numCards}</Text>
-          <View style={styles.cardCountControls}>
-            <TouchableOpacity 
-              style={[
-                styles.countButton,
-                numCards <= MIN_CARDS && styles.countButtonDisabled
-              ]}
-              onPress={decreaseCards}
-              disabled={numCards <= MIN_CARDS}
-            >
-              <Text style={[
-                styles.countButtonText,
-                numCards <= MIN_CARDS && styles.countButtonTextDisabled
-              ]}>−</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[
-                styles.countButton,
-                numCards >= MAX_CARDS && styles.countButtonDisabled
-              ]}
-              onPress={increaseCards}
-              disabled={numCards >= MAX_CARDS}
-            >
-              <Text style={[
-                styles.countButtonText,
-                numCards >= MAX_CARDS && styles.countButtonTextDisabled
-              ]}>+</Text>
-            </TouchableOpacity>
+        {/* Number of Cards Selection */}
+        <View style={styles.cardSelectionContainer}>
+        <View style={styles.cardSelectionTitle}>
+        <Text style={textStyles.h3}>AI Custom Theme</Text>
+        </View>
+
+          <Text style={styles.cardSelectionHeader}>Number of Cards</Text>
+          <View style={styles.cardOptionBubbles}>
+            {CARD_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.cardBubble,
+                  numCards === option && styles.cardBubbleSelected
+                ]}
+                onPress={() => handleCardSelection(option)}
+              >
+                <Text style={[
+                  styles.cardBubbleText,
+                  numCards === option && styles.cardBubbleTextSelected
+                ]}>
+                  {option}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
@@ -317,7 +296,7 @@ export default function WordAITheme() {
           <Button
             title={isGenerating ? "GENERATING..." : hasGenerated ? "REGENERATE WORDS" : "GENERATE WORDS"}
             variant="secondary"
-            size="lg"
+            size="md"
             icon={isGenerating ? undefined : "sparkles-outline"}
             onPress={handleGenerateWords}
             disabled={isGenerating || !topic.trim()}
@@ -369,7 +348,7 @@ export default function WordAITheme() {
           <Button
             title="Start Game Now"
             variant="outline"
-            size="lg"
+            size="md"
             icon="play-outline"
             onPress={handleStartGame}
             style={styles.bottomButton}
@@ -378,7 +357,7 @@ export default function WordAITheme() {
           <Button
             title={saving ? "Saving..." : "Save & Start Game"}
             variant="primary"
-            size="lg"
+            size="md"
             icon={saving ? undefined : "save-outline"}
             onPress={handleSaveTheme}
             disabled={!canSaveTheme()}
@@ -405,19 +384,64 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: spacing['3xl'],
     paddingHorizontal: spacing.lg, 
-    paddingBottom: spacing.lg,
     backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-    elevation: 2,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   
   headerButton: {
     padding: spacing.sm,
+  },
+
+  // Card Selection Styles
+  cardSelectionContainer: {
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.white,
+    marginBottom: spacing.md,
+  },
+
+  cardSelectionHeader: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.gray700,
+    marginBottom: spacing.lg,
+  },
+
+  cardSelectionTitle: {
+    marginBottom: spacing.md,
+  },
+
+  cardOptionBubbles: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+
+  cardBubble: {
+    backgroundColor: colors.gray100,
+    borderWidth: 2,
+    borderColor: colors.gray300,
+    borderRadius: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    minWidth: 40,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+
+  cardBubbleSelected: {
+    backgroundColor: colors.secondary + '20',
+    borderColor: colors.secondary,
+  },
+
+  cardBubbleText: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.gray700,
+  },
+
+  cardBubbleTextSelected: {
+    color: colors.secondary,
+    fontWeight: typography.fontWeight.bold,
   },
 
   // Scrollable Content Area
@@ -448,36 +472,6 @@ const styles = StyleSheet.create({
 
   bottomButton: {
     width: '100%',
-  },
-
-  cardCountControls: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md, 
-  },
-  
-  countButton: {
-    backgroundColor: colors.gray100, 
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  countButtonDisabled: {
-    backgroundColor: colors.gray200,
-    opacity: 0.5,
-  },
-  
-  countButtonText: {
-    fontSize: typography.fontSize.xl, 
-    fontWeight: typography.fontWeight.bold, 
-    color: colors.primary, 
-  },
-
-  countButtonTextDisabled: {
-    color: colors.gray400,
   },
 
   hintText: {

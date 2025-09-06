@@ -353,7 +353,7 @@ export default function WordCustomTheme() {
           <Button
             title="AI Assistance"
             variant="outline"
-            size="lg"
+            size="md"
             icon="sparkles-outline"
             onPress={handleAIAssistance}
             style={styles.aiButton}
