@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Pressable, ScrollView, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -52,9 +52,9 @@ const PlayerCardFront = ({ playerName }: { playerName: string }) => {
 };
 
 // BACK of the player card (shows response)
-const PlayerCardBack = ({ playerName, response }: { playerName: string; response: string }) => {
+const PlayerCardBack = ({ playerName, response, isSpy }: { playerName: string; response: string; isSpy: boolean }) => {
     return (
-        <View style={styles.playerCardBack}>
+        <View style={[styles.playerCardBack, isSpy && styles.spyCardBack]}>
             <Text style={styles.responsePlayerName}>{playerName}</Text>
             <Text style={styles.responseText}>{response}</Text>
         </View>
@@ -65,12 +65,14 @@ const PlayerCardBack = ({ playerName, response }: { playerName: string; response
 const PlayerFlipCard = ({
     playerName,
     response,
+    isSpy,
     isRevealed,
     onPress,
     cardStyle,
 }: {
     playerName: string;
     response: string;
+    isSpy: boolean;
     isRevealed: boolean;
     onPress: () => void;
     cardStyle: any;
@@ -114,7 +116,7 @@ const PlayerFlipCard = ({
             styles.flippedCard,
             flippedCardAnimatedStyle,
           ]}>
-          <PlayerCardBack playerName={playerName} response={response} />
+          <PlayerCardBack playerName={playerName} response={response} isSpy={isSpy} />
         </Animated.View>
       </Pressable>
     );
@@ -130,6 +132,11 @@ export default function QuestionGameplay() {
   
   const [revealedCards, setRevealedCards] = useState<boolean[]>(new Array(players.length).fill(false));
   const [allRevealed, setAllRevealed] = useState(false);
+  const [showImposterReveal, setShowImposterReveal] = useState(false);
+  const [imposterRevealed, setImposterRevealed] = useState(false);
+
+  // Find the spy player
+  const spyPlayer = responses.find(response => response.isSpy);
 
   // Check if all cards are revealed
   useEffect(() => {
@@ -155,8 +162,27 @@ export default function QuestionGameplay() {
     setRevealedCards(new Array(players.length).fill(true));
   };
 
-  const resetAllCards = () => {
-    setRevealedCards(new Array(players.length).fill(false));
+  const handleRevealImposter = () => {
+    Alert.alert(
+      'Reveal Imposter',
+      'Are you sure you\'re ready to reveal who the imposter is and end the game?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Reveal',
+          style: 'destructive',
+          onPress: () => setShowImposterReveal(true),
+        },
+      ]
+    );
+  };
+
+  const closeImposterReveal = () => {
+    setShowImposterReveal(false);
+    setImposterRevealed(true);
   };
 
   // Calculate grid layout based on number of players
@@ -190,6 +216,7 @@ export default function QuestionGameplay() {
 
   // Get the majority question (normal question)
   const majorityQuestion = gameQuestion.normal;
+  const spyQuestion = gameQuestion.spy;
 
   return (
     <View style={layoutStyles.container}>
@@ -199,12 +226,12 @@ export default function QuestionGameplay() {
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
       
+
         
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
           <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
       </View>
-
 
       {/* Player Cards Grid */}
       <ScrollView 
@@ -212,7 +239,6 @@ export default function QuestionGameplay() {
         contentContainerStyle={styles.cardsContent}
         showsVerticalScrollIndicator={false}
       >
-
         {/* Question Display */}
         <View style={styles.questionContainer}>
           <Text style={textStyles.body}>The question was:</Text>
@@ -221,8 +247,6 @@ export default function QuestionGameplay() {
             Tap each card to reveal answers. Find who got a different question!
           </Text>
         </View>
-
-
 
         {playerRows.map((row, rowIndex) => (
           <View key={rowIndex} style={styles.cardRow}>
@@ -233,6 +257,7 @@ export default function QuestionGameplay() {
                   key={playerResponse.playerId}
                   playerName={playerResponse.playerName}
                   response={playerResponse.response}
+                  isSpy={playerResponse.isSpy && imposterRevealed}
                   isRevealed={revealedCards[playerIndex]}
                   onPress={() => handleCardPress(playerIndex)}
                   cardStyle={[
@@ -257,20 +282,20 @@ export default function QuestionGameplay() {
             onPress={revealAllCards}
             style={styles.controlButton}
           />
-        ) : (
+        ) : !imposterRevealed ? (
           <Button
-            title="Hide All"
+            title="Reveal Imposter"
             variant="outline"
             size="md"
-            icon="eye-off-outline"
-            onPress={resetAllCards}
+            icon="person-outline"
+            onPress={handleRevealImposter}
             style={styles.controlButton}
           />
-        )}
+        ) : null}
       </View>
 
-      {/* Back to home button - show when discussion is done */}
-      {allRevealed && (
+      {/* Back to home button - show when imposter is revealed */}
+      {imposterRevealed && (
         <View style={styles.backButtonContainer}>
           <Button
             title="Back to Home"
@@ -282,6 +307,47 @@ export default function QuestionGameplay() {
           />
         </View>
       )}
+
+      {/* Imposter Reveal Modal */}
+      <Modal
+        visible={showImposterReveal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeImposterReveal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Ionicons 
+                name="person-circle" 
+                size={48} 
+                color={colors.error} 
+                style={styles.modalIcon}
+              />
+              <Text style={styles.modalTitle}>Imposter Revealed!</Text>
+            </View>
+            
+            <View style={styles.modalBody}>
+              <Text style={styles.imposterName}>
+                {spyPlayer?.playerName || 'Unknown'}
+              </Text>
+              <Text style={styles.modalDescription}>
+                Their question was:
+              </Text>
+              <Text style={styles.spyQuestionText}>
+                "{spyQuestion}"
+              </Text>
+            </View>
+
+            <TouchableOpacity 
+              style={styles.modalCloseButton}
+              onPress={closeImposterReveal}
+            >
+              <Text style={styles.modalCloseText}>Continue</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -293,7 +359,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: spacing['3xl'],
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   
   headerButton: {
@@ -414,6 +480,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 
+  spyCardBack: {
+    backgroundColor: colors.error,
+  },
+
   responsePlayerName: {
     fontSize: typography.fontSize.xs,
     fontWeight: typography.fontWeight.medium,
@@ -435,6 +505,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     alignItems: 'center',
+    marginBottom: spacing.md,
   },
 
   controlButton: {
@@ -448,5 +519,90 @@ const styles = StyleSheet.create({
 
   backButton: {
     width: '100%',
+  },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+
+  modalContent: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: spacing.xl,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+
+  modalHeader: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+
+  modalIcon: {
+    marginBottom: spacing.md,
+  },
+
+  modalTitle: {
+    fontSize: typography.fontSize.xl,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.error,
+    textAlign: 'center',
+  },
+
+  modalBody: {
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+
+  imposterName: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.primary,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+
+  modalDescription: {
+    fontSize: typography.fontSize.base,
+    color: colors.gray600,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+
+  spyQuestionText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.gray800,
+    textAlign: 'center',
+    backgroundColor: colors.gray100,
+    padding: spacing.md,
+    borderRadius: 8,
+    fontStyle: 'italic',
+  },
+
+  modalCloseButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: 8,
+    minWidth: 120,
+  },
+
+  modalCloseText: {
+    color: colors.white,
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
+    textAlign: 'center',
   },
 });
