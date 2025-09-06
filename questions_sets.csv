@@ -1,0 +1,13 @@
+name,is_premium,is_custom,created_by,created_at
+Sports,false,false,,
+Movies,false,false,,
+Whos more likely to?,false,false,,
+Geography,false,false,,
+Music,false,false,,
+Food,false,false,,
+Holiday,false,false,,
+Animals & Pets,false,false,,
+Games & Toys,false,false,,
+Technology,false,false,,
+Hobies,false,false,,
+School,false,false,,

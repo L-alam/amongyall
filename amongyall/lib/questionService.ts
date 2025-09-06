@@ -108,7 +108,7 @@ export const getRandomQuestionsFromSet = async (setName: string, count: number):
 
 // Get a random preview of questions from a set (typically 3 for preview)
 export const getRandomPreviewQuestions = async (setName: string): Promise<QuestionPair[]> => {
-  return getRandomQuestionsFromSet(setName, 3);
+  return getRandomQuestionsFromSet(setName, 1);
 };
 
 // Get a question set with all its questions
