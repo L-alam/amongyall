@@ -170,10 +170,12 @@ export default function QuestionGameplay() {
   };
 
   const { cardsPerRow, cardHeight } = getGridLayout(players.length);
-  const horizontalPadding = spacing.lg;
+  
+  // Use the same padding for everything to align all elements
+  const containerPadding = spacing.lg;
   const cardSpacing = spacing.sm;
-  const totalSpacing = horizontalPadding * 2 + cardSpacing * (cardsPerRow - 1);
-  const cardWidth = (screenWidth - totalSpacing) / cardsPerRow;
+  const totalSpacing = cardSpacing * (cardsPerRow - 1);
+  const cardWidth = (screenWidth - (containerPadding * 2) - totalSpacing) / cardsPerRow;
 
   // Create rows of players
   const createRows = (playerResponses: PlayerResponse[], cardsPerRow: number) => {
@@ -196,89 +198,90 @@ export default function QuestionGameplay() {
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
-        
-        <Text style={textStyles.h2}>???? Chameleon</Text>
+      
         
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
           <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
-      <View style={layoutStyles.content}>
+
+      {/* Player Cards Grid */}
+      <ScrollView 
+        style={styles.cardsContainer}
+        contentContainerStyle={styles.cardsContent}
+        showsVerticalScrollIndicator={false}
+      >
+
         {/* Question Display */}
         <View style={styles.questionContainer}>
-          <Text style={textStyles.h4}>The question was:</Text>
+          <Text style={textStyles.body}>The question was:</Text>
           <Text style={styles.questionText}>{majorityQuestion}</Text>
           <Text style={combineStyles(textStyles.caption, styles.instructionText)}>
             Tap each card to reveal answers. Find who got a different question!
           </Text>
         </View>
 
-        {/* Player Cards Grid */}
-        <ScrollView 
-          style={styles.cardsContainer}
-          contentContainerStyle={styles.cardsContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {playerRows.map((row, rowIndex) => (
-            <View key={rowIndex} style={styles.cardRow}>
-              {row.map((playerResponse, colIndex) => {
-                const playerIndex = rowIndex * cardsPerRow + colIndex;
-                return (
-                  <PlayerFlipCard
-                    key={playerResponse.playerId}
-                    playerName={playerResponse.playerName}
-                    response={playerResponse.response}
-                    isRevealed={revealedCards[playerIndex]}
-                    onPress={() => handleCardPress(playerIndex)}
-                    cardStyle={[
-                      styles.playerCard,
-                      { width: cardWidth, height: cardHeight }
-                    ]}
-                  />
-                );
-              })}
-            </View>
-          ))}
-        </ScrollView>
 
-        {/* Control Buttons */}
-        <View style={styles.controlsContainer}>
-          {!allRevealed ? (
-            <Button
-              title="Reveal All"
-              variant="outline"
-              size="md"
-              icon="eye-outline"
-              onPress={revealAllCards}
-              style={styles.controlButton}
-            />
-          ) : (
-            <Button
-              title="Hide All"
-              variant="outline"
-              size="md"
-              icon="eye-off-outline"
-              onPress={resetAllCards}
-              style={styles.controlButton}
-            />
-          )}
-        </View>
 
-        {/* Back to home button - show when discussion is done */}
-        {allRevealed && (
-          <View style={styles.backButtonContainer}>
-            <Button
-              title="Back to Home"
-              variant="primary"
-              size="lg"
-              icon="home-outline"
-              onPress={handleBack}
-              style={styles.backButton}
-            />
+        {playerRows.map((row, rowIndex) => (
+          <View key={rowIndex} style={styles.cardRow}>
+            {row.map((playerResponse, colIndex) => {
+              const playerIndex = rowIndex * cardsPerRow + colIndex;
+              return (
+                <PlayerFlipCard
+                  key={playerResponse.playerId}
+                  playerName={playerResponse.playerName}
+                  response={playerResponse.response}
+                  isRevealed={revealedCards[playerIndex]}
+                  onPress={() => handleCardPress(playerIndex)}
+                  cardStyle={[
+                    styles.playerCard,
+                    { width: cardWidth, height: cardHeight }
+                  ]}
+                />
+              );
+            })}
           </View>
+        ))}
+      </ScrollView>
+
+      {/* Control Buttons */}
+      <View style={styles.controlsContainer}>
+        {!allRevealed ? (
+          <Button
+            title="Reveal All"
+            variant="outline"
+            size="md"
+            icon="eye-outline"
+            onPress={revealAllCards}
+            style={styles.controlButton}
+          />
+        ) : (
+          <Button
+            title="Hide All"
+            variant="outline"
+            size="md"
+            icon="eye-off-outline"
+            onPress={resetAllCards}
+            style={styles.controlButton}
+          />
         )}
       </View>
+
+      {/* Back to home button - show when discussion is done */}
+      {allRevealed && (
+        <View style={styles.backButtonContainer}>
+          <Button
+            title="Back to Home"
+            variant="primary"
+            size="md"
+            icon="home-outline"
+            onPress={handleBack}
+            style={styles.backButton}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -301,12 +304,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray100,
     borderRadius: 12,
     padding: spacing.lg,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
     alignItems: 'center',
   },
 
   questionText: {
-    fontSize: typography.fontSize.lg,
+    fontSize: typography.fontSize.xl,
     fontWeight: typography.fontWeight.semibold,
     color: colors.primary,
     textAlign: 'center',
@@ -331,11 +334,10 @@ const styles = StyleSheet.create({
 
   cardRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.sm,
     width: '100%',
-    gap: spacing.sm,
   },
 
   playerCard: {
@@ -436,7 +438,7 @@ const styles = StyleSheet.create({
   },
 
   controlButton: {
-    minWidth: 120,
+    width: '100%',
   },
 
   backButtonContainer: {
