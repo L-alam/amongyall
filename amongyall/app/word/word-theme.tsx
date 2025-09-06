@@ -752,7 +752,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: spacing['4xl'],
     paddingHorizontal: spacing.lg, 
-    paddingBottom: spacing.sm,
     backgroundColor: colors.background,
   },
   
@@ -780,7 +779,7 @@ const styles = StyleSheet.create({
   // Card Selection Styles
   cardSelectionContainer: {
     marginTop: spacing.xs,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
   },
 
   cardSelectionHeader: {
@@ -788,7 +787,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.semibold,
     color: colors.gray700,
     marginBottom: spacing.md,
-    marginTop: spacing.xs,
+    marginTop: spacing.xs
   },
 
   cardOptionBubbles: {

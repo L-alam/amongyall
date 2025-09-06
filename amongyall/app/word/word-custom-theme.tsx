@@ -24,9 +24,8 @@ export default function WordCustomTheme() {
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState('');
 
-  // Constraints for numCards
-  const MIN_CARDS = 4;
-  const MAX_CARDS = 16;
+  // Card options for bubble selection
+  const CARD_OPTIONS = [4, 6, 8, 10];
 
   // Update words array when numCards changes
   useEffect(() => {
@@ -101,18 +100,6 @@ export default function WordCustomTheme() {
     const newWords = [...words];
     newWords[index] = value;
     setWords(newWords);
-  };
-
-  const increaseCards = () => {
-    if (numCards < MAX_CARDS) {
-      setNumCards(numCards + 1);
-    }
-  };
-
-  const decreaseCards = () => {
-    if (numCards > MIN_CARDS) {
-      setNumCards(numCards - 1);
-    }
   };
 
   const clearAllWords = () => {
@@ -227,45 +214,11 @@ export default function WordCustomTheme() {
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
         
-        <Text style={textStyles.h2}>Custom Theme</Text>
-        
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
           <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
-        {/* Number of Cards Controls */}
-        <View style={styles.cardControlsContainer}>
-        <Text style={textStyles.h4}>Number Of Cards: {numCards}</Text>
-        <View style={styles.cardCountControls}>
-          <TouchableOpacity 
-            style={[
-              styles.countButton,
-              numCards <= MIN_CARDS && styles.countButtonDisabled
-            ]}
-            onPress={decreaseCards}
-            disabled={numCards <= MIN_CARDS}
-          >
-            <Text style={[
-              styles.countButtonText,
-              numCards <= MIN_CARDS && styles.countButtonTextDisabled
-            ]}>−</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[
-              styles.countButton,
-              numCards >= MAX_CARDS && styles.countButtonDisabled
-            ]}
-            onPress={increaseCards}
-            disabled={numCards >= MAX_CARDS}
-          >
-            <Text style={[
-              styles.countButtonText,
-              numCards >= MAX_CARDS && styles.countButtonTextDisabled
-            ]}>+</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
 
       {/* Scrollable Content */}
       <ScrollView 
@@ -273,6 +226,30 @@ export default function WordCustomTheme() {
         contentContainerStyle={styles.scrollContentContainer}
         keyboardShouldPersistTaps="handled"
       >
+
+          {/* Number of Cards Selection */}
+        <View style={styles.cardSelectionContainer}>
+          <Text style={styles.cardSelectionHeader}>Number of Cards</Text>
+          <View style={styles.cardOptionBubbles}>
+            {CARD_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.cardBubble,
+                  numCards === option && styles.cardBubbleSelected
+                ]}
+                onPress={() => setNumCards(option)}
+              >
+                <Text style={[
+                  styles.cardBubbleText,
+                  numCards === option && styles.cardBubbleTextSelected
+                ]}>
+                  {option}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
           
           {/* Theme Name Section */}
           <View style={layoutStyles.section}>
@@ -421,21 +398,61 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: spacing['3xl'],
     paddingHorizontal: spacing.lg, 
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.sm,
     backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-    // Elevation for Android shadow
-    elevation: 2,
-    // iOS shadow
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   
   headerButton: {
     padding: spacing.sm,
+  },
+
+  // Card Selection Styles
+  cardSelectionContainer: {
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.white,
+    marginBottom: spacing.md,
+  },
+
+  cardSelectionHeader: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.gray700,
+    marginBottom: spacing.md,
+  },
+
+  cardOptionBubbles: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+
+  cardBubble: {
+    backgroundColor: colors.gray100,
+    borderWidth: 2,
+    borderColor: colors.gray300,
+    borderRadius: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    minWidth: 40,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+
+  cardBubbleSelected: {
+    backgroundColor: colors.secondary + '20',
+    borderColor: colors.secondary,
+  },
+
+  cardBubbleText: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.gray700,
+  },
+
+  cardBubbleTextSelected: {
+    color: colors.secondary,
+    fontWeight: typography.fontWeight.bold,
   },
 
   // Scrollable Content Area
@@ -493,37 +510,6 @@ const styles = StyleSheet.create({
     color: colors.gray500,
     textAlign: 'right',
     marginTop: spacing.xs,
-  },
-
-  // Card Count Controls
-  cardCountControls: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md, 
-  },
-  
-  countButton: {
-    backgroundColor: colors.gray100, 
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  countButtonDisabled: {
-    backgroundColor: colors.gray200,
-    opacity: 0.5,
-  },
-  
-  countButtonText: {
-    fontSize: typography.fontSize.xl, 
-    fontWeight: typography.fontWeight.bold, 
-    color: colors.primary, 
-  },
-
-  countButtonTextDisabled: {
-    color: colors.gray400,
   },
 
   // Words Section
@@ -603,7 +589,8 @@ const styles = StyleSheet.create({
   clearWordButton: {
     position: 'absolute',
     right: spacing.sm,
-    top: 32, // Adjust based on label height
+    top: '62%', 
+    transform: [{ translateY: -10 }],
     padding: spacing.xs,
   },
 
@@ -626,16 +613,5 @@ const styles = StyleSheet.create({
     color: colors.gray600,
     textAlign: 'center',
     lineHeight: typography.fontSize.sm * 1.4,
-  },
-
-  cardControlsContainer: {
-    flexDirection: 'row', 
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
   },
 });
