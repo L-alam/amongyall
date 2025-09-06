@@ -11,6 +11,7 @@ import {
 } from '../../utils/styles';
 import { Button } from '../../components/Button';
 import { getRandomWordsFromTheme } from '../../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -33,6 +34,8 @@ export default function WordGameplay() {
   const [selectedWord, setSelectedWord] = useState<string>('');
   const [correctWord, setCorrectWord] = useState<string>(gameWord);
   const [displayWords, setDisplayWords] = useState<string[]>([]);
+
+  const insets = useSafeAreaInsets();
 
   // Initialize words on component mount - only run once
   useEffect(() => {
@@ -145,7 +148,7 @@ export default function WordGameplay() {
   const cardSpacing = spacing.md;
   
   // Fixed header heights
-  const headerHeight = 80;
+  const headerHeight = 120;
   const gameInfoHeight = gameState === 'playing' ? 80 : 60;
   const bottomSectionHeight = gameState !== 'playing' ? 100 : 20;
   
@@ -269,6 +272,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing['3xl'],
   },
   
   headerSpacer: {
