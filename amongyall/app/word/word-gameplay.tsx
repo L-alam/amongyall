@@ -12,7 +12,7 @@ import {
 import { Button } from '../../components/Button';
 import { getRandomWordsFromTheme } from '../../constants/theme';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function WordGameplay() {
   const params = useLocalSearchParams();
@@ -111,42 +111,56 @@ export default function WordGameplay() {
     return [styles.wordButtonText, styles.inactiveWordText];
   };
 
-  // Calculate responsive grid layout based on number of words - Enhanced for better visibility
-  const getGridLayout = (wordCount: number) => {
-    if (wordCount <= 4) {
-      return { wordsPerRow: 2, cardHeight: 140 };
-    } else if (wordCount <= 6) {
-      return { wordsPerRow: 2, cardHeight: 120 };
-    } else if (wordCount <= 8) {
-      return { wordsPerRow: 2, cardHeight: 110 };
-    } else if (wordCount <= 12) {
-      return { wordsPerRow: 3, cardHeight: 100 };
-    } else {
-      return { wordsPerRow: 3, cardHeight: 90 };
+  // Calculate layout based on number of words
+  const getLayoutConfig = (wordCount: number) => {
+    switch (wordCount) {
+      case 4:
+        return { rows: 2, cols: 2 };
+      case 6:
+        return { rows: 3, cols: 2 };
+      case 8:
+        return { rows: 4, cols: 2 };
+      case 10:
+        return { rows: 5, cols: 2 };
+      default:
+        return { rows: Math.ceil(wordCount / 2), cols: 2 };
     }
   };
 
-  const { wordsPerRow, cardHeight } = getGridLayout(displayWords.length);
-  const horizontalPadding = spacing.lg;
-  const cardSpacing = spacing.md;
-  const totalSpacing = horizontalPadding * 2 + cardSpacing * (wordsPerRow - 1);
-  const cardWidth = (screenWidth - totalSpacing) / wordsPerRow;
-
-  // Create rows of words
-  const createRows = (words: string[], wordsPerRow: number) => {
+  // Create rows of words based on layout
+  const createRows = (words: string[]) => {
+    const { cols } = getLayoutConfig(words.length);
     const rows = [];
-    for (let i = 0; i < words.length; i += wordsPerRow) {
-      rows.push(words.slice(i, i + wordsPerRow));
+    for (let i = 0; i < words.length; i += cols) {
+      rows.push(words.slice(i, i + cols));
     }
     return rows;
   };
 
-  const wordRows = createRows(displayWords, wordsPerRow);
+  const wordRows = createRows(displayWords);
+  const { rows: totalRows } = getLayoutConfig(displayWords.length);
+  
+  // Calculate card dimensions
+  const containerPadding = spacing.lg;
+  const cardSpacing = spacing.md;
+  
+  // Fixed header heights
+  const headerHeight = 80;
+  const gameInfoHeight = gameState === 'playing' ? 80 : 60;
+  const bottomSectionHeight = gameState !== 'playing' ? 100 : 20;
+  
+  // Calculate available height for cards
+  const availableHeight = screenHeight - headerHeight - gameInfoHeight - bottomSectionHeight - (containerPadding * 2);
+  const totalVerticalSpacing = (totalRows - 1) * cardSpacing;
+  const cardHeight = Math.max(80, (availableHeight - totalVerticalSpacing) / totalRows);
+  
+  // Calculate card width
+  const cardWidth = (screenWidth - (containerPadding * 2) - cardSpacing) / 2;
 
   return (
     <View style={layoutStyles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { height: headerHeight }]}>
         <View style={styles.headerSpacer} />
         
         <Text style={textStyles.h2}>
@@ -158,85 +172,93 @@ export default function WordGameplay() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <View style={layoutStyles.content}>
-        {/* Game info */}
-        {gameState === 'playing' && (
-          <View style={styles.gameInfo}>
-            <Text style={combineStyles(textStyles.body, styles.gameInfoText)}>
-              Theme: {theme}
-            </Text>
-            <Text style={combineStyles(textStyles.caption, styles.instructionText)}>
-              Discuss the words below. The spy should guess the correct word when ready.
-            </Text>
-          </View>
-        )}
-
-        {/* Result info */}
-        {gameState !== 'playing' && (
-          <View style={styles.resultInfo}>
-            <Text style={combineStyles(textStyles.body, styles.resultText)}>
-              {gameState === 'spy_wins' 
-                ? `The spy correctly guessed "${correctWord}"!`
-                : `The spy guessed "${selectedWord}" but the word was "${correctWord}"`
-              }
-            </Text>
-          </View>
-        )}
-
-        {/* Words grid - Full screen below instruction */}
-        <View style={styles.wordsContainer}>
-          {displayWords.length > 0 ? (
-            <View style={styles.wordsGrid}>
-              {wordRows.map((row, rowIndex) => (
-                <View key={rowIndex} style={styles.wordRow}>
-                  {row.map((word, colIndex) => {
-                    const wordIndex = rowIndex * wordsPerRow + colIndex;
-                    return (
-                      <TouchableOpacity
-                        key={wordIndex}
-                        style={[
-                          getWordButtonStyle(word),
-                          { width: cardWidth, height: cardHeight }
-                        ]}
-                        onPress={() => handleWordPress(word)}
-                        disabled={gameState !== 'playing'}
-                        activeOpacity={0.8}
-                      >
-                        <Text 
-                          style={getWordTextStyle(word)}
-                          numberOfLines={2}
-                          adjustsFontSizeToFit
-                          minimumFontScale={0.7}
-                        >
-                          {word}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.noWordsContainer}>
-              <Text style={styles.noWordsText}>Loading words...</Text>
-            </View>
-          )}
+      {/* Game info */}
+      {gameState === 'playing' && (
+        <View style={[styles.gameInfo, { height: gameInfoHeight }]}>
+          <Text style={combineStyles(textStyles.body, styles.gameInfoText)}>
+            Theme: {theme}
+          </Text>
+          <Text style={combineStyles(textStyles.caption, styles.instructionText)}>
+            Discuss the words below. The spy should guess the correct word when ready.
+          </Text>
         </View>
+      )}
 
-        {/* Back to home button - only show after game ends */}
-        {gameState !== 'playing' && (
-          <View style={styles.backButtonContainer}>
-            <Button
-              title="Back to Home"
-              variant="primary"
-              size="lg"
-              icon="home-outline"
-              onPress={handleBack}
-              style={styles.backButton}
-            />
+      {/* Result info */}
+      {gameState !== 'playing' && (
+        <View style={[styles.resultInfo, { minHeight: gameInfoHeight }]}>
+          <Text style={combineStyles(textStyles.body, styles.resultText)}>
+            {gameState === 'spy_wins' 
+              ? `The spy correctly guessed "${correctWord}"!`
+              : `The spy guessed "${selectedWord}" but the word was "${correctWord}"`
+            }
+          </Text>
+        </View>
+      )}
+
+      {/* Words grid */}
+      <View style={[styles.wordsContainer, { paddingHorizontal: containerPadding }]}>
+        {displayWords.length > 0 ? (
+          <View style={styles.wordsGrid}>
+            {wordRows.map((row, rowIndex) => (
+              <View key={rowIndex} style={[
+                styles.wordRow,
+                { marginBottom: rowIndex < wordRows.length - 1 ? cardSpacing : 0 }
+              ]}>
+                {row.map((word, colIndex) => {
+                  const wordIndex = rowIndex * 2 + colIndex;
+                  return (
+                    <TouchableOpacity
+                      key={wordIndex}
+                      style={[
+                        getWordButtonStyle(word),
+                        { 
+                          width: cardWidth, 
+                          height: cardHeight,
+                        }
+                      ]}
+                      onPress={() => handleWordPress(word)}
+                      disabled={gameState !== 'playing'}
+                      activeOpacity={0.8}
+                    >
+                      <Text 
+                        style={getWordTextStyle(word)}
+                        numberOfLines={3}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.5}
+                      >
+                        {word}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                {/* Add empty space if odd number of words in last row */}
+                {row.length === 1 && (
+                  <View style={{ width: cardWidth }} />
+                )}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.noWordsContainer}>
+            <Text style={styles.noWordsText}>Loading words...</Text>
           </View>
         )}
       </View>
+
+      {/* Back to home button - only show after game ends */}
+      {gameState !== 'playing' && (
+        <View style={[styles.backButtonContainer, { height: bottomSectionHeight }]}>
+          <Button
+            title="Back to Home"
+            variant="primary"
+            size="lg"
+            icon="home-outline"
+            onPress={handleBack}
+            style={styles.backButton}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -246,9 +268,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: spacing['3xl'],
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
   },
   
   headerSpacer: {
@@ -257,29 +277,28 @@ const styles = StyleSheet.create({
 
   gameInfo: {
     alignItems: 'center',
-    marginBottom: spacing.md,
+    justifyContent: 'center',
     paddingHorizontal: spacing.md,
   },
 
   gameInfoText: {
     textAlign: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     fontWeight: typography.fontWeight.semibold,
   },
 
   instructionText: {
     textAlign: 'center',
     color: colors.gray500,
-    marginBottom: spacing.lg,
   },
 
   resultInfo: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
-    paddingHorizontal: spacing.md,
+    justifyContent: 'center',
+    marginHorizontal: spacing.lg,
     backgroundColor: colors.gray100,
     borderRadius: 12,
-    padding: spacing.lg,
+    padding: spacing.md,
   },
 
   resultText: {
@@ -290,82 +309,76 @@ const styles = StyleSheet.create({
 
   wordsContainer: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    justifyContent: 'center',
   },
 
   wordsGrid: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
   },
 
   wordRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
-    width: '100%',
-    gap: spacing.md,
   },
 
   wordButton: {
-    backgroundColor: colors.gray800, // Dark background
+    backgroundColor: colors.gray600,
     borderRadius: 16,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: colors.gray700,
+    borderColor: colors.gray600,
     shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
 
   correctWordButton: {
     backgroundColor: colors.success,
     borderColor: colors.success,
     shadowColor: colors.success,
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.3,
   },
 
   incorrectWordButton: {
     backgroundColor: colors.error,
     borderColor: colors.error,
     shadowColor: colors.error,
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.3,
   },
 
   inactiveWordButton: {
     backgroundColor: colors.gray600,
-    borderColor: colors.gray500,
+    borderColor: colors.gray600,
     opacity: 0.6,
   },
 
   wordButtonText: {
-    fontSize: typography.fontSize.base,
+    fontSize: typography.fontSize.xl,
     fontWeight: typography.fontWeight.bold,
-    color: colors.white, // White text
+    color: colors.white,
     textAlign: 'center',
-    lineHeight: typography.fontSize.base * 1.3,
+    lineHeight: typography.fontSize.lg * 1.2,
   },
 
   resultWordText: {
     color: colors.white,
     fontWeight: typography.fontWeight.bold,
-    fontSize: typography.fontSize.lg,
   },
 
   inactiveWordText: {
-    color: colors.gray300,
+    color: colors.gray400,
   },
 
   backButtonContainer: {
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    justifyContent: 'center',
   },
 
   backButton: {
