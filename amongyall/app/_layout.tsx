@@ -1,10 +1,10 @@
-// app/_layout.tsx (Fixed - No Duplicates)
+// app/_layout.tsx
 import { Stack } from "expo-router";
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function RootLayout() {
-    return (
+  return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style="dark" />
       <Stack
@@ -14,20 +14,7 @@ export default function RootLayout() {
           gestureEnabled: false,
         }}
       >
-        <Stack.Screen name="index" />
-        <Stack.Screen name="profile" />
-        <Stack.Screen name="auth/callback" />
-        
-        {/* Profile sub-screens */}
-        <Stack.Screen name="profile/themes" />
-        <Stack.Screen name="profile/pairs" />
-        <Stack.Screen name="profile/questions" />
-        
-        {/* Game screens */}
-        <Stack.Screen name="word/word-setup" />
-        <Stack.Screen name="question/question-setup" />
-        <Stack.Screen name="wavelength/wavelength-setup" />
-        <Stack.Screen name="word/word-ai-theme" />
+        {/* Let Expo Router auto-discover all routes */}
       </Stack>
     </GestureHandlerRootView>
   );
