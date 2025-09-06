@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -32,6 +32,8 @@ export default function QuestionSet() {
   const [categoryPreviews, setCategoryPreviews] = useState<Record<string, CategoryPreview>>({});
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSelectingRandom, setIsSelectingRandom] = useState(false);
 
   useEffect(() => {
     loadSets();
@@ -142,11 +144,42 @@ export default function QuestionSet() {
     }
   };
 
-  const handleCategoryPress = (categoryName: string) => {
-    // Set as selected category
-    setSelectedSet(categoryName);
+  const handleRandomSet = async () => {
+    setIsSelectingRandom(true);
     
-    // Toggle expansion
+    try {
+      if (setNames.length === 0) {
+        Alert.alert('Error', 'No question sets available.');
+        return;
+      }
+
+      // Select a random set
+      const randomIndex = Math.floor(Math.random() * setNames.length);
+      const randomSet = setNames[randomIndex];
+      
+      // Set as selected set
+      setSelectedSet(randomSet);
+      
+      Alert.alert(
+        'Random Set Selected!', 
+        `"${randomSet}" has been selected`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error selecting random set:', error);
+      Alert.alert('Error', 'Failed to select random set. Please try again.');
+    } finally {
+      setIsSelectingRandom(false);
+    }
+  };
+
+  const handleCategoryPress = (categoryName: string) => {
+    // Only set as selected category, don't auto-expand
+    setSelectedSet(categoryName);
+  };
+
+  const handleCategoryExpand = (categoryName: string) => {
+    // Toggle expansion when chevron is pressed
     if (expandedCategory === categoryName) {
       setExpandedCategory(null);
     } else {
@@ -159,8 +192,10 @@ export default function QuestionSet() {
     loadCategoryPreview(categoryName, true);
   };
 
-  // Calculate card width accounting for preview container padding
-  const cardWidth = screenWidth - spacing.lg * 2 - spacing.md * 2; // Account for content padding + preview padding
+  // Filter sets based on search query
+  const filteredSetNames = setNames.filter(set => 
+    set.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Category Item Component
   const CategoryItem = ({ category }: { category: string }) => {
@@ -170,25 +205,33 @@ export default function QuestionSet() {
 
     return (
       <View style={styles.categoryItemContainer}>
-        <TouchableOpacity
-          style={combineStyles(
-            styles.categoryItem,
-            isSelected && styles.categoryItemSelected
-          )}
-          onPress={() => handleCategoryPress(category)}
-        >
-          <Text style={combineStyles(
-            textStyles.body,
-            isSelected && styles.categoryTextSelected
-          )}>
-            {category}
-          </Text>
-          <Ionicons 
-            name={isExpanded ? "chevron-down-outline" : "chevron-forward-outline"}
-            size={layout.iconSize.sm} 
-            color={isSelected ? colors.secondary : colors.gray400} 
-          />
-        </TouchableOpacity>
+        <View style={styles.categoryItemRow}>
+          <TouchableOpacity
+            style={combineStyles(
+              styles.categoryItemContent,
+              isSelected && styles.categoryItemSelected
+            )}
+            onPress={() => handleCategoryPress(category)}
+          >
+            <Text style={combineStyles(
+              textStyles.body,
+              isSelected && styles.categoryTextSelected
+            )}>
+              {category}
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.expandButton}
+            onPress={() => handleCategoryExpand(category)}
+          >
+            <Ionicons 
+              name={isExpanded ? "chevron-down-outline" : "chevron-forward-outline"}
+              size={layout.iconSize.sm} 
+              color={isSelected ? colors.secondary : colors.gray400} 
+            />
+          </TouchableOpacity>
+        </View>
         
         {/* Category Preview Expansion */}
         {isExpanded && (
@@ -288,35 +331,98 @@ export default function QuestionSet() {
   }
 
   return (
-    <ScrollView style={layoutStyles.container}>
-      {/* Header */}
+    <View style={layoutStyles.container}>
+      {/* Fixed Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
         
-        <Text style={textStyles.h2}>???? Chameleon</Text>
         
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
           <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
-      <View style={layoutStyles.content}>
-        {/* Set Selection Section */}
-        <View style={layoutStyles.section}>
-          <Text style={textStyles.h4}>Choose Question Set</Text>
-          <Text style={styles.expandHint}>
-            💡 Tap any category to preview its questions
-          </Text>
-          <View style={styles.categoryList}>
-            {setNames.map((category) => (
-              <CategoryItem key={category} category={category} />
-            ))}
-          </View>
+      {/* Scrollable Content Area */}
+      <ScrollView 
+        style={styles.scrollableContent}
+        contentContainerStyle={styles.scrollContentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Search Field */}
+        <View style={styles.searchContainer}>
+          <Ionicons 
+            name="search" 
+            size={layout.iconSize.sm} 
+            color={colors.gray400} 
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search question sets..."
+            placeholderTextColor={colors.gray400}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity 
+              style={styles.clearSearchButton}
+              onPress={() => setSearchQuery('')}
+            >
+              <Ionicons 
+                name="close-circle" 
+                size={layout.iconSize.sm} 
+                color={colors.gray400} 
+              />
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* Start Button */}
+        <Text style={styles.expandHint}>
+          💡 Tap a set to select it, tap the arrow to preview questions
+        </Text>
+
+        {/* Question Sets List */}
+        {filteredSetNames.length > 0 && (
+          <View style={styles.setsSection}>
+            <Text style={styles.sectionTitle}>Available Question Sets</Text>
+            <View style={styles.categoryList}>
+              {filteredSetNames.map((category) => (
+                <CategoryItem key={category} category={category} />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* No Results Message */}
+        {searchQuery.length > 0 && filteredSetNames.length === 0 && (
+          <View style={styles.noResultsContainer}>
+            <Ionicons name="search" size={48} color={colors.gray400} />
+            <Text style={styles.noResultsText}>
+              No question sets found for "{searchQuery}"
+            </Text>
+            <Text style={styles.noResultsSubtext}>
+              Try a different search term
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Fixed Bottom Buttons */}
+      <View style={styles.bottomButtonsContainer}>
+        <Button
+          title={isSelectingRandom ? "Selecting..." : "Play Random"}
+          variant="outline"
+          size="md"
+          icon="shuffle-outline"
+          onPress={handleRandomSet}
+          disabled={isSelectingRandom}
+          style={styles.randomButton}
+        />
+        
         <Button
           title="START GAME"
           variant="primary"
@@ -325,29 +431,81 @@ export default function QuestionSet() {
           style={styles.startButton}
         />
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // Fixed Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: spacing['3xl'],
+    paddingTop: spacing['4xl'],
     paddingHorizontal: spacing.lg, 
-    paddingBottom: spacing.lg, 
+    paddingBottom: spacing.xs,
+    backgroundColor: colors.background,
   },
   
   headerButton: {
     padding: spacing.sm,
   },
 
+  // Scrollable Content
+  scrollableContent: {
+    flex: 1,
+  },
+
+  scrollContentContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+
+  // Search Field
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.gray200,
+  },
+
+  searchIcon: {
+    marginRight: spacing.sm,
+  },
+
+  searchInput: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    fontSize: typography.fontSize.base,
+    color: colors.gray900,
+  },
+
+  clearSearchButton: {
+    padding: spacing.xs,
+    marginLeft: spacing.sm,
+  },
+
   expandHint: {
     fontSize: typography.fontSize.sm,
     color: colors.gray500,
     fontStyle: 'italic',
-    marginTop: spacing.xs,
+    marginBottom: spacing.md,
+  },
+
+  // Question Sets Section
+  setsSection: {
+    // No specific styling needed
+  },
+
+  sectionTitle: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.gray700,
     marginBottom: spacing.md,
   },
   
@@ -358,27 +516,64 @@ const styles = StyleSheet.create({
   categoryItemContainer: {
     // Container for category item and its preview
   },
-  
-  categoryItem: {
+
+  // New row structure for category items
+  categoryItemRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md, 
-    paddingHorizontal: spacing.lg, 
     borderWidth: 1,
-    borderColor: colors.gray300, 
+    borderColor: colors.gray300,
     borderRadius: 8,
+    backgroundColor: colors.white,
+    overflow: 'hidden',
+  },
+  
+  categoryItemContent: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
     backgroundColor: colors.white,
   },
   
   categoryItemSelected: {
-    borderColor: colors.secondary, 
-    backgroundColor: colors.secondary + '10', 
+    borderColor: colors.secondary,
+    backgroundColor: colors.secondary + '10',
   },
   
   categoryTextSelected: {
-    color: colors.secondary, 
-    fontWeight: typography.fontWeight.semibold, 
+    color: colors.secondary,
+    fontWeight: typography.fontWeight.semibold,
+  },
+
+  expandButton: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: colors.gray200,
+  },
+
+  // No Results Message
+  noResultsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing['2xl'],
+    paddingHorizontal: spacing.lg,
+  },
+
+  noResultsText: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.gray600,
+    textAlign: 'center',
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+
+  noResultsSubtext: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray500,
+    textAlign: 'center',
   },
 
   // Category Preview Styles
@@ -423,8 +618,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
-    width: '100%', // Take full width of container
-    alignSelf: 'stretch', // Ensure it stretches to container width
+    width: '100%',
+    alignSelf: 'stretch',
   },
 
   questionPairContainer: {
@@ -498,9 +693,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  // Fixed Bottom Buttons
+  bottomButtonsContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray200,
+    paddingBottom: spacing.xl,
+    gap: spacing.md,
+  },
+
+  randomButton: {
+    width: '100%',
+    minHeight: 44,
+  },
+
   startButton: {
-    marginTop: spacing.lg,
-    marginBottom: spacing.xl,
+    width: '100%',
   },
 
   // Loading and error states
