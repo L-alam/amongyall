@@ -1,4 +1,4 @@
-// app/profile.tsx
+// app/profile/index.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -11,11 +11,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Button } from '../components/Button';
-import { colors, layout, spacing, typography } from '../constants/theme';
-import { useAuth } from '../hooks/useAuth';
-import { UserProfile, UserStats, userProfileService } from '../lib/userProfileService';
-import { layoutStyles, textStyles } from '../utils/styles';
+import { Button } from '../../components/Button';
+import { colors, layout, spacing, typography } from '../../constants/theme';
+import { useAuth } from '../../hooks/useAuth';
+import { UserProfile, UserStats, userProfileService } from '../../lib/userProfileService';
+import { layoutStyles, textStyles } from '../../utils/styles';
 
 export default function ProfileScreen() {
   const { user, isAnonymous, signOut } = useAuth();
@@ -182,6 +182,7 @@ export default function ProfileScreen() {
               <View style={styles.statCard}>
                 <Ionicons name="game-controller-outline" size={24} color={colors.success} />
                 <Text style={styles.statNumber}>{stats.games_played}</Text>
+                <Text style={styles.statLabel}>Games Played</Text>
               </View>
             </View>
           </View>
@@ -191,13 +192,13 @@ export default function ProfileScreen() {
         <View style={styles.actionsSection}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={handleViewThemes}>
             <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
             <Text style={styles.actionButtonText}>Your Custom Themes</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={handleViewPairs}>
             <Ionicons name="duplicate-outline" size={20} color={colors.secondary} />
             <Text style={styles.actionButtonText}>Your Custom Pairs</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
@@ -261,7 +262,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    paddingTop: spacing.xl,
+    paddingTop: spacing['3xl'],
   },
   headerButton: {
     padding: spacing.sm,

@@ -1,20 +1,21 @@
 // app/profile/themes.tsx
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  RefreshControl,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { colors, spacing, layout, typography } from '../../constants/theme';
-import { textStyles, layoutStyles } from '../../utils/styles';
-import { getUserCustomThemes, deleteCustomTheme, getAllCustomThemes, Theme } from '../../lib/themeService';
+import React, { useEffect, useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { Button } from '../../components/Button';
+import { colors, spacing, typography } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
+import { Theme, canDeleteTheme, deleteCustomTheme, getUserCustomThemes } from '../../lib/themeService';
+import { layoutStyles, textStyles } from '../../utils/styles';
 
 export default function ProfileThemesScreen() {
   const { isAuthenticated } = useAuth();
@@ -24,8 +25,7 @@ export default function ProfileThemesScreen() {
 
   const loadThemes = async () => {
     try {
-      // Load user's themes if authenticated, or all custom themes if not
-      const userThemes = isAuthenticated ? await getUserCustomThemes() : await getAllCustomThemes();
+      const userThemes = await getUserCustomThemes();
       setThemes(userThemes);
     } catch (error) {
       console.error('Error loading themes:', error);
@@ -50,10 +50,7 @@ export default function ProfileThemesScreen() {
   };
 
   const handleDeleteTheme = (theme: Theme) => {
-    // Only allow deletion if user created it or it's anonymous
-    const canDelete = isAuthenticated ? theme.created_by : !theme.created_by;
-    
-    if (!canDelete) {
+    if (!canDeleteTheme(theme)) {
       Alert.alert('Cannot Delete', 'You can only delete themes you created.');
       return;
     }
@@ -79,50 +76,52 @@ export default function ProfileThemesScreen() {
     );
   };
 
+  const handleCreateTheme = () => {
+    // Navigate to theme creation page
+    router.push('/word/word-setup');
+  };
+
   const renderThemeItem = ({ item }: { item: Theme }) => {
-    const canDelete = isAuthenticated ? item.created_by : !item.created_by;
-    
+    const canDelete = canDeleteTheme(item);
+    const isOwned = isAuthenticated ? item.created_by : !item.created_by;
+
     return (
       <View style={styles.themeCard}>
         <View style={styles.themeInfo}>
           <Text style={styles.themeName}>{item.name}</Text>
           <Text style={styles.themeDate}>
             Created {new Date(item.created_at || '').toLocaleDateString()}
-            {!item.created_by && ' (Anonymous)'}
+            {!isOwned && ' • Shared'}
           </Text>
         </View>
-        
-        {canDelete && (
-          <View style={styles.themeActions}>
-            <TouchableOpacity
+        <View style={styles.themeActions}>
+          {canDelete && (
+            <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => handleDeleteTheme(item)}
             >
               <Ionicons name="trash-outline" size={20} color={colors.error} />
             </TouchableOpacity>
-          </View>
-        )}
+          )}
+        </View>
       </View>
     );
   };
 
   return (
-    <View style={layoutStyles.container}>
+    <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
+          <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
-        
-        <Text style={textStyles.h2}>
-          {isAuthenticated ? 'My Themes' : 'Custom Themes'}
-        </Text>
-        
-        <View style={styles.headerButton} />
       </View>
 
       {/* Content */}
-      <View style={layoutStyles.content}>
+      <View style={styles.content}>
+        <Text style={textStyles.h2}>Your Custom Themes</Text>
+        
         {loading ? (
           <View style={[layoutStyles.centered, { flex: 1 }]}>
             <Text style={textStyles.body}>Loading themes...</Text>
@@ -132,10 +131,7 @@ export default function ProfileThemesScreen() {
             <Ionicons name="list-outline" size={48} color={colors.gray400} />
             <Text style={styles.emptyTitle}>No Custom Themes Yet</Text>
             <Text style={styles.emptySubtitle}>
-              {isAuthenticated 
-                ? "Create your first custom theme to see it here"
-                : "No custom themes have been created yet"
-              }
+              Create your first custom theme to see it here
             </Text>
           </View>
         ) : (
@@ -147,25 +143,56 @@ export default function ProfileThemesScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
             contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
           />
         )}
+      </View>
+
+      {/* Fixed Bottom Button */}
+      <View style={styles.bottomButtonContainer}>
+        <Button
+          title="Create Theme"
+          variant="primary"
+          size="lg"
+          icon="add-outline"
+          onPress={handleCreateTheme}
+          style={styles.bottomButton}
+        />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    paddingTop: spacing.xl,
+    paddingTop: spacing['3xl'],
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray200,
   },
   headerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: spacing.sm,
-    width: 40,
+  },
+  backButtonText: {
+    fontSize: typography.fontSize.base,
+    color: colors.primary,
+    marginLeft: spacing.xs,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
   },
   listContainer: {
     paddingBottom: spacing.lg,
@@ -215,5 +242,20 @@ const styles = StyleSheet.create({
     color: colors.gray600,
     textAlign: 'center',
     paddingHorizontal: spacing.lg,
+  },
+  bottomButtonContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray200,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  bottomButton: {
+    width: '100%',
   },
 });

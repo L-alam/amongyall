@@ -1,20 +1,21 @@
 // app/profile/pairs.tsx
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  RefreshControl,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { colors, spacing, layout, typography } from '../../constants/theme';
-import { textStyles, layoutStyles } from '../../utils/styles';
-import { getUserCustomPairs, deleteCustomPair, getCustomPairs, WavelengthPair } from '../../lib/wavelengthService';
+import React, { useEffect, useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { Button } from '../../components/Button';
+import { colors, spacing, typography } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
+import { WavelengthPair, canDeletePair, deleteCustomPair, getUserCustomPairs } from '../../lib/wavelengthService';
+import { layoutStyles, textStyles } from '../../utils/styles';
 
 export default function ProfilePairsScreen() {
   const { isAuthenticated } = useAuth();
@@ -24,12 +25,11 @@ export default function ProfilePairsScreen() {
 
   const loadPairs = async () => {
     try {
-      // Load user's pairs if authenticated, or all custom pairs if not
-      const userPairs = isAuthenticated ? await getUserCustomPairs() : await getCustomPairs();
+      const userPairs = await getUserCustomPairs();
       setPairs(userPairs);
     } catch (error) {
       console.error('Error loading pairs:', error);
-      Alert.alert('Error', 'Failed to load word pairs');
+      Alert.alert('Error', 'Failed to load pairs');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -50,17 +50,14 @@ export default function ProfilePairsScreen() {
   };
 
   const handleDeletePair = (pair: WavelengthPair) => {
-    // Only allow deletion if user created it or it's anonymous
-    const canDelete = isAuthenticated ? pair.created_by : !pair.created_by;
-    
-    if (!canDelete) {
+    if (!canDeletePair(pair)) {
       Alert.alert('Cannot Delete', 'You can only delete pairs you created.');
       return;
     }
 
     Alert.alert(
-      'Delete Word Pair',
-      `Are you sure you want to delete "${pair.term_0} / ${pair.term_1}"? This action cannot be undone.`,
+      'Delete Pair',
+      `Are you sure you want to delete "${pair.term_0} ↔ ${pair.term_1}"? This action cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -79,63 +76,66 @@ export default function ProfilePairsScreen() {
     );
   };
 
+  const handleCreatePair = () => {
+    // Navigate to wavelength setup page
+    router.push('/wavelength/wavelength-setup');
+  };
+
   const renderPairItem = ({ item }: { item: WavelengthPair }) => {
-    const canDelete = isAuthenticated ? item.created_by : !item.created_by;
-    
+    const canDelete = canDeletePair(item);
+    const isOwned = isAuthenticated ? item.created_by : !item.created_by;
+
     return (
       <View style={styles.pairCard}>
         <View style={styles.pairInfo}>
-          <Text style={styles.pairTerms}>{item.term_0} ↔ {item.term_1}</Text>
+          <View style={styles.pairTerms}>
+            <Text style={styles.pairTerm}>{item.term_0}</Text>
+            <Ionicons name="swap-horizontal" size={16} color={colors.gray400} />
+            <Text style={styles.pairTerm}>{item.term_1}</Text>
+          </View>
           <Text style={styles.pairDate}>
             Created {new Date(item.created_at || '').toLocaleDateString()}
-            {!item.created_by && ' (Anonymous)'}
+            {!isOwned && ' • Shared'}
           </Text>
         </View>
-        
-        {canDelete && (
-          <View style={styles.pairActions}>
-            <TouchableOpacity
+        <View style={styles.pairActions}>
+          {canDelete && (
+            <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => handleDeletePair(item)}
             >
               <Ionicons name="trash-outline" size={20} color={colors.error} />
             </TouchableOpacity>
-          </View>
-        )}
+          )}
+        </View>
       </View>
     );
   };
 
   return (
-    <View style={layoutStyles.container}>
+    <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
+          <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
-        
-        <Text style={textStyles.h2}>
-          {isAuthenticated ? 'My Word Pairs' : 'Custom Word Pairs'}
-        </Text>
-        
-        <View style={styles.headerButton} />
       </View>
 
       {/* Content */}
-      <View style={layoutStyles.content}>
+      <View style={styles.content}>
+        <Text style={textStyles.h2}>Your Custom Pairs</Text>
+        
         {loading ? (
           <View style={[layoutStyles.centered, { flex: 1 }]}>
-            <Text style={textStyles.body}>Loading word pairs...</Text>
+            <Text style={textStyles.body}>Loading pairs...</Text>
           </View>
         ) : pairs.length === 0 ? (
           <View style={[layoutStyles.centered, { flex: 1 }]}>
             <Ionicons name="swap-horizontal-outline" size={48} color={colors.gray400} />
-            <Text style={styles.emptyTitle}>No Custom Word Pairs Yet</Text>
+            <Text style={styles.emptyTitle}>No Custom Pairs Yet</Text>
             <Text style={styles.emptySubtitle}>
-              {isAuthenticated 
-                ? "Create your first custom word pair to see it here"
-                : "No custom word pairs have been created yet"
-              }
+              Create your first custom word pair to see it here
             </Text>
           </View>
         ) : (
@@ -147,25 +147,56 @@ export default function ProfilePairsScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
             contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
           />
         )}
+      </View>
+
+      {/* Fixed Bottom Button */}
+      <View style={styles.bottomButtonContainer}>
+        <Button
+          title="Create Pair"
+          variant="primary"
+          size="lg"
+          icon="add-outline"
+          onPress={handleCreatePair}
+          style={styles.bottomButton}
+        />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    paddingTop: spacing.xl,
+    paddingTop: spacing['3xl'],
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray200,
   },
   headerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: spacing.sm,
-    width: 40,
+  },
+  backButtonText: {
+    fontSize: typography.fontSize.base,
+    color: colors.primary,
+    marginLeft: spacing.xs,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
   },
   listContainer: {
     paddingBottom: spacing.lg,
@@ -187,10 +218,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   pairTerms: {
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.gray900,
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: spacing.xs,
+    gap: spacing.sm,
+  },
+  pairTerm: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.gray900,
+    flex: 1,
+    textAlign: 'center',
   },
   pairDate: {
     fontSize: typography.fontSize.sm,
@@ -215,5 +253,20 @@ const styles = StyleSheet.create({
     color: colors.gray600,
     textAlign: 'center',
     paddingHorizontal: spacing.lg,
+  },
+  bottomButtonContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray200,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  bottomButton: {
+    width: '100%',
   },
 });

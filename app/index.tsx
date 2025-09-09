@@ -39,7 +39,7 @@ export default function Index() {
   const handleAuthButtonPress = () => {
     if (isPermanentUser) {
       // Navigate to profile screen
-      router.push('/profile');
+      router.push('/profile/profile');
     } else {
       // Show login modal
       setShowLoginModal(true);
