@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Button } from '../../components/Button';
 import { colors, spacing, typography } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { WavelengthPair, canDeletePair, deleteCustomPair, getUserCustomPairs } from '../../lib/wavelengthService';
@@ -76,10 +75,6 @@ export default function ProfilePairsScreen() {
     );
   };
 
-  const handleCreatePair = () => {
-    // Navigate to wavelength setup page
-    router.push('/wavelength/wavelength-setup');
-  };
 
   const renderPairItem = ({ item }: { item: WavelengthPair }) => {
     const canDelete = canDeletePair(item);
@@ -152,17 +147,6 @@ export default function ProfilePairsScreen() {
         )}
       </View>
 
-      {/* Fixed Bottom Button */}
-      <View style={styles.bottomButtonContainer}>
-        <Button
-          title="Create Pair"
-          variant="primary"
-          size="lg"
-          icon="add-outline"
-          onPress={handleCreatePair}
-          style={styles.bottomButton}
-        />
-      </View>
     </View>
   );
 }

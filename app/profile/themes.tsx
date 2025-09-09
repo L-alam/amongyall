@@ -77,8 +77,8 @@ export default function ProfileThemesScreen() {
   };
 
   const handleCreateTheme = () => {
-    // Navigate to theme creation page
-    router.push('/word/word-setup');
+    // Navigate to standalone theme creation page
+    router.push('/profile/create-theme');
   };
 
   const renderThemeItem = ({ item }: { item: Theme }) => {
