@@ -1,13 +1,13 @@
 // app/index.tsx (Updated)
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StatusBar, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { colors, spacing, layout, typography } from '../constants/theme';
-import { textStyles, layoutStyles, gameStyles, combineStyles } from '../utils/styles';
+import React, { useState } from 'react';
+import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Button } from '../components/Button';
-import { useAuth } from '../hooks/useAuth';
 import { SocialLoginModal } from '../components/SocialLoginModal';
+import { colors, layout, spacing, typography } from '../constants/theme';
+import { useAuth } from '../hooks/useAuth';
+import { combineStyles, layoutStyles, textStyles } from '../utils/styles';
 
 export default function Index() {
   const { user, isAnonymous, isPermanentUser, isLoading, anonymousEnabled } = useAuth();
@@ -123,9 +123,6 @@ export default function Index() {
                 Welcome back, {user?.user_metadata?.full_name || 'Player'}! 🎮
               </Text>
             ) : null}
-            <Text style={combineStyles(textStyles.subtitle, styles.subtitle)}>
-              Test Version
-            </Text>
           </View>
         )}
 

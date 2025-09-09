@@ -155,9 +155,29 @@ export default function ProfileScreen() {
         {/* Stats Cards */}
         {stats && (
           <View style={styles.statsSection}>
-            <Text style={styles.sectionTitle}>Games Played</Text>
+            <Text style={styles.sectionTitle}>Your Content</Text>
             
             <View style={styles.statsGrid}>
+
+              <TouchableOpacity 
+                  style={styles.statCard}
+                  onPress={handleViewThemes}
+                  disabled={stats.themes_created === 0}
+                >
+                  <Ionicons name="list-outline" size={24} color={colors.primary} />
+                  <Text style={styles.statNumber}>{stats.themes_created}</Text>
+                  <Text style={styles.statLabel}>Custom Themes</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.statCard}
+                  onPress={handleViewPairs}
+                  disabled={stats.pairs_created === 0}
+                >
+                  <Ionicons name="swap-horizontal-outline" size={24} color={colors.secondary} />
+                  <Text style={styles.statNumber}>{stats.pairs_created}</Text>
+                  <Text style={styles.statLabel}>Word Pairs</Text>
+                </TouchableOpacity>
 
               <View style={styles.statCard}>
                 <Ionicons name="game-controller-outline" size={24} color={colors.success} />
@@ -173,13 +193,13 @@ export default function ProfileScreen() {
           
           <TouchableOpacity style={styles.actionButton}>
             <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-            <Text style={styles.actionButtonText}>Create New Theme</Text>
+            <Text style={styles.actionButtonText}>Your Custom Themes</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionButton}>
             <Ionicons name="duplicate-outline" size={20} color={colors.secondary} />
-            <Text style={styles.actionButtonText}>Create Word Pair</Text>
+            <Text style={styles.actionButtonText}>Your Custom Pairs</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
           </TouchableOpacity>
         </View>

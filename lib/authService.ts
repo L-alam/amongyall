@@ -61,7 +61,7 @@ class AuthService {
         let refreshToken: string | null = null;
         let error: string | null = null;
         let errorDescription: string | null = null;
-
+        
         if (url.includes('#access_token')) {
           // Hash fragment format (common with OAuth)
           const hashPart = url.split('#')[1];
@@ -78,12 +78,12 @@ class AuthService {
           error = urlObj.searchParams.get('error');
           errorDescription = urlObj.searchParams.get('error_description');
         }
-
+        
         if (error) {
           console.error('OAuth error:', error, errorDescription);
           return;
         }
-
+        
         if (accessToken) {
           console.log('Setting session from deep link...');
           
@@ -91,11 +91,19 @@ class AuthService {
             access_token: accessToken,
             refresh_token: refreshToken || '',
           });
-
+          
           if (sessionError) {
             console.error('Error setting session from deep link:', sessionError);
           } else {
             console.log('Session set successfully from deep link:', data.user?.email);
+            
+            // Migrate anonymous content to the new user account
+            try {
+              await this.migrateAnonymousContent();
+            } catch (migrationError) {
+              console.error('Failed to migrate anonymous content:', migrationError);
+              // Don't throw here - login should still succeed even if migration fails
+            }
           }
         }
       } catch (error) {
@@ -103,6 +111,41 @@ class AuthService {
       }
     }
   };
+  
+  // Add this method to your AuthService class
+  private async migrateAnonymousContent(): Promise<void> {
+    const userId = this.getUserId();
+    if (!userId) return;
+  
+    try {
+      // Migrate anonymous themes
+      const { error: themesError } = await supabase
+        .from('themes')
+        .update({ created_by: userId })
+        .eq('is_custom', true)
+        .is('created_by', null);
+  
+      if (themesError) {
+        console.error('Error migrating themes:', themesError);
+      }
+  
+      // Migrate anonymous pairs
+      const { error: pairsError } = await supabase
+        .from('pairs')
+        .update({ created_by: userId })
+        .eq('is_custom', true)
+        .is('created_by', null);
+  
+      if (pairsError) {
+        console.error('Error migrating pairs:', pairsError);
+      }
+  
+      console.log('Successfully migrated anonymous content to user account');
+    } catch (error) {
+      console.error('Error in migrateAnonymousContent:', error);
+      throw error;
+    }
+  }
 
   private async initializeAuth() {
     try {

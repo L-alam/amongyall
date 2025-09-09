@@ -1,6 +1,6 @@
 // lib/userProfileService.ts
-import { supabase } from './supabase';
 import { authService } from './authService';
+import { supabase } from './supabase';
 
 export interface UserProfile {
   id: string;
@@ -147,3 +147,37 @@ class UserProfileService {
 }
 
 export const userProfileService = new UserProfileService();
+
+export const migrateAnonymousContentToUser = async (): Promise<void> => {
+  const userId = authService.getUserId();
+  if (!userId) throw new Error('User not authenticated');
+
+  try {
+    // Migrate anonymous themes
+    const { error: themesError } = await supabase
+      .from('themes')
+      .update({ created_by: userId })
+      .eq('is_custom', true)
+      .is('created_by', null);
+
+    if (themesError) {
+      console.error('Error migrating themes:', themesError);
+    }
+
+    // Migrate anonymous pairs
+    const { error: pairsError } = await supabase
+      .from('pairs')
+      .update({ created_by: userId })
+      .eq('is_custom', true)
+      .is('created_by', null);
+
+    if (pairsError) {
+      console.error('Error migrating pairs:', pairsError);
+    }
+
+    console.log('Successfully migrated anonymous content to user account');
+  } catch (error) {
+    console.error('Error in migrateAnonymousContentToUser:', error);
+    throw error;
+  }
+};
