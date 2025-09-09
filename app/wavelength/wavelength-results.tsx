@@ -1,15 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { colors, spacing, layout, typography } from '../../constants/theme';
-import { 
-  textStyles, 
-  layoutStyles, 
-  combineStyles,
-} from '../../utils/styles';
 import { Button } from '../../components/Button';
+import { colors, layout, spacing, typography } from '../../constants/theme';
 import { WordPairs } from '../../lib/wavelengthService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -524,8 +519,8 @@ export default function WavelengthResults() {
                                             style={[
                                                 styles.scaleRowLeft,
                                                 { 
-                                                    backgroundColor: goalZoneColor || colors.gray200,
-                                                    borderColor: inGoalZone ? '#7FDBFF' : colors.gray300,
+                                                    backgroundColor: goalZoneColor || colors.scale200,
+                                                    borderColor: inGoalZone ? '#7FDBFF' : colors.scale300,
                                                     borderWidth: inGoalZone ? 2 : 1,
                                                 }
                                             ]}
@@ -679,9 +674,9 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.xs, // Reduce back to xs for 8 players
         paddingHorizontal: spacing.xs, // Reduce back to xs
         borderRadius: 4, // Smaller radius
-        backgroundColor: colors.gray100,
+        backgroundColor: colors.scale100,
         borderWidth: 1,
-        borderColor: colors.gray200,
+        borderColor: colors.scale200,
         minHeight: 28, // Reduce from 48 to fit more players
     },
     
@@ -764,17 +759,19 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         width: '100%',
+        overflow: 'visible', // Add this to prevent clipping at container level
     },
 
     scaleRowLeft: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        borderBottomWidth: 1, // Add this back (was 0)
+        borderBottomWidth: 1,
         flexDirection: 'row',
         paddingHorizontal: 4,
-        overflow: 'hidden',
+        overflow: 'visible', // Changed from 'hidden'
         position: 'relative',
+        zIndex: 1, // Add this to ensure proper layering
     },
 
     scaleRowRight: {
@@ -814,11 +811,12 @@ const styles = StyleSheet.create({
 
     overlappingContainer: {
         position: 'relative',
-        height: 18,
-        minWidth: 18,
+        height: 22, // Increased from 18 to prevent clipping
+        minWidth: 22, // Increased from 18
         alignItems: 'center',
         justifyContent: 'flex-start',
         maxWidth: 120,
+        paddingVertical: 2, // Add small padding to prevent edge clipping
     },
 
     scaleVoteCircle: {
@@ -897,10 +895,10 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.md,
         paddingHorizontal: spacing.lg,
         borderRadius: 8,
-        backgroundColor: colors.gray100,
+        backgroundColor: colors.scale100,
         marginBottom: spacing.sm,
         borderWidth: 1,
-        borderColor: colors.gray200,
+        borderColor: colors.scale200,
     },
 
     finalWinnerItem: {

@@ -82,6 +82,18 @@ export const colors = {
   player: '#06BEE1',         // Aero - Player identification
   spy: '#FF4757',            // Error red - Spy/chameleon identification
   neutral: '#98ACE0',        // Medium blue-gray - Neutral elements
+
+
+  scale50: '#FAFAFA',
+  scale100: '#F5F5F5',
+  scale200: '#E5E5E5',
+  scale300: '#D4D4D4',
+  scale400: '#A3A3A3',
+  scale500: '#737373',
+  scale600: '#525252',
+  scale700: '#404040',
+  scale800: '#262626',
+  scale900: '#171717',
   
   // Gradient stops for advanced effects
   gradientPrimary: ['#03256C', '#2541B2'],     // Royal to Persian Blue

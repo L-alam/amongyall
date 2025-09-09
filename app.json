@@ -7,7 +7,7 @@
     "icon": "./assets/images/user-circle.png",
     "scheme": "amongyall",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.lalam.amongyall",
