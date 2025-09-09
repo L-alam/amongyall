@@ -1,19 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, SafeAreaView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated from 'react-native-reanimated';
+import React, { useEffect, useState } from 'react';
+import { Alert, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Gesture } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 
-import { colors, spacing, layout, typography } from '../../constants/theme';
-import { 
-  textStyles, 
-  layoutStyles, 
-  combineStyles,
-} from '../../utils/styles';
 import { Button } from '../../components/Button';
-import { getRandomPair, getRandomBuiltInPair, WordPairs } from '../../lib/wavelengthService';
+import { colors, layout, spacing, typography } from '../../constants/theme';
+import { WordPairs, getRandomPair } from '../../lib/wavelengthService';
+import {
+    textStyles
+} from '../../utils/styles';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -330,7 +327,7 @@ export default function WavelengthGameStart() {
                                             style={[
                                                 styles.scaleRowLeft,
                                                 { 
-                                                backgroundColor: goalZoneColor || colors.gray200,
+                                                backgroundColor: goalZoneColor || colors.scale200,
                                                 borderColor: selectedRowIndex === index ? colors.gray100 : (isInGoalZone(index) ? 'transparent' : colors.gray400),
                                                 }
                                             ]}

@@ -1,18 +1,12 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated from 'react-native-reanimated';
-import { runOnJS } from 'react-native-reanimated';
+import Animated, { runOnJS } from 'react-native-reanimated';
 
-import { colors, spacing, layout, typography } from '../../constants/theme';
-import { 
-  textStyles, 
-  layoutStyles, 
-  combineStyles,
-} from '../../utils/styles';
 import { Button } from '../../components/Button';
+import { colors, layout, spacing, typography } from '../../constants/theme';
 import { WordPairs } from '../../lib/wavelengthService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -346,8 +340,8 @@ export default function WavelengthGameplay() {
                                                 style={[
                                                     styles.scaleRowLeft,
                                                     { 
-                                                        backgroundColor: colors.gray200,
-                                                        borderColor: selectedRowIndex === index ? getPlayerColor(selectedPlayer) : colors.gray300,
+                                                        backgroundColor: colors.scale200,
+                                                        borderColor: selectedRowIndex === index ? getPlayerColor(selectedPlayer) : colors.scale300,
                                                         borderWidth: selectedRowIndex === index ? 2 : 1,
                                                     }
                                                 ]}
@@ -512,7 +506,7 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.md, // Increase to make taller
         paddingHorizontal: spacing.sm,
         borderRadius: 8,
-        backgroundColor: colors.gray100,
+        backgroundColor: colors.scale100,
         gap: spacing.xs,
         borderWidth: 2,
         borderColor: 'transparent',
@@ -527,7 +521,7 @@ const styles = StyleSheet.create({
     },
     
     playerButtonSelected: {
-        backgroundColor: colors.gray200,
+        backgroundColor: colors.scale200,
         borderWidth: 2,
         // borderColor will be set dynamically to player color
     },
