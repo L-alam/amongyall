@@ -1,23 +1,21 @@
 // app/profile.tsx
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  RefreshControl,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { colors, spacing, layout, typography } from '../constants/theme';
-import { textStyles, layoutStyles, combineStyles } from '../utils/styles';
+import React, { useEffect, useState } from 'react';
+import {
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Button } from '../components/Button';
+import { colors, layout, spacing, typography } from '../constants/theme';
 import { useAuth } from '../hooks/useAuth';
-import { userProfileService, UserProfile, UserStats } from '../lib/userProfileService';
-import { getUserCustomThemes } from '../lib/themeService';
-import { getCustomPairs } from '../lib/wavelengthService';
+import { UserProfile, UserStats, userProfileService } from '../lib/userProfileService';
+import { layoutStyles, textStyles } from '../utils/styles';
 
 export default function ProfileScreen() {
   const { user, isAnonymous, signOut } = useAuth();
@@ -111,7 +109,6 @@ export default function ProfileScreen() {
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
         
-        <Text style={textStyles.h2}>Profile</Text>
         
         <View style={styles.headerButton} />
       </View>
@@ -158,43 +155,13 @@ export default function ProfileScreen() {
         {/* Stats Cards */}
         {stats && (
           <View style={styles.statsSection}>
-            <Text style={styles.sectionTitle}>Your Content</Text>
+            <Text style={styles.sectionTitle}>Games Played</Text>
             
             <View style={styles.statsGrid}>
-              <TouchableOpacity 
-                style={styles.statCard}
-                onPress={handleViewThemes}
-                disabled={stats.themes_created === 0}
-              >
-                <Ionicons name="list-outline" size={24} color={colors.primary} />
-                <Text style={styles.statNumber}>{stats.themes_created}</Text>
-                <Text style={styles.statLabel}>Custom Themes</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.statCard}
-                onPress={handleViewPairs}
-                disabled={stats.pairs_created === 0}
-              >
-                <Ionicons name="swap-horizontal-outline" size={24} color={colors.secondary} />
-                <Text style={styles.statNumber}>{stats.pairs_created}</Text>
-                <Text style={styles.statLabel}>Word Pairs</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.statCard}
-                onPress={handleViewQuestions}
-                disabled={stats.questions_created === 0}
-              >
-                <Ionicons name="help-circle-outline" size={24} color={colors.accent} />
-                <Text style={styles.statNumber}>{stats.questions_created}</Text>
-                <Text style={styles.statLabel}>Question Sets</Text>
-              </TouchableOpacity>
 
               <View style={styles.statCard}>
                 <Ionicons name="game-controller-outline" size={24} color={colors.success} />
                 <Text style={styles.statNumber}>{stats.games_played}</Text>
-                <Text style={styles.statLabel}>Games Played</Text>
               </View>
             </View>
           </View>
@@ -215,25 +182,11 @@ export default function ProfileScreen() {
             <Text style={styles.actionButtonText}>Create Word Pair</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
           </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons name="help-circle-outline" size={20} color={colors.accent} />
-            <Text style={styles.actionButtonText}>Create Question Set</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
-          </TouchableOpacity>
         </View>
 
         {/* Account Actions */}
         <View style={styles.accountSection}>
           <Text style={styles.sectionTitle}>Account</Text>
-          
-          {!isAnonymous && (
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="person-outline" size={20} color={colors.gray600} />
-              <Text style={styles.actionButtonText}>Edit Profile</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
-            </TouchableOpacity>
-          )}
 
           <TouchableOpacity style={styles.actionButton}>
             <Ionicons name="settings-outline" size={20} color={colors.gray600} />
@@ -243,7 +196,19 @@ export default function ProfileScreen() {
 
           <TouchableOpacity style={styles.actionButton}>
             <Ionicons name="help-outline" size={20} color={colors.gray600} />
-            <Text style={styles.actionButtonText}>Help & Support</Text>
+            <Text style={styles.actionButtonText}>Privacy & Terms</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionButton}>
+            <Ionicons name="call-outline" size={20} color={colors.gray600} />
+            <Text style={styles.actionButtonText}>Contact Us</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionButton}>
+            <Ionicons name="star-outline" size={20} color={colors.gray600} />
+            <Text style={styles.actionButtonText}>Rate Us</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
           </TouchableOpacity>
         </View>
