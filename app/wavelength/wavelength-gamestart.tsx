@@ -36,6 +36,7 @@ export default function WavelengthGameStart() {
     const [currentPair, setCurrentPair] = useState<WordPairs | null>(null);
     const [selectedPlayer, setSelectedPlayer] = useState<string>(firstPlayer);
     const [showScale, setShowScale] = useState(false);
+    const [showAllScores, setShowAllScores] = useState(false);
 
     // Scale State
     const [goalZoneStart, setGoalZoneStart] = useState(8);
@@ -220,9 +221,7 @@ export default function WavelengthGameStart() {
                     <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
                         <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
                     </TouchableOpacity>
-                    
-                    <Text style={textStyles.h2}>Wavelength</Text>
-                    
+                                     
                     <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
                         <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
                     </TouchableOpacity>
@@ -245,6 +244,7 @@ export default function WavelengthGameStart() {
                             <View style={styles.scoresList}>
                                 {previousScores
                                     .sort((a, b) => b.score - a.score)
+                                    .slice(0, showAllScores ? previousScores.length : 3)
                                     .map((playerScore, index) => (
                                         <View key={playerScore.playerName} style={styles.scoreItem}>
                                             <Text style={[
@@ -262,6 +262,26 @@ export default function WavelengthGameStart() {
                                         </View>
                                     ))}
                             </View>
+                            
+                            {/* Show expand/collapse button only if there are more than 3 players */}
+                            {previousScores.length > 3 && (
+                                <TouchableOpacity 
+                                    style={styles.expandButton}
+                                    onPress={() => setShowAllScores(!showAllScores)}
+                                >
+                                    <Text style={styles.expandButtonText}>
+                                        {showAllScores 
+                                            ? `Show Less` 
+                                            : `Show ${previousScores.length - 3} More`
+                                        }
+                                    </Text>
+                                    <Ionicons 
+                                        name={showAllScores ? "chevron-up" : "chevron-down"} 
+                                        size={16} 
+                                        color={colors.primary} 
+                                    />
+                                </TouchableOpacity>
+                            )}
                         </View>
                     )}
 
@@ -453,6 +473,24 @@ const styles = StyleSheet.create({
     leadingPlayer: {
         color: colors.success,
         fontWeight: typography.fontWeight.bold,
+    },
+
+    expandButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        marginTop: spacing.sm,
+        backgroundColor: colors.gray50,
+        borderRadius: 6,
+        gap: spacing.xs,
+    },
+
+    expandButtonText: {
+        fontSize: typography.fontSize.sm,
+        color: colors.primary,
+        fontWeight: typography.fontWeight.medium,
     },
     
     revealButton: {
