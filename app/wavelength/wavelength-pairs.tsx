@@ -1,25 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Dimensions, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-import { colors, spacing, layout, typography } from '../../constants/theme';
-import { 
-  textStyles, 
-  layoutStyles, 
-  combineStyles,
-} from '../../utils/styles';
 import { Button } from '../../components/Button';
-import { 
-  getAllWavelengthPairs, 
-  getBuiltInPairs, 
-  getCustomPairs, 
-  createCustomPair, 
-  deleteCustomPair, 
-  getRandomPair,
+import { colors, layout, spacing, typography } from '../../constants/theme';
+import {
   WavelengthPair,
-  WordPairs
+  WordPairs,
+  createCustomPair,
+  deleteCustomPair,
+  getAllWavelengthPairs,
+  getCustomPairs,
+  getRandomPair
 } from '../../lib/wavelengthService';
+import {
+  combineStyles,
+  layoutStyles,
+  textStyles,
+} from '../../utils/styles';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -88,6 +87,10 @@ export default function WavelengthPairs() {
 
   const handleBack = () => {
     router.back();
+  };
+
+  const handleCancel = () => {
+    router.push('/');
   };
 
   const handleStartGame = () => {
@@ -301,7 +304,7 @@ export default function WavelengthPairs() {
         </TouchableOpacity>
         
         
-        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+        <TouchableOpacity style={styles.headerButton} onPress={handleCancel}>
           <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
       </View>

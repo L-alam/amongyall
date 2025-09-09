@@ -1,10 +1,9 @@
 // lib/authService.ts (Fixed for Safari/WebBrowser issues)
-import { supabase } from './supabase';
 import { Session, User } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
+import { supabase } from './supabase';
 
 // This is required for Expo WebBrowser
 WebBrowser.maybeCompleteAuthSession();
@@ -202,56 +201,50 @@ class AuthService {
 
   async signInWithGoogle(): Promise<{ user: User | null; error: any }> {
     try {
-      // For Expo, we need to use the Supabase hosted redirect
-      // This avoids the Safari "can't connect to server" issue
+      // Get the redirect URL for your app
+      const redirectUrl = 'exp://amongyall.5ca35d0d-be67-4c80-9e99-71d166723c05.exp.direct/--/auth/callback';
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          // Use web redirect that will work with WebBrowser
+          redirectTo: redirectUrl, // Add this line!
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
           },
         }
       });
-
+  
       if (error) {
         console.error('Error creating Google OAuth URL:', error);
         return { user: null, error };
       }
-
+  
       if (!data.url) {
         return { user: null, error: new Error('No OAuth URL returned') };
       }
-
+  
       console.log('Opening Google OAuth URL:', data.url);
-
-      // Configure WebBrowser options for better compatibility
+  
       const browserOptions: WebBrowser.AuthSessionOptions = {
         showInRecents: false,
       };
-
-      // Add iOS-specific options
+  
       if (Platform.OS === 'ios') {
-        browserOptions.preferEphemeralSession = false; // Try persistent session
+        browserOptions.preferEphemeralSession = false;
       }
-
-      // Open the OAuth URL in the browser
+  
       const result = await WebBrowser.openAuthSessionAsync(
         data.url,
-        undefined, // Let Supabase handle the redirect
+        redirectUrl, // Add the redirect URL here too
         browserOptions
       );
-
+  
       console.log('WebBrowser result:', result);
-
+  
       if (result.type === 'success' && result.url) {
-        // Handle the callback URL
         await this.handleDeepLink({ url: result.url });
-        
-        // Wait a bit for the session to be set
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
         return { user: this.getCurrentUser(), error: null };
       } else if (result.type === 'cancel') {
         console.log('User cancelled Google sign-in');
@@ -260,12 +253,12 @@ class AuthService {
         console.log('OAuth flow failed or dismissed');
         return { user: null, error: new Error('OAuth flow failed') };
       }
-
+  
     } catch (error) {
       console.error('Error in signInWithGoogle:', error);
       return { user: null, error };
     }
-  }
+  } 
 
   async signInWithApple(): Promise<{ user: User | null; error: any }> {
     try {

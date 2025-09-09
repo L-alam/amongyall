@@ -124,6 +124,10 @@ export default function WavelengthGameStart() {
         router.back();
     };
 
+    const handleCancel = () => {
+        router.push('/');
+      }; 
+
     const confirmPlayer = () => {
         Alert.alert(
             'Confirm Player',
@@ -222,7 +226,7 @@ export default function WavelengthGameStart() {
                         <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
                     </TouchableOpacity>
                                      
-                    <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                    <TouchableOpacity style={styles.headerButton} onPress={handleCancel}>
                         <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
                     </TouchableOpacity>
                 </View>

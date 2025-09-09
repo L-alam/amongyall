@@ -520,7 +520,7 @@ export default function WavelengthResults() {
                                                 styles.scaleRowLeft,
                                                 { 
                                                     backgroundColor: goalZoneColor || colors.scale200,
-                                                    borderColor: inGoalZone ? '#7FDBFF' : colors.scale300,
+                                                    borderColor: inGoalZone ? (goalZoneColor || '#7FDBFF') : colors.scale300,
                                                     borderWidth: inGoalZone ? 2 : 1,
                                                 }
                                             ]}
