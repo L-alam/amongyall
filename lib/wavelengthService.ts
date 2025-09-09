@@ -1,5 +1,7 @@
-import { supabase } from './supabase';
 import { authService } from './authService';
+import { supabase } from './supabase';
+
+const ANONYMOUS_PAIR_LIMIT = 5;
 
 export interface WavelengthPair {
   id: string;
@@ -362,4 +364,32 @@ export const convertToWordPairs = (pair: WavelengthPair): WordPairs => {
 // Convert multiple database pairs to game format
 export const convertToWordPairsArray = (pairs: WavelengthPair[]): WordPairs[] => {
   return pairs.map(convertToWordPairs);
+};
+
+
+export const checkAnonymousPairLimit = async (): Promise<{ canCreate: boolean; count: number; limit: number }> => {
+  const userId = authService.getUserId();
+  
+  if (userId) {
+    return { canCreate: true, count: 0, limit: 0 };
+  }
+  
+  const { data, error } = await supabase
+    .from('pairs')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_custom', true)
+    .is('created_by', null);
+
+  if (error) {
+    console.error('Error checking anonymous pair count:', error);
+    return { canCreate: false, count: 0, limit: ANONYMOUS_PAIR_LIMIT };
+  }
+
+  const count = data?.length || 0;
+  
+  return {
+    canCreate: count < ANONYMOUS_PAIR_LIMIT,
+    count,
+    limit: ANONYMOUS_PAIR_LIMIT
+  };
 };

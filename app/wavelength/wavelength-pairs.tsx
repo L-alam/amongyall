@@ -5,9 +5,12 @@ import { ActivityIndicator, Alert, Dimensions, KeyboardAvoidingView, Platform, S
 
 import { Button } from '../../components/Button';
 import { colors, layout, spacing, typography } from '../../constants/theme';
+import { useAuth } from '../../hooks/useAuth'; // Add this import
 import {
   WavelengthPair,
   WordPairs,
+  checkAnonymousPairLimit // Add this import
+  ,
   createCustomPair,
   deleteCustomPair,
   getAllWavelengthPairs,
@@ -24,6 +27,7 @@ const { width: screenWidth } = Dimensions.get('window');
 
 export default function WavelengthPairs() {
   // Get players and first player from the previous screen
+  const { isAuthenticated, signInWithGoogle } = useAuth(); // Add this line
   const params = useLocalSearchParams();
   const players = JSON.parse(params.players as string || '[]') as string[];
   const firstPlayer = params.firstPlayer as string || '';
@@ -146,6 +150,46 @@ export default function WavelengthPairs() {
     if (!newPairTerm0.trim() || !newPairTerm1.trim()) {
       Alert.alert('Error', 'Please enter both terms for the pair.');
       return;
+    }
+
+    // Check anonymous user limit BEFORE attempting to save
+    if (!isAuthenticated) {
+      try {
+        const limitCheck = await checkAnonymousPairLimit();
+        if (!limitCheck.canCreate) {
+          Alert.alert(
+            'Pair Limit Reached',
+            `You've created ${limitCheck.count} out of ${limitCheck.limit} free custom pairs. Log in to create unlimited pairs and sync them across devices!`,
+            [
+              {
+                text: 'Continue as Guest',
+                style: 'cancel'
+              },
+              {
+                text: 'Log In with Google',
+                onPress: async () => {
+                  try {
+                    const { user, error: signInError } = await signInWithGoogle();
+                    if (signInError) {
+                      Alert.alert('Login Failed', 'Please try again.');
+                    } else if (user) {
+                      // After successful login, try creating again
+                      handleCreateCustomPair();
+                    }
+                  } catch (signInError) {
+                    Alert.alert('Login Failed', 'Please try again.');
+                  }
+                }
+              }
+            ]
+          );
+          return; // Exit early if limit reached
+        }
+      } catch (error) {
+        console.error('Error checking anonymous limit:', error);
+        Alert.alert('Error', 'Unable to check pair limit. Please try again.');
+        return;
+      }
     }
 
     setCreating(true);
@@ -357,36 +401,42 @@ export default function WavelengthPairs() {
         {showCustomDropdown && (
           <View style={styles.customDropdownContent}>
             {customPairs.length > 0 ? (
-              customPairs.map((pair) => (
-                <TouchableOpacity
-                  key={pair.id}
-                  style={[
-                    styles.customDropdownItem,
-                    selectedPair?.id === pair.id && styles.customDropdownItemSelected
-                  ]}
-                  onPress={() => {
-                    setSelectedPair(pair);
-                    setShowCustomDropdown(false);
-                  }}
-                >
-                  <View style={styles.customDropdownItemContent}>
-                    <Text style={styles.customDropdownItemText}>
-                      {pair.term_0} ↔ {pair.term_1}
-                    </Text>
-                    <TouchableOpacity 
-                      style={styles.customDropdownDeleteButton}
-                      onPress={() => handleDeleteCustomPair(pair)}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                      <Ionicons 
-                        name="trash-outline" 
-                        size={layout.iconSize.sm} 
-                        color={colors.error} 
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
-              ))
+              <ScrollView 
+                style={styles.customDropdownScrollView}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+              >
+                {customPairs.map((pair) => (
+                  <TouchableOpacity
+                    key={pair.id}
+                    style={[
+                      styles.customDropdownItem,
+                      selectedPair?.id === pair.id && styles.customDropdownItemSelected
+                    ]}
+                    onPress={() => {
+                      setSelectedPair(pair);
+                      setShowCustomDropdown(false);
+                    }}
+                  >
+                    <View style={styles.customDropdownItemContent}>
+                      <Text style={styles.customDropdownItemText} numberOfLines={2}>
+                        {pair.term_0} ↔ {pair.term_1}
+                      </Text>
+                      <TouchableOpacity 
+                        style={styles.customDropdownDeleteButton}
+                        onPress={() => handleDeleteCustomPair(pair)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Ionicons 
+                          name="trash-outline" 
+                          size={layout.iconSize.sm} 
+                          color={colors.error} 
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             ) : (
               <Text style={styles.noCustomPairsText}>
                 No custom pairs yet. Create your first one!
@@ -711,7 +761,12 @@ const styles = StyleSheet.create({
   customDropdownContent: {
     borderTopWidth: 1,
     borderTopColor: colors.gray200,
-    maxHeight: 200,
+    maxHeight: 200, // Keep the max height for the container
+  },
+
+  // NEW: Scrollable area for custom pairs
+  customDropdownScrollView: {
+    maxHeight: 180, // Slightly less than container to show border
   },
 
   customDropdownItem: {
@@ -719,6 +774,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.gray100,
+    minHeight: 44, // Ensure consistent height
   },
 
   customDropdownItemSelected: {
@@ -729,16 +785,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    minHeight: 28, // Ensure content has minimum height
   },
 
   customDropdownItemText: {
     fontSize: typography.fontSize.sm,
     color: colors.gray700,
     flex: 1,
+    marginRight: spacing.sm, // Add spacing between text and delete button
   },
 
   customDropdownDeleteButton: {
     padding: spacing.xs,
+    minWidth: 32, // Ensure consistent touch target
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   noCustomPairsText: {

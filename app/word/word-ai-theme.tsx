@@ -9,7 +9,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../../components/Button';
 import { colors, layout, spacing, typography } from '../../constants/theme';
 import { GenerateWordsRequest, generateWordsWithAI } from '../../lib/openaiService';
-import { createCustomTheme } from '../../lib/themeService';
+import { checkAnonymousThemeLimit, createCustomTheme } from '../../lib/themeService'; // Add checkAnonymousThemeLimit import
 import {
   createInputStyle,
   layoutStyles,
@@ -120,6 +120,46 @@ export default function WordAITheme() {
       return;
     }
 
+    // Check anonymous user limit BEFORE attempting to save
+    if (!isAuthenticated) {
+      try {
+        const limitCheck = await checkAnonymousThemeLimit();
+        if (!limitCheck.canCreate) {
+          Alert.alert(
+            'Theme Limit Reached',
+            `You've created ${limitCheck.count} out of ${limitCheck.limit} free custom themes. Log in to create unlimited themes and sync them across devices!`,
+            [
+              {
+                text: 'Continue as Guest',
+                style: 'cancel'
+              },
+              {
+                text: 'Log In with Google',
+                onPress: async () => {
+                  try {
+                    const { user, error: signInError } = await signInWithGoogle();
+                    if (signInError) {
+                      Alert.alert('Login Failed', 'Please try again.');
+                    } else if (user) {
+                      // After successful login, try saving again
+                      handleSaveTheme();
+                    }
+                  } catch (signInError) {
+                    Alert.alert('Login Failed', 'Please try again.');
+                  }
+                }
+              }
+            ]
+          );
+          return; // Exit early if limit reached
+        }
+      } catch (error) {
+        console.error('Error checking anonymous limit:', error);
+        Alert.alert('Error', 'Unable to check theme limit. Please try again.');
+        return;
+      }
+    }
+
     setSaving(true);
 
     try {
@@ -164,46 +204,14 @@ export default function WordAITheme() {
       console.error('Error saving theme:', error);
       
       // Handle specific error types
-      if (error instanceof Error) {
-        if (error.message.includes('already exists')) {
-          Alert.alert('Theme Name Taken', 'A theme with this name already exists. Please choose a different topic.');
-        } else if (error.message.startsWith('ANONYMOUS_LIMIT_REACHED')) {
-          // Parse the error message: "ANONYMOUS_LIMIT_REACHED:count:limit"
-          const [, count, limit] = error.message.split(':');
-          
-          Alert.alert(
-            'Theme Limit Reached',
-            `You've created ${count} out of ${limit} free custom themes. Log in to create unlimited themes and sync them across devices!`,
-            [
-              {
-                text: 'Continue as Guest',
-                style: 'cancel'
-              },
-              {
-                text: 'Log In with Google',
-                onPress: async () => {
-                  try {
-                    const { user, error: signInError } = await signInWithGoogle();
-                    if (signInError) {
-                      Alert.alert('Login Failed', 'Please try again.');
-                    } else if (user) {
-                      // After successful login, try saving again
-                      handleSaveTheme();
-                    }
-                  } catch (signInError) {
-                    Alert.alert('Login Failed', 'Please try again.');
-                  }
-                }
-              }
-            ]
-          );
-        } else {
-          Alert.alert(
-            'Save Failed',
-            'Failed to save your AI-generated theme. Please try again.',
-            [{ text: 'OK' }]
-          );
-        }
+      if (error instanceof Error && error.message.includes('already exists')) {
+        Alert.alert('Theme Name Taken', 'A theme with this name already exists. Please choose a different topic.');
+      } else {
+        Alert.alert(
+          'Save Failed',
+          'Failed to save your AI-generated theme. Please try again.',
+          [{ text: 'OK' }]
+        );
       }
     } finally {
       setSaving(false);
