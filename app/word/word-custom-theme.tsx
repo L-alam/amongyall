@@ -1,19 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-import { colors, spacing, layout, typography } from '../../constants/theme';
-import { 
-  textStyles, 
-  layoutStyles, 
-  createInputStyle,
-  combineStyles,
-} from '../../utils/styles';
+
 import { Button } from '../../components/Button';
+import { colors, layout, spacing, typography } from '../../constants/theme';
 import { createCustomTheme } from '../../lib/themeService';
+import {
+  createInputStyle,
+  layoutStyles,
+  textStyles
+} from '../../utils/styles';
 
 export default function WordCustomTheme() {
+  const { isAuthenticated, signInWithGoogle } = useAuth();
   const params = useLocalSearchParams();
   const initialNumCards = parseInt(params.numCards as string) || 8;
   const players = JSON.parse(params.players as string || '[]');
@@ -177,14 +178,46 @@ export default function WordCustomTheme() {
       console.error('Error saving theme:', error);
       
       // Handle specific error types
-      if (error instanceof Error && error.message.includes('already exists')) {
-        setNameError('A theme with this name already exists. Please choose a different name.');
-      } else {
-        Alert.alert(
-          'Save Failed',
-          'Failed to save your custom theme. Please try again.',
-          [{ text: 'OK' }]
-        );
+      if (error instanceof Error) {
+        if (error.message.includes('already exists')) {
+          setNameError('A theme with this name already exists. Please choose a different name.');
+        } else if (error.message.startsWith('ANONYMOUS_LIMIT_REACHED')) {
+          // Parse the error message: "ANONYMOUS_LIMIT_REACHED:count:limit"
+          const [, count, limit] = error.message.split(':');
+          
+          Alert.alert(
+            'Theme Limit Reached',
+            `You've created ${count} out of ${limit} free custom themes. Log in to create unlimited themes and sync them across devices!`,
+            [
+              {
+                text: 'Continue as Guest',
+                style: 'cancel'
+              },
+              {
+                text: 'Log In with Google',
+                onPress: async () => {
+                  try {
+                    const { user, error: signInError } = await signInWithGoogle();
+                    if (signInError) {
+                      Alert.alert('Login Failed', 'Please try again.');
+                    } else if (user) {
+                      // After successful login, try saving again
+                      handleSaveTheme();
+                    }
+                  } catch (signInError) {
+                    Alert.alert('Login Failed', 'Please try again.');
+                  }
+                }
+              }
+            ]
+          );
+        } else {
+          Alert.alert(
+            'Save Failed',
+            'Failed to save your custom theme. Please try again.',
+            [{ text: 'OK' }]
+          );
+        }
       }
     } finally {
       setSaving(false);

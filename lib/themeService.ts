@@ -1,6 +1,8 @@
 // lib/themeService.ts (Fixed - Works without authentication)
-import { supabase } from './supabase';
 import { authService } from './authService';
+import { supabase } from './supabase';
+
+const ANONYMOUS_THEME_LIMIT = 3;
 
 export interface Theme {
   id: string;
@@ -122,7 +124,14 @@ export const getThemeWithWords = async (themeName: string): Promise<ThemeWithWor
 };
 
 export const createCustomTheme = async (themeName: string, words: string[]): Promise<Theme> => {
-  // Get current user ID if available, but don't require it
+  // Check anonymous user limit first
+  const limitCheck = await checkAnonymousThemeLimit();
+  
+  if (!limitCheck.canCreate) {
+    throw new Error(`ANONYMOUS_LIMIT_REACHED:${limitCheck.count}:${limitCheck.limit}`);
+  }
+
+  // Rest of your existing createCustomTheme function...
   const userId = authService.getUserId();
   
   console.log('Creating theme with user ID:', userId || 'anonymous');
@@ -134,7 +143,7 @@ export const createCustomTheme = async (themeName: string, words: string[]): Pro
     .eq('name', themeName)
     .single();
 
-  if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found" error
+  if (checkError && checkError.code !== 'PGRST116') {
     console.error('Error checking theme name:', checkError);
     throw checkError;
   }
@@ -189,6 +198,36 @@ export const createCustomTheme = async (themeName: string, words: string[]): Pro
 
   console.log('Theme created successfully:', newTheme.name);
   return newTheme;
+};
+
+// Check if anonymous user has reached their limit
+export const checkAnonymousThemeLimit = async (): Promise<{ canCreate: boolean; count: number; limit: number }> => {
+  const userId = authService.getUserId();
+  
+  // If user is authenticated, they have no limits
+  if (userId) {
+    return { canCreate: true, count: 0, limit: 0 };
+  }
+  
+  // Count anonymous themes (created_by is null)
+  const { data, error } = await supabase
+    .from('themes')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_custom', true)
+    .is('created_by', null);
+
+  if (error) {
+    console.error('Error checking anonymous theme count:', error);
+    return { canCreate: false, count: 0, limit: ANONYMOUS_THEME_LIMIT };
+  }
+
+  const count = data?.length || 0;
+  
+  return {
+    canCreate: count < ANONYMOUS_THEME_LIMIT,
+    count,
+    limit: ANONYMOUS_THEME_LIMIT
+  };
 };
 
 // Get user's custom themes (works for both anonymous and authenticated users)

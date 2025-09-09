@@ -1,24 +1,26 @@
 // app/word/word-ai-theme.tsx
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import React, { useState } from 'react';
+import { Alert, Dimensions, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-import { colors, spacing, layout, typography } from '../../constants/theme';
-import { 
-  textStyles, 
-  layoutStyles, 
-  createInputStyle,
-  combineStyles,
-} from '../../utils/styles';
+import { useAuth } from '../../hooks/useAuth';
+
 import { Button } from '../../components/Button';
-import { generateWordsWithAI, GenerateWordsRequest } from '../../lib/openaiService';
+import { colors, layout, spacing, typography } from '../../constants/theme';
+import { GenerateWordsRequest, generateWordsWithAI } from '../../lib/openaiService';
 import { createCustomTheme } from '../../lib/themeService';
+import {
+  createInputStyle,
+  layoutStyles,
+  textStyles
+} from '../../utils/styles';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function WordAITheme() {
   // Get initial numCards from the previous screen (word-setup)
+  const { isAuthenticated, signInWithGoogle } = useAuth();
   const params = useLocalSearchParams();
   const initialNumCards = parseInt(params.numCards as string) || 8;
   const players = JSON.parse(params.players as string || '[]');
@@ -162,14 +164,46 @@ export default function WordAITheme() {
       console.error('Error saving theme:', error);
       
       // Handle specific error types
-      if (error instanceof Error && error.message.includes('already exists')) {
-        Alert.alert('Theme Name Taken', 'A theme with this name already exists. Please choose a different topic.');
-      } else {
-        Alert.alert(
-          'Save Failed',
-          'Failed to save your AI-generated theme. Please try again.',
-          [{ text: 'OK' }]
-        );
+      if (error instanceof Error) {
+        if (error.message.includes('already exists')) {
+          Alert.alert('Theme Name Taken', 'A theme with this name already exists. Please choose a different topic.');
+        } else if (error.message.startsWith('ANONYMOUS_LIMIT_REACHED')) {
+          // Parse the error message: "ANONYMOUS_LIMIT_REACHED:count:limit"
+          const [, count, limit] = error.message.split(':');
+          
+          Alert.alert(
+            'Theme Limit Reached',
+            `You've created ${count} out of ${limit} free custom themes. Log in to create unlimited themes and sync them across devices!`,
+            [
+              {
+                text: 'Continue as Guest',
+                style: 'cancel'
+              },
+              {
+                text: 'Log In with Google',
+                onPress: async () => {
+                  try {
+                    const { user, error: signInError } = await signInWithGoogle();
+                    if (signInError) {
+                      Alert.alert('Login Failed', 'Please try again.');
+                    } else if (user) {
+                      // After successful login, try saving again
+                      handleSaveTheme();
+                    }
+                  } catch (signInError) {
+                    Alert.alert('Login Failed', 'Please try again.');
+                  }
+                }
+              }
+            ]
+          );
+        } else {
+          Alert.alert(
+            'Save Failed',
+            'Failed to save your AI-generated theme. Please try again.',
+            [{ text: 'OK' }]
+          );
+        }
       }
     } finally {
       setSaving(false);
