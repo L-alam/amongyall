@@ -1,48 +1,183 @@
-// app/index.tsx (Updated)
+// app/index.tsx - Original Styling with Crash Resistance
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Button } from '../components/Button';
-import { SocialLoginModal } from '../components/SocialLoginModal';
-import { colors, layout, spacing, typography } from '../constants/theme';
-import { useAuth } from '../hooks/useAuth';
-import { combineStyles, layoutStyles, textStyles } from '../utils/styles';
+
+// Safe imports with fallbacks
+let colors: any, spacing: any, layout: any, typography: any;
+let textStyles: any, layoutStyles: any, gameStyles: any, combineStyles: any;
+let Button: any, useAuth: any, SocialLoginModal: any;
+
+try {
+  const theme = require('../constants/theme');
+  colors = theme.colors;
+  spacing = theme.spacing;
+  layout = theme.layout;
+  typography = theme.typography;
+} catch (error) {
+  console.warn('Failed to load theme constants:', error);
+  colors = { 
+    primary: '#007AFF', 
+    secondary: '#5856D6', 
+    background: '#ffffff',
+    white: '#ffffff',
+    gray600: '#6B7280',
+    warning: '#F59E0B',
+    black: '#000000'
+  };
+  spacing = { sm: 8, md: 16, lg: 24, xl: 32, xs: 4 };
+  layout = { iconSize: { md: 24 } };
+  typography = { fontSize: { sm: 14, base: 16 }, fontWeight: { medium: '500' } };
+}
+
+try {
+  const styles = require('../utils/styles');
+  textStyles = styles.textStyles;
+  layoutStyles = styles.layoutStyles;
+  gameStyles = styles.gameStyles;
+  combineStyles = styles.combineStyles;
+} catch (error) {
+  console.warn('Failed to load style utilities:', error);
+  textStyles = {};
+  layoutStyles = {
+    container: { flex: 1, backgroundColor: colors.background },
+    header: { 
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+      paddingTop: 60,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
+    },
+    centered: { justifyContent: 'center', alignItems: 'center' }
+  };
+  gameStyles = {};
+  combineStyles = (a: any, b: any) => ({ ...a, ...b });
+}
+
+try {
+  Button = require('../components/Button').Button;
+} catch (error) {
+  console.warn('Failed to load Button component:', error);
+  Button = ({ title, onPress, style, variant, size, ...props }: any) => (
+    <TouchableOpacity 
+      style={[
+        {
+          paddingVertical: size === 'lg' ? 16 : 12,
+          paddingHorizontal: 24,
+          borderRadius: 12,
+          backgroundColor: variant === 'outline' ? 'transparent' : colors.primary,
+          borderWidth: variant === 'outline' ? 1 : 0,
+          borderColor: variant === 'outline' ? colors.primary : 'transparent',
+          alignItems: 'center',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 3.84,
+          elevation: 5,
+        }, 
+        style
+      ]} 
+      onPress={onPress}
+      {...props}
+    >
+      <Text style={{
+        color: variant === 'outline' ? colors.primary : colors.white,
+        fontSize: size === 'lg' ? 18 : 16,
+        fontWeight: '600'
+      }}>
+        {title}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+try {
+  const authHook = require('../hooks/useAuth');
+  useAuth = authHook.useAuth;
+} catch (error) {
+  console.warn('Failed to load useAuth hook:', error);
+  useAuth = () => ({
+    user: null,
+    isAnonymous: true,
+    isPermanentUser: false,
+    isLoading: false,
+    anonymousEnabled: true
+  });
+}
+
+try {
+  const modal = require('../components/SocialLoginModal');
+  SocialLoginModal = modal.SocialLoginModal;
+} catch (error) {
+  console.warn('Failed to load SocialLoginModal:', error);
+  SocialLoginModal = ({ visible, onClose, title, subtitle }: any) => visible ? (
+    <View style={{ 
+      position: 'absolute', 
+      top: 0, 
+      left: 0, 
+      right: 0, 
+      bottom: 0, 
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center'
+    }}>
+      <View style={{
+        backgroundColor: colors.white,
+        padding: 24,
+        borderRadius: 12,
+        margin: 20,
+      }}>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>{title}</Text>
+        <Text style={{ marginBottom: 16, color: colors.gray600 }}>{subtitle}</Text>
+        <TouchableOpacity 
+          style={{ padding: 12, backgroundColor: colors.primary, borderRadius: 8 }}
+          onPress={onClose}
+        >
+          <Text style={{ color: colors.white, textAlign: 'center' }}>Close</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  ) : null;
+}
 
 export default function Index() {
   const { user, isAnonymous, isPermanentUser, isLoading, anonymousEnabled } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   const handleGameModePress = (gameMode: string) => {
-    switch (gameMode) {
-      case 'Word Chameleon':
-        router.push('/word/word-setup');
-        break;
-      case 'Question Chameleon':
-        router.push('/question/question-setup');
-        break;
-      case 'WaveLength':
-        router.push('/wavelength/wavelength-setup');
-        break;
-      default:
-        console.log(`Selected game mode: ${gameMode}`);
+    try {
+      switch (gameMode) {
+        case 'Word Chameleon':
+          router.push('/word/word-setup');
+          break;
+        case 'Question Chameleon':
+          router.push('/question/question-setup');
+          break;
+        case 'WaveLength':
+          router.push('/wavelength/wavelength-setup');
+          break;
+        default:
+          console.log(`Selected game mode: ${gameMode}`);
+      }
+    } catch (error) {
+      console.error('Navigation failed:', error);
     }
-  };
-
-  // SETTINGS
-  const handleSettingsPress = () => {
-    // TODO: Navigate to settings screen
-    console.log('Settings pressed');
   };
 
   // AUTH HANDLERS
   const handleAuthButtonPress = () => {
-    if (isPermanentUser) {
-      // Navigate to profile screen
-      router.push('/profile/profile');
-    } else {
-      // Show login modal
-      setShowLoginModal(true);
+    try {
+      if (isPermanentUser) {
+        // Navigate to profile screen - CORRECTED PATH
+        router.push('/profile');
+      } else {
+        // Show login modal
+        setShowLoginModal(true);
+      }
+    } catch (error) {
+      console.error('Auth navigation failed:', error);
     }
   };
 
@@ -61,11 +196,8 @@ export default function Index() {
     <View style={layoutStyles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-      
-      
-      {/* Header with settings and auth button */}
+      {/* Header with auth button */}
       <View style={layoutStyles.header}>
-        
         {/* Auth Button (Sign In / Profile) */}
         <TouchableOpacity 
           style={[styles.headerButton, styles.authButton]} 
@@ -73,93 +205,70 @@ export default function Index() {
           disabled={isLoading}
         >
           <Ionicons 
-            name={getAuthButtonIcon()} 
+            name={getAuthButtonIcon()}
             size={layout.iconSize.md} 
             color={getAuthButtonColor()} 
           />
           {isAnonymous && (
             <View style={styles.anonymousBadge}>
-              <Text style={styles.anonymousBadgeText}>!</Text>
+              <Ionicons name="eye-off" size={12} color={colors.white} />
             </View>
           )}
-        </TouchableOpacity>
-
-        {/* Settings Button */}
-        <TouchableOpacity 
-          style={styles.headerButton} 
-          onPress={handleSettingsPress}
-        >
-          <Ionicons name="settings-outline" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
       {/* Main content */}
-      <View style={combineStyles(layoutStyles.content, layoutStyles.centered)}>
-        {/* Logo */}
+      <View style={[layoutStyles.centered, { flex: 1 }]}>
+        {/* Logo Container */}
         <View style={styles.logoContainer}>
-          <Ionicons 
-            name="person-circle-outline" 
-            size={80} 
-            color={colors.primary} 
-          />
+          <Ionicons name="person-circle-outline" size={120} color={colors.primary} />
+          <Text style={[textStyles.h1 || styles.appTitle]}>AMONGYALL</Text>
+          <Text style={[textStyles.subtitle || styles.subtitle]}>Select a game mode</Text>
         </View>
 
-        {/* App title */}
-        <Text style={textStyles.appTitle}>AMONGYALL</Text>
-
-        {/* User status indicator */}
-        {!isLoading && (
+        {/* User Status (if anonymous) */}
+        {isAnonymous && anonymousEnabled && (
           <View style={styles.userStatusContainer}>
-            {isAnonymous ? (
-              <Text style={styles.userStatusText}>
-                Playing anonymously • 
-                <Text 
-                  style={styles.signInLink} 
-                  onPress={() => setShowLoginModal(true)}
-                > Sign in to save progress</Text>
+            <Text style={styles.userStatusText}>
+              You're playing anonymously.{' '}
+              <Text 
+                style={styles.signInLink}
+                onPress={() => setShowLoginModal(true)}
+              >
+                Sign in
               </Text>
-            ) : isPermanentUser ? (
-              <Text style={styles.userStatusText}>
-                Welcome back, {user?.user_metadata?.full_name || 'Player'}! 🎮
-              </Text>
-            ) : null}
+              {' '}to save your progress.
+            </Text>
           </View>
         )}
 
-        {/* Subtitle */}
-        <Text style={combineStyles(textStyles.subtitle, styles.subtitle)}>
-          Select a game mode:
-        </Text>
-
-        {/* Game mode buttons */}
+        {/* Game Mode Buttons */}
         <View style={styles.buttonContainer}>
           <Button
             title="Word Chameleon"
-            variant="primary"
-            size="lg"
             onPress={() => handleGameModePress('Word Chameleon')}
+            size="lg"
             style={styles.gameButton}
           />
           
           <Button
             title="Question Chameleon"
-            variant="primary"
-            size="lg"
             onPress={() => handleGameModePress('Question Chameleon')}
+            size="lg"
             style={styles.gameButton}
           />
           
           <Button
             title="WaveLength"
-            variant="primary"
-            size="lg"
             onPress={() => handleGameModePress('WaveLength')}
+            size="lg"
             style={styles.gameButton}
           />
         </View>
+
       </View>
 
-      {/* Social Login Modal */}
+      {/* Login Modal */}
       <SocialLoginModal
         visible={showLoginModal}
         onClose={() => setShowLoginModal(false)}
@@ -175,61 +284,70 @@ export default function Index() {
 
 const styles = StyleSheet.create({
   headerButton: {
-    padding: spacing.sm,
-    marginLeft: spacing.sm,
+    padding: spacing?.sm || 8,
+    marginLeft: spacing?.sm || 8,
   },
   authButton: {
     position: 'relative',
   },
   anonymousBadge: {
     position: 'absolute',
-    top: spacing.xs,
-    right: spacing.xs,
-    backgroundColor: colors.warning,
+    top: spacing?.xs || 4,
+    right: spacing?.xs || 4,
+    backgroundColor: colors?.warning || '#F59E0B',
     borderRadius: 8,
     width: 16,
     height: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  anonymousBadgeText: {
-    color: colors.white,
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
   logoContainer: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing?.xl || 32,
+    alignItems: 'center',
+  },
+  appTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: colors?.black || '#000000',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: typography?.fontSize?.base || 16,
+    color: colors?.gray600 || '#6B7280',
+    textAlign: 'center',
+    marginBottom: spacing?.xl || 32,
   },
   userStatusContainer: {
-    marginBottom: spacing.md,
-    paddingHorizontal: spacing.lg,
+    marginBottom: spacing?.md || 16,
+    paddingHorizontal: spacing?.lg || 24,
   },
   userStatusText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.gray600,
+    fontSize: typography?.fontSize?.sm || 14,
+    color: colors?.gray600 || '#6B7280',
     textAlign: 'center',
     lineHeight: 20,
   },
   signInLink: {
-    color: colors.primary,
-    fontWeight: typography.fontWeight.medium,
-  },
-  subtitle: {
-    marginBottom: spacing.xl,
+    color: colors?.primary || '#007AFF',
+    fontWeight: typography?.fontWeight?.medium || '500',
   },
   buttonContainer: {
     width: '100%',
-    gap: spacing.md,
+    gap: spacing?.md || 16,
+    paddingHorizontal: spacing?.lg || 24,
   },
   gameButton: {
-    marginBottom: spacing.sm,
+    marginBottom: spacing?.sm || 8,
   },
   reportButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing?.md || 16,
+    paddingVertical: spacing?.sm || 8,
     borderRadius: 8,
+    marginTop: spacing?.lg || 24,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -240,9 +358,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   reportButtonText: {
-    color: colors.black,
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.medium,
+    color: colors?.black || '#000000',
+    fontSize: typography?.fontSize?.sm || 14,
+    fontWeight: typography?.fontWeight?.medium || '500',
     marginLeft: 4,
   },
 });

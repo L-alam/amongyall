@@ -1,6 +1,7 @@
 // app/_layout.tsx (Fixed - No Duplicates)
 import { Stack } from "expo-router";
 import { StatusBar } from 'expo-status-bar';
+import React from "react";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function RootLayout() {
@@ -15,7 +16,6 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="index" />
-        <Stack.Screen name="profile" />
         <Stack.Screen name="auth/callback" />
         
         {/* Profile sub-screens */}
