@@ -1,7 +1,7 @@
-// app/index.tsx - Original Styling with Crash Resistance
+// app/index.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 // Safe imports with fallbacks

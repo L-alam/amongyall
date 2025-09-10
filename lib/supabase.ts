@@ -282,4 +282,5 @@ export const cleanupSupabase = () => {
 }
 
 export { supabase }
-export type { Database }
+export type { Database as SupabaseDatabase }
+

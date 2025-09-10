@@ -1,15 +1,15 @@
 // app/word/word-ai-theme.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
-import { Alert, Dimensions, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Alert, Dimensions, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { useAuth } from '../../hooks/useAuth';
 
 import { Button } from '../../components/Button';
 import { colors, layout, spacing, typography } from '../../constants/theme';
 import { GenerateWordsRequest, generateWordsWithAI } from '../../lib/openaiService';
-import { checkAnonymousThemeLimit, createCustomTheme } from '../../lib/themeService'; // Add checkAnonymousThemeLimit import
+import { checkAnonymousThemeLimit, createCustomTheme } from '../../lib/themeService';
 import {
   createInputStyle,
   layoutStyles,
@@ -33,6 +33,12 @@ export default function WordAITheme() {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Edit modal state
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingWord, setEditingWord] = useState('');
+  const editInputRef = useRef<TextInput>(null);
+
   // Card options for bubble selection
   const CARD_OPTIONS = [4, 6, 8, 10];
 
@@ -44,6 +50,40 @@ export default function WordAITheme() {
   const canSaveTheme = () => {
     const trimmedTopic = topic.trim();
     return trimmedTopic.length >= 3 && areAllWordsValid() && !saving && !isGenerating;
+  };
+
+  // Edit modal functions
+  const openEditModal = (index: number) => {
+    setEditingIndex(index);
+    setEditingWord(generatedWords[index]);
+    setEditModalVisible(true);
+    // Focus the input after modal opens
+    setTimeout(() => {
+      editInputRef.current?.focus();
+    }, 100);
+  };
+
+  const closeEditModal = () => {
+    setEditModalVisible(false);
+    setEditingIndex(null);
+    setEditingWord('');
+  };
+
+  const saveEditedWord = () => {
+    const trimmedWord = editingWord.trim();
+    
+    if (!trimmedWord) {
+      Alert.alert('Invalid Word', 'Please enter a valid word.');
+      return;
+    }
+
+    if (editingIndex !== null) {
+      const updatedWords = [...generatedWords];
+      updatedWords[editingIndex] = trimmedWord;
+      setGeneratedWords(updatedWords);
+    }
+    
+    closeEditModal();
   };
 
   // Go back to the previous screen
@@ -352,23 +392,28 @@ export default function WordAITheme() {
           <View style={layoutStyles.section}>
             <Text style={textStyles.h4}>Generated Words ({generatedWords.length})</Text>
             <Text style={styles.previewHint}>
-              Topic: {topic}
+              Topic: {topic} • Tap any card to edit
             </Text>
             
             {/* Two-column grid for preview cards */}
             <View style={styles.previewGrid}>
               {generatedWords.map((word, index) => (
-                <View 
-                  key={index} 
+                <TouchableOpacity
+                  key={index}
                   style={[
                     styles.previewCard,
                     { width: cardWidth, height: cardHeight }
                   ]}
+                  onPress={() => openEditModal(index)}
+                  activeOpacity={0.7}
                 >
                   <Text style={styles.previewCardText} numberOfLines={2}>
                     {word}
                   </Text>
-                </View>
+                  <View style={styles.editIcon}>
+                    <Ionicons name="pencil" size={12} color={colors.gray500} />
+                  </View>
+                </TouchableOpacity>
               ))}
             </View>
           </View>
@@ -378,7 +423,7 @@ export default function WordAITheme() {
         {hasGenerated && (
           <View style={styles.helpContainer}>
             <Text style={styles.helpText}>
-              💡 Your AI-generated theme is ready! You can start playing immediately or save it to your custom themes collection.
+              💡 Your AI-generated theme is ready! Tap any card to edit it, or start playing immediately. You can also save it to your custom themes collection.
             </Text>
           </View>
         )}
@@ -408,6 +453,50 @@ export default function WordAITheme() {
           />
         </View>
       )}
+
+      {/* Edit Word Modal */}
+      <Modal
+        visible={editModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeEditModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Word</Text>
+            
+            <TextInput
+              ref={editInputRef}
+              style={styles.modalInput}
+              value={editingWord}
+              onChangeText={setEditingWord}
+              placeholder="Enter word..."
+              placeholderTextColor={colors.gray400}
+              multiline={false}
+              returnKeyType="done"
+              onSubmitEditing={saveEditedWord}
+              autoFocus={true}
+              selectTextOnFocus={true}
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={closeEditModal}
+              >
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSave]}
+                onPress={saveEditedWord}
+              >
+                <Text style={styles.modalButtonTextSave}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -607,6 +696,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
     marginBottom: spacing.sm,
+    position: 'relative',
   },
 
   previewCardText: {
@@ -614,6 +704,13 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.medium,
     color: colors.gray700,
     textAlign: 'center',
+  },
+
+  editIcon: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    opacity: 0.7,
   },
 
   // Help Section
@@ -635,6 +732,75 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     marginBottom: spacing.xl,
   },
-    
-  
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+
+  modalContent: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: spacing.xl,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+
+  modalTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.gray800,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+
+  modalInput: {
+    ...createInputStyle('default'),
+    fontSize: typography.fontSize.base,
+    marginBottom: spacing.lg,
+    textAlign: 'center',
+  },
+
+  modalButtons: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+
+  modalButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+
+  modalButtonCancel: {
+    backgroundColor: colors.gray100,
+    borderWidth: 1,
+    borderColor: colors.gray300,
+  },
+
+  modalButtonSave: {
+    backgroundColor: colors.secondary,
+  },
+
+  modalButtonTextCancel: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.gray700,
+  },
+
+  modalButtonTextSave: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.white,
+  },
 });
