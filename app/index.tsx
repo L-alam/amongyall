@@ -2,7 +2,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 // Safe imports with fallbacks
 let colors: any, spacing: any, layout: any, typography: any;
@@ -221,7 +221,15 @@ export default function Index() {
       <View style={[layoutStyles.centered, { flex: 1 }]}>
         {/* Logo Container */}
         <View style={styles.logoContainer}>
-          <Ionicons name="person-circle-outline" size={120} color={colors.primary} />
+          <Image 
+            source={require('../assets/images/home_icon1.png')} 
+            style={{
+              width: 200,  // Much larger than 120
+              height: 200, // Much larger than 120
+              marginBottom: spacing?.lg || 24,
+            }}
+            resizeMode="contain"
+          />
           <Text style={[textStyles.h1 || styles.appTitle]}>AMONGYALL</Text>
           <Text style={[textStyles.subtitle || styles.subtitle]}>Select a game mode</Text>
         </View>
