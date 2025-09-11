@@ -7,7 +7,6 @@ import { Button } from '../../components/Button';
 import { colors, layout, spacing, typography } from '../../constants/theme';
 import { WordPairs } from '../../lib/wavelengthService';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface PlayerVote {
     playerName: string;
@@ -44,6 +43,26 @@ const goalZoneColors = [
     '#81D4FA', // Light blue 
     '#4DABF7'  
 ];
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+const isTablet = screenWidth >= 768;
+const SCALE_BOX_CONFIG = {
+  phone: {
+    width: screenWidth,
+    maxWidth: 400,
+    leftContainerWidth: '60%',
+    scaleWidth: '40%'
+  },
+  tablet: {
+    width: Math.min(screenWidth * 1, 800), // Use 85% of screen width, max 800px
+    maxWidth: 800,
+    leftContainerWidth: '55%',
+    scaleWidth: '45%'
+  }
+};
+
+const config = isTablet ? SCALE_BOX_CONFIG.tablet : SCALE_BOX_CONFIG.phone;
 
 export default function WavelengthResults() {
     const params = useLocalSearchParams();
@@ -576,12 +595,83 @@ const styles = StyleSheet.create({
     scaleBox: {
         backgroundColor: colors.white,
         padding: 0,
-        width: screenWidth,
-        maxWidth: 400, 
+        width: config.width,
+        maxWidth: config.maxWidth,
         height: '100%',
         alignItems: 'center',
         justifyContent: 'space-between',
         elevation: 10,
+    },
+    
+    leftContainer: {
+        width: config.leftContainerWidth,
+        justifyContent: 'flex-start',
+        paddingHorizontal: isTablet ? spacing.xl : spacing.md,
+        paddingVertical: isTablet ? spacing.lg : spacing.md,
+        flex: 1,
+    },
+    
+    scaleContainer: {
+        width: config.scaleWidth,
+        flex: 1,
+    },
+    
+    // Optional: Add tablet-specific text sizing
+    resultsHeaderText: {
+        fontSize: isTablet ? typography.fontSize.xl : typography.fontSize.lg,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.primary,
+        textAlign: 'center',
+        marginBottom: spacing.sm,
+    },
+    
+    playerScoreItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: isTablet ? spacing.sm : spacing.xs,
+        paddingHorizontal: isTablet ? spacing.sm : spacing.xs,
+        borderRadius: 4,
+        backgroundColor: colors.scale100,
+        borderWidth: 1,
+        borderColor: colors.scale200,
+        minHeight: isTablet ? 36 : 28,
+    },
+    
+    playerScoreText: {
+        fontSize: isTablet ? typography.fontSize.sm : typography.fontSize.xs,
+        color: colors.gray700,
+        fontWeight: typography.fontWeight.medium,
+        flex: 1,
+        numberOfLines: 1,
+    },
+    
+    totalScoreText: {
+        fontSize: isTablet ? typography.fontSize.sm : typography.fontSize.xs,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.gray800,
+    },
+    
+    roundPointsText: {
+        fontSize: isTablet ? 12 : 10,
+        fontWeight: typography.fontWeight.medium,
+    },
+    
+    finalScoreboardContent: {
+        backgroundColor: colors.white,
+        borderRadius: 16,
+        padding: spacing.xl,
+        width: '100%',
+        maxWidth: isTablet ? 500 : 400,
+        alignItems: 'center',
+    },
+    
+    finalScoreboardTitle: {
+        fontSize: isTablet ? typography.fontSize['3xl'] : typography.fontSize['2xl'],
+        fontWeight: typography.fontWeight.bold,
+        color: colors.primary,
+        marginBottom: spacing.lg,
+        textAlign: 'center',
     },
 
     header: {
@@ -636,23 +726,6 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     
-    // Left container - Player scores
-    leftContainer: {
-        width: '60%',
-        justifyContent: 'flex-start',
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.md,
-        flex: 1, // Add this
-    },
-    
-    resultsHeaderText: {
-        fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.bold,
-        color: colors.primary,
-        textAlign: 'center',
-        marginBottom: spacing.sm,
-    },
-
     scalePlayerIndicator: {
         fontSize: typography.fontSize.xs,
         fontWeight: typography.fontWeight.medium,
@@ -667,18 +740,7 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     
-    playerScoreItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: spacing.xs, // Reduce back to xs for 8 players
-        paddingHorizontal: spacing.xs, // Reduce back to xs
-        borderRadius: 4, // Smaller radius
-        backgroundColor: colors.scale100,
-        borderWidth: 1,
-        borderColor: colors.scale200,
-        minHeight: 28, // Reduce from 48 to fit more players
-    },
+
     
     winnerItem: {
         backgroundColor: colors.success + '20',
@@ -705,13 +767,7 @@ const styles = StyleSheet.create({
         borderRadius: 4, // Reduce from 5
     },
     
-    playerScoreText: {
-        fontSize: typography.fontSize.xs, // Keep small
-        color: colors.gray700,
-        fontWeight: typography.fontWeight.medium,
-        flex: 1,
-        numberOfLines: 1, // Prevent text wrapping
-    },
+
     
     winnerText: {
         color: colors.success,
@@ -729,29 +785,12 @@ const styles = StyleSheet.create({
         minWidth: 24, // Ensure consistent width
     },
     
-    roundPointsText: {
-        fontSize: 10, // Make even smaller
-        fontWeight: typography.fontWeight.medium,
-        // color set dynamically to player color
-    },
-    
-    totalScoreText: {
-        fontSize: typography.fontSize.xs, // Reduce from sm
-        fontWeight: typography.fontWeight.bold,
-        color: colors.gray800,
-    },
     
     buttonContainer: {
         gap: spacing.sm,
     },
     
     actionButton: {
-        width: '100%',
-    },
-    
-    // Scale styling - static display
-    scaleContainer: {
-        flex: 1,
         width: '100%',
     },
 
@@ -864,23 +903,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: spacing.lg,
-    },
-
-    finalScoreboardContent: {
-        backgroundColor: colors.white,
-        borderRadius: 16,
-        padding: spacing.xl,
-        width: '100%',
-        maxWidth: 400,
-        alignItems: 'center',
-    },
-
-    finalScoreboardTitle: {
-        fontSize: typography.fontSize['2xl'],
-        fontWeight: typography.fontWeight.bold,
-        color: colors.primary,
-        marginBottom: spacing.lg,
-        textAlign: 'center',
     },
 
     finalScoresList: {

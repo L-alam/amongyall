@@ -9,8 +9,6 @@ import { Button } from '../../components/Button';
 import { colors, layout, spacing, typography } from '../../constants/theme';
 import { WordPairs } from '../../lib/wavelengthService';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
 interface PlayerVote {
     playerName: string;
     selectedRow: number | null;
@@ -39,6 +37,25 @@ const PLAYER_COLORS = [
     '#BB8FCE', // Purple
     '#82E0AA', // Green
 ];
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const isTablet = screenWidth >= 768;
+const SCALE_BOX_CONFIG = {
+  phone: {
+    width: screenWidth,
+    maxWidth: 400,
+    leftContainerWidth: '60%',
+    scaleWidth: '40%'
+  },
+  tablet: {
+    width: Math.min(screenWidth * 1, 800), // Use 85% of screen width, max 800px
+    maxWidth: 800,
+    leftContainerWidth: '55%',
+    scaleWidth: '45%'
+  }
+};
+
+const config = isTablet ? SCALE_BOX_CONFIG.tablet : SCALE_BOX_CONFIG.phone;
 
 export default function WavelengthGameplay() {
     const params = useLocalSearchParams();
@@ -408,13 +425,54 @@ const styles = StyleSheet.create({
     scaleBox: {
         backgroundColor: colors.white,
         padding: 0,
-        width: screenWidth,
-        maxWidth: 400, 
+        width: config.width,
+        maxWidth: config.maxWidth,
         height: '100%',
         alignItems: 'center',
         justifyContent: 'space-between',
         elevation: 10,
     },
+        
+    leftContainer: {
+        width: config.leftContainerWidth,
+        justifyContent: 'flex-start',
+        paddingHorizontal: isTablet ? spacing.xl : spacing.md,
+        paddingVertical: isTablet ? spacing.lg : spacing.md,
+        flex: 1,
+    },
+        
+        scaleContainer: {
+        width: config.scaleWidth,
+        flex: 1,
+        },
+        
+        // Tablet-specific improvements
+        playerButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: isTablet ? spacing.lg : spacing.md,
+        paddingHorizontal: spacing.sm,
+        borderRadius: 8,
+        backgroundColor: colors.scale100,
+        gap: spacing.xs,
+        borderWidth: 2,
+        borderColor: 'transparent',
+        minHeight: isTablet ? 56 : 48, // Taller buttons on tablets
+        },
+        
+        playerButtonText: {
+        fontSize: isTablet ? typography.fontSize.base : typography.fontSize.sm,
+        color: colors.gray600,
+        flex: 1,
+        },
+        
+        currentPlayerText: {
+        fontSize: isTablet ? typography.fontSize.base : typography.fontSize.sm,
+        fontWeight: typography.fontWeight.semibold,
+        color: colors.secondary,
+        textAlign: 'center',
+        marginBottom: spacing.sm,
+        },
 
     header: {
         flexDirection: 'row',
@@ -468,22 +526,6 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     
-    // Left container - Player selection (same width as gamestart's debugContainer)
-    leftContainer: {
-        width: '60%',
-        justifyContent: 'flex-start',
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.md,
-        flex: 1, // Add this
-    },
-    
-    currentPlayerText: {
-        fontSize: typography.fontSize.sm,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.secondary,
-        textAlign: 'center',
-        marginBottom: spacing.sm,
-    },
 
     scalePlayerText: {
         fontSize: typography.fontSize.xs,
@@ -500,18 +542,6 @@ const styles = StyleSheet.create({
         gap: spacing.xs, // Add back the gap for closer spacing
     },
     
-    playerButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: spacing.md, // Increase to make taller
-        paddingHorizontal: spacing.sm,
-        borderRadius: 8,
-        backgroundColor: colors.scale100,
-        gap: spacing.xs,
-        borderWidth: 2,
-        borderColor: 'transparent',
-        minHeight: 48, // Increase from 40
-    },
     
     playerColorIndicator: {
         width: 12,
@@ -530,11 +560,6 @@ const styles = StyleSheet.create({
         backgroundColor: colors.success + '10',
     },
     
-    playerButtonText: {
-        fontSize: typography.fontSize.sm,
-        color: colors.gray600,
-        flex: 1,
-    },
     
     playerButtonTextSelected: {
         fontWeight: typography.fontWeight.semibold,
@@ -550,11 +575,6 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     
-    // Scale styling - same as gamestart
-    scaleContainer: {
-        flex: 1,
-        width: '100%',
-    },
 
     scaleRowContainer: {
         flex: 1,

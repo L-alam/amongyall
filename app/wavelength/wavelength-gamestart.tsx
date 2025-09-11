@@ -12,8 +12,6 @@ import {
     textStyles
 } from '../../utils/styles';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
 interface PlayerScore {
     playerName: string;
     score: number;
@@ -24,6 +22,27 @@ interface PlayerHistory {
     playerName: string;
     hasSeenScale: boolean;
 }
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const isTablet = screenWidth >= 768;
+const SCALE_BOX_CONFIG = {
+  phone: {
+    width: screenWidth,
+    maxWidth: 400,
+    leftContainerWidth: '60%',
+    scaleWidth: '40%'
+  },
+  tablet: {
+    width: Math.min(screenWidth * 1, 800), // Use 85% of screen width, max 800px
+    maxWidth: 800,
+    leftContainerWidth: '55%',
+    scaleWidth: '45%'
+  }
+};
+
+const config = isTablet ? SCALE_BOX_CONFIG.tablet : SCALE_BOX_CONFIG.phone;
+
+
 
 export default function WavelengthGameStart() {
     const params = useLocalSearchParams();
@@ -520,12 +539,32 @@ const styles = StyleSheet.create({
     scaleBox: {
         backgroundColor: colors.white,
         padding: 0,
-        width: screenWidth,
-        maxWidth: 400, 
+        width: config.width,
+        maxWidth: config.maxWidth,
         height: '100%',
         alignItems: 'center',
         justifyContent: 'space-between',
         elevation: 10,
+    },
+
+    debugContainer: {
+        width: config.leftContainerWidth,
+        justifyContent: 'center',
+        paddingHorizontal: isTablet ? spacing.xl : spacing.md, // More padding on tablets
+    },
+
+    scaleContainer: {
+        width: config.scaleWidth, // Make scale wider on tablets
+        flex: 1,
+    },
+
+    // Add tablet-specific text sizing
+    instructionText: {
+        fontSize: isTablet ? typography.fontSize.base : typography.fontSize.sm,
+        color: colors.gray600,
+        textAlign: 'center',
+        marginBottom: spacing.xl,
+        lineHeight: (isTablet ? typography.fontSize.base : typography.fontSize.sm) * 1.4,
     },
     
     topLabel: {
