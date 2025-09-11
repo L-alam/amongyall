@@ -5,12 +5,11 @@ import { ActivityIndicator, Alert, Dimensions, KeyboardAvoidingView, Platform, S
 
 import { Button } from '../../components/Button';
 import { colors, layout, spacing, typography } from '../../constants/theme';
-import { useAuth } from '../../hooks/useAuth'; // Add this import
+import { useAuth } from '../../hooks/useAuth';
 import {
   WavelengthPair,
   WordPairs,
-  checkAnonymousPairLimit // Add this import
-  ,
+  checkAnonymousPairLimit,
   createCustomPair,
   deleteCustomPair,
   getAllWavelengthPairs,
@@ -18,21 +17,17 @@ import {
   getRandomPair
 } from '../../lib/wavelengthService';
 import {
-  combineStyles,
-  layoutStyles,
-  textStyles,
+  layoutStyles
 } from '../../utils/styles';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function WavelengthPairs() {
-  // Get players and first player from the previous screen
-  const { isAuthenticated, signInWithGoogle } = useAuth(); // Add this line
+  const { isAuthenticated, signInWithGoogle } = useAuth();
   const params = useLocalSearchParams();
   const players = JSON.parse(params.players as string || '[]') as string[];
   const firstPlayer = params.firstPlayer as string || '';
   
-  // Get existing scores and player history if this is a subsequent round
   const existingScores = JSON.parse(params.playerScores as string || '[]');
   const existingHistory = JSON.parse(params.playerHistory as string || '[]');
   
@@ -41,13 +36,11 @@ export default function WavelengthPairs() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Custom pair creation state
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newPairTerm0, setNewPairTerm0] = useState('');
   const [newPairTerm1, setNewPairTerm1] = useState('');
   const [creating, setCreating] = useState(false);
   
-  // Custom pairs dropdown state
   const [customPairs, setCustomPairs] = useState<WavelengthPair[]>([]);
   const [showCustomDropdown, setShowCustomDropdown] = useState(false);
 
@@ -59,7 +52,6 @@ export default function WavelengthPairs() {
     try {
       setLoading(true);
       
-      // Load all pairs (built-in + custom)
       const [allPairsData, customPairsData] = await Promise.all([
         getAllWavelengthPairs(),
         getCustomPairs()
@@ -72,17 +64,7 @@ export default function WavelengthPairs() {
       console.error('Error loading pairs:', error);
       Alert.alert(
         'Error', 
-        'Failed to load word pairs. Please check your connection and try again.',
-        [
-          {
-            text: 'Retry',
-            onPress: loadPairs
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel'
-          }
-        ]
+        'Failed to load word pairs. Please check your connection and try again.'
       );
     } finally {
       setLoading(false);
@@ -97,120 +79,92 @@ export default function WavelengthPairs() {
     router.push('/');
   };
 
-  const handleStartGame = () => {
-    if (!selectedPair) {
-      Alert.alert('No Pair Selected', 'Please select a word pair to continue.');
-      return;
-    }
-
-    const wordPair: WordPairs = {
-      positive: selectedPair.term_0,
-      negative: selectedPair.term_1
-    };
-
-    // Navigate to game screen with selected pair
-    router.push({
-      pathname: '/wavelength/wavelength-gamestart',
-      params: {
-        players: JSON.stringify(players),
-        firstPlayer: firstPlayer,
-        selectedPair: JSON.stringify(wordPair),
-        playerScores: JSON.stringify(existingScores), // Pass existing scores
-        playerHistory: JSON.stringify(existingHistory), // Pass player history
-      }
-    });
-  };
-
   const handleRandomPair = async () => {
     try {
-      const randomWordPair = await getRandomPair();
-      if (!randomWordPair) {
-        Alert.alert('Error', 'No pairs available for random selection.');
-        return;
-      }
-
-      // Navigate directly to game with random pair
-      router.push({
-        pathname: '/wavelength/wavelength-gamestart',
-        params: {
-          players: JSON.stringify(players),
-          firstPlayer: firstPlayer,
-          selectedPair: JSON.stringify(randomWordPair),
-          playerScores: JSON.stringify(existingScores), // Pass existing scores
-          playerHistory: JSON.stringify(existingHistory), // Pass player history
-        }
-      });
+      const randomPair = await getRandomPair();
+      setSelectedPair(randomPair);
     } catch (error) {
       console.error('Error getting random pair:', error);
       Alert.alert('Error', 'Failed to get random pair. Please try again.');
     }
   };
 
-  const handleCreateCustomPair = async () => {
-    if (!newPairTerm0.trim() || !newPairTerm1.trim()) {
-      Alert.alert('Error', 'Please enter both terms for the pair.');
+  const handleSelectPair = () => {
+    if (!selectedPair) {
+      Alert.alert('No Pair Selected', 'Please select a word pair to continue.');
       return;
     }
 
-    // Check anonymous user limit BEFORE attempting to save
+    const wordPairs: WordPairs = {
+      positive: selectedPair.term_0,
+      negative: selectedPair.term_1
+    };
+
+    router.push({
+      pathname: '/wavelength/wavelength-game',
+      params: {
+        players: JSON.stringify(players),
+        firstPlayer,
+        wordPairs: JSON.stringify(wordPairs),
+        playerScores: JSON.stringify(existingScores),
+        playerHistory: JSON.stringify(existingHistory),
+      }
+    });
+  };
+
+  const handleCreateCustomPair = async () => {
+    if (!newPairTerm0.trim() || !newPairTerm1.trim()) {
+      Alert.alert('Invalid Input', 'Please enter both terms for the pair.');
+      return;
+    }
+
+    if (newPairTerm0.trim().toLowerCase() === newPairTerm1.trim().toLowerCase()) {
+      Alert.alert('Invalid Input', 'The two terms cannot be the same.');
+      return;
+    }
+
     if (!isAuthenticated) {
       try {
-        const limitCheck = await checkAnonymousPairLimit();
-        if (!limitCheck.canCreate) {
+        const canCreate = await checkAnonymousPairLimit();
+        if (!canCreate) {
           Alert.alert(
-            'Pair Limit Reached',
-            `You've created ${limitCheck.count} out of ${limitCheck.limit} free custom pairs. Log in to create unlimited pairs and sync them across devices!`,
+            'Limit Reached',
+            'You can create up to 5 custom pairs without an account. Sign in to create unlimited pairs.',
             [
-              {
-                text: 'Continue as Guest',
-                style: 'cancel'
-              },
-              {
-                text: 'Log In with Google',
-                onPress: async () => {
-                  try {
-                    const { user, error: signInError } = await signInWithGoogle();
-                    if (signInError) {
-                      Alert.alert('Login Failed', 'Please try again.');
-                    } else if (user) {
-                      // After successful login, try creating again
-                      handleCreateCustomPair();
-                    }
-                  } catch (signInError) {
-                    Alert.alert('Login Failed', 'Please try again.');
-                  }
-                }
-              }
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Sign In', onPress: signInWithGoogle }
             ]
           );
-          return; // Exit early if limit reached
+          return;
         }
       } catch (error) {
         console.error('Error checking anonymous limit:', error);
-        Alert.alert('Error', 'Unable to check pair limit. Please try again.');
+        Alert.alert('Error', 'Failed to create pair. Please try again.');
         return;
       }
     }
 
-    setCreating(true);
-
     try {
-      const newPair = await createCustomPair(newPairTerm0.trim(), newPairTerm1.trim());
+      setCreating(true);
       
-      // Reset form
+      const newPair = await createCustomPair(
+        newPairTerm0.trim(),
+        newPairTerm1.trim()
+      );
+      
+      await loadPairs();
+      setSelectedPair(newPair);
+      
       setNewPairTerm0('');
       setNewPairTerm1('');
       setShowCreateForm(false);
       
-      // Reload pairs to show the new one
-      await loadPairs();
+      Alert.alert('Success', 'Custom pair created successfully!');
       
-      Alert.alert('Success', 'Custom pair saved successfully!');
     } catch (error) {
       console.error('Error creating custom pair:', error);
-      
-      if (error instanceof Error && error.message.includes('already exists')) {
-        Alert.alert('Pair Already Exists', 'This word pair already exists. Please choose different terms.');
+      if (error instanceof Error && error.message.includes('duplicate')) {
+        Alert.alert('Duplicate Pair', 'This pair already exists. Please choose different terms.');
       } else {
         Alert.alert('Error', 'Failed to create custom pair. Please try again.');
       }
@@ -234,8 +188,7 @@ export default function WavelengthPairs() {
           onPress: async () => {
             try {
               await deleteCustomPair(pair.id);
-              await loadPairs(); // Reload to update the list
-              // If deleted pair was selected, clear selection
+              await loadPairs();
               if (selectedPair?.id === pair.id) {
                 setSelectedPair(null);
               }
@@ -249,7 +202,6 @@ export default function WavelengthPairs() {
     );
   };
 
-  // Filter pairs based on search query
   const filteredPairs = allPairs.filter(pair => {
     if (!searchQuery.trim()) return true;
     
@@ -257,7 +209,6 @@ export default function WavelengthPairs() {
            pair.term_1.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  // Pair Item Component
   const PairItem = ({ pair }: { pair: WavelengthPair }) => {
     const isSelected = selectedPair?.id === pair.id;
     const isCustom = pair.is_custom;
@@ -291,31 +242,25 @@ export default function WavelengthPairs() {
               {pair.term_1}
             </Text>
           </View>
+          
           <View style={styles.pairActions}>
             {isCustom && (
-              <View style={styles.customBadge}>
-                <Text style={styles.customBadgeText}>Custom</Text>
-              </View>
-            )}
-            {isCustom && (
-              <TouchableOpacity 
-                style={styles.deleteButton}
-                onPress={() => handleDeleteCustomPair(pair)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons 
-                  name="trash-outline" 
-                  size={layout.iconSize.sm} 
-                  color={colors.error} 
-                />
-              </TouchableOpacity>
-            )}
-            {isSelected && (
-              <Ionicons 
-                name="checkmark-circle" 
-                size={layout.iconSize.md} 
-                color={colors.secondary} 
-              />
+              <>
+                <View style={styles.customBadge}>
+                  <Text style={styles.customBadgeText}>Custom</Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.deleteButton}
+                  onPress={() => handleDeleteCustomPair(pair)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons 
+                    name="trash-outline" 
+                    size={layout.iconSize.sm} 
+                    color={colors.error} 
+                  />
+                </TouchableOpacity>
+              </>
             )}
           </View>
         </View>
@@ -323,14 +268,11 @@ export default function WavelengthPairs() {
     );
   };
 
-  // Show loading state
   if (loading) {
     return (
-      <View style={combineStyles(layoutStyles.container, layoutStyles.centered)}>
+      <View style={[layoutStyles.container, layoutStyles.centered]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={combineStyles(textStyles.body, styles.loadingText)}>
-          Loading word pairs...
-        </Text>
+        <Text style={styles.loadingText}>Loading word pairs...</Text>
       </View>
     );
   }
@@ -347,186 +289,100 @@ export default function WavelengthPairs() {
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
         
-        
         <TouchableOpacity style={styles.headerButton} onPress={handleCancel}>
           <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
-      {/* First Player Display */}
-      <View style={styles.firstPlayerContainer}>
-        <Text style={styles.firstPlayerText}>
-          Player: <Text style={styles.firstPlayerName}>{firstPlayer}</Text>
+      {/* Fixed Slim Player Banner */}
+      <View style={styles.playerBanner}>
+        <Text style={styles.playerBannerText}>
+          Player: <Text style={styles.playerName}>{firstPlayer}</Text>
         </Text>
-        
       </View>
 
-      {/* Action Buttons */}
-      <View style={styles.actionButtonsContainer}>
-        <Button
-          title="Random"
-          variant="outline"
-          size="md"
-          icon="shuffle-outline"
-          onPress={handleRandomPair}
-          style={styles.actionButton}
-        />
-        
-        <Button
-          title="Custom"
-          variant="outline"
-          size="md"
-          icon="add-outline"
-          onPress={() => setShowCreateForm(true)}
-          style={styles.actionButton}
-        />
-      </View>
-
-      {/* Custom Pairs Dropdown */}
-      <View style={styles.customDropdownContainer}>
-        <TouchableOpacity
-          style={styles.customDropdownHeader}
-          onPress={() => setShowCustomDropdown(!showCustomDropdown)}
-        >
-          <Text style={styles.customDropdownTitle}>
-            Your Custom Pairs ({customPairs.length})
-          </Text>
-          <Ionicons 
-            name={showCustomDropdown ? "chevron-up-outline" : "chevron-down-outline"}
-            size={layout.iconSize.sm} 
-            color={colors.gray600} 
-          />
-        </TouchableOpacity>
-
-        {showCustomDropdown && (
-          <View style={styles.customDropdownContent}>
-            {customPairs.length > 0 ? (
-              <ScrollView 
-                style={styles.customDropdownScrollView}
-                showsVerticalScrollIndicator={true}
-                nestedScrollEnabled={true}
-              >
-                {customPairs.map((pair) => (
-                  <TouchableOpacity
-                    key={pair.id}
-                    style={[
-                      styles.customDropdownItem,
-                      selectedPair?.id === pair.id && styles.customDropdownItemSelected
-                    ]}
-                    onPress={() => {
-                      setSelectedPair(pair);
-                      setShowCustomDropdown(false);
-                    }}
-                  >
-                    <View style={styles.customDropdownItemContent}>
-                      <Text style={styles.customDropdownItemText} numberOfLines={2}>
-                        {pair.term_0} ↔ {pair.term_1}
-                      </Text>
-                      <TouchableOpacity 
-                        style={styles.customDropdownDeleteButton}
-                        onPress={() => handleDeleteCustomPair(pair)}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      >
-                        <Ionicons 
-                          name="trash-outline" 
-                          size={layout.iconSize.sm} 
-                          color={colors.error} 
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            ) : (
-              <Text style={styles.noCustomPairsText}>
-                No custom pairs yet. Create your first one!
-              </Text>
-            )}
-          </View>
-        )}
-      </View>
-
-      {/* Create Custom Pair Form */}
-      {showCreateForm && (
-        <View style={styles.createFormContainer}>
-          <ScrollView 
-            style={styles.createFormScrollView}
-            contentContainerStyle={styles.createFormScrollContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
+      {/* Scrollable Content */}
+      <ScrollView 
+        style={styles.scrollableContent}
+        contentContainerStyle={styles.scrollContentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Custom Pairs Dropdown */}
+        <View style={styles.customDropdownContainer}>
+          <TouchableOpacity
+            style={styles.customDropdownHeader}
+            onPress={() => setShowCustomDropdown(!showCustomDropdown)}
           >
-            <View style={styles.createForm}>
-              <View style={styles.createFormHeader}>
-                <Text style={styles.createFormTitle}>Create Custom Pair</Text>
-                <TouchableOpacity 
-                  style={styles.closeButton}
-                  onPress={() => {
-                    setShowCreateForm(false);
-                    setNewPairTerm0('');
-                    setNewPairTerm1('');
-                  }}
-                >
-                  <Ionicons name="close" size={layout.iconSize.md} color={colors.gray600} />
-                </TouchableOpacity>
-              </View>
-              
-              <View style={styles.createFormInputs}>
-                <TextInput
-                  style={styles.createInputFull}
-                  placeholder="First term (e.g. Hot)"
-                  placeholderTextColor={colors.gray400}
-                  value={newPairTerm0}
-                  onChangeText={setNewPairTerm0}
-                  autoCapitalize="words"
-                  returnKeyType="next"
-                  onSubmitEditing={() => {
-                    // Focus the second input when done with first
-                    // You could add a ref here if needed for better UX
-                  }}
-                />
-                <View style={styles.swapIconContainer}>
-                  <Ionicons name="swap-vertical" size={20} color={colors.gray400} />
-                </View>
-                <TextInput
-                  style={styles.createInputFull}
-                  placeholder="Second term (e.g. Cold)"
-                  placeholderTextColor={colors.gray400}
-                  value={newPairTerm1}
-                  onChangeText={setNewPairTerm1}
-                  autoCapitalize="words"
-                  returnKeyType="done"
-                  onSubmitEditing={handleCreateCustomPair}
-                />
-              </View>
-              
-              <Button
-                title={creating ? "Saving..." : "Save Pair"}
-                variant="primary"
-                size="md"
-                icon="save-outline"
-                onPress={handleCreateCustomPair}
-                disabled={creating || !newPairTerm0.trim() || !newPairTerm1.trim()}
-                loading={creating}
-                style={styles.saveButton}
-              />
-            </View>
-          </ScrollView>
-        </View>
-      )}
+            <Text style={styles.customDropdownTitle}>
+              Your Custom Pairs ({customPairs.length})
+            </Text>
+            <Ionicons 
+              name={showCustomDropdown ? "chevron-up-outline" : "chevron-down-outline"}
+              size={layout.iconSize.sm} 
+              color={colors.gray600} 
+            />
+          </TouchableOpacity>
 
-      {/* Search Field - only show when create form is not open */}
-      {!showCreateForm && (
+          {showCustomDropdown && (
+            <View style={styles.customDropdownContent}>
+              {customPairs.length > 0 ? (
+                <ScrollView 
+                  style={styles.customDropdownScrollView}
+                  showsVerticalScrollIndicator={true}
+                  nestedScrollEnabled={true}
+                >
+                  {customPairs.map((pair) => (
+                    <TouchableOpacity
+                      key={pair.id}
+                      style={[
+                        styles.customDropdownItem,
+                        selectedPair?.id === pair.id && styles.customDropdownItemSelected
+                      ]}
+                      onPress={() => {
+                        setSelectedPair(pair);
+                        setShowCustomDropdown(false);
+                      }}
+                    >
+                      <View style={styles.customDropdownItemContent}>
+                        <Text style={styles.customDropdownItemText} numberOfLines={2}>
+                          {pair.term_0} ↔ {pair.term_1}
+                        </Text>
+                        <TouchableOpacity 
+                          style={styles.customDropdownDeleteButton}
+                          onPress={() => handleDeleteCustomPair(pair)}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Ionicons 
+                            name="trash-outline" 
+                            size={layout.iconSize.sm} 
+                            color={colors.error} 
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : (
+                <Text style={styles.noCustomPairsText}>
+                  No custom pairs yet. Create your first one!
+                </Text>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Search Field */}
         <View style={styles.searchContainer}>
           <Ionicons 
-            name="search" 
+            name="search-outline" 
             size={layout.iconSize.sm} 
-            color={colors.gray400} 
+            color={colors.gray500} 
             style={styles.searchIcon}
           />
           <TextInput
             style={styles.searchInput}
             placeholder="Search word pairs..."
-            placeholderTextColor={colors.gray400}
+            placeholderTextColor={colors.gray500}
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCapitalize="none"
@@ -540,55 +396,131 @@ export default function WavelengthPairs() {
               <Ionicons 
                 name="close-circle" 
                 size={layout.iconSize.sm} 
-                color={colors.gray400} 
+                color={colors.gray500} 
               />
             </TouchableOpacity>
           )}
         </View>
-      )}
 
-      {/* Pairs Gallery - only show when create form is not open */}
-      {!showCreateForm && (
-        <ScrollView 
-          style={styles.scrollableContent}
-          contentContainerStyle={styles.scrollContentContainer}
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={styles.galleryTitle}>
-            Choose a word pair ({filteredPairs.length} available)
-          </Text>
+        {/* Gallery Title */}
+        <Text style={styles.galleryTitle}>
+          Choose a word pair ({filteredPairs.length} available)
+        </Text>
 
+        {/* Pairs List */}
+        {filteredPairs.length > 0 ? (
           <View style={styles.pairsList}>
             {filteredPairs.map((pair) => (
               <PairItem key={pair.id} pair={pair} />
             ))}
           </View>
+        ) : (
+          <View style={styles.noResultsContainer}>
+            <Ionicons 
+              name="search-outline" 
+              size={48} 
+              color={colors.gray400} 
+            />
+            <Text style={styles.noResultsText}>No pairs found</Text>
+            <Text style={styles.noResultsSubtext}>
+              {searchQuery ? 'Try adjusting your search terms' : 'No word pairs available'}
+            </Text>
+          </View>
+        )}
+      </ScrollView>
 
-          {filteredPairs.length === 0 && searchQuery.length > 0 && (
-            <View style={styles.noResultsContainer}>
-              <Ionicons name="search" size={48} color={colors.gray400} />
-              <Text style={styles.noResultsText}>
-                No pairs found for "{searchQuery}"
-              </Text>
-              <Text style={styles.noResultsSubtext}>
-                Try a different search term or create a custom pair
-              </Text>
-            </View>
-          )}
-        </ScrollView>
-      )}
-
-      {/* Fixed Bottom Button - only show when create form is not open */}
-      {!showCreateForm && (
-        <View style={styles.bottomButtonContainer}>
+      {/* Fixed Bottom Buttons */}
+      <View style={styles.bottomContainer}>
+        {/* Action Buttons Row */}
+        <View style={styles.actionButtonsContainer}>
           <Button
-            title={selectedPair ? `Play: ${selectedPair.term_0} ↔ ${selectedPair.term_1}` : "Select a Pair"}
-            variant="primary"
-            size="lg"
-            onPress={handleStartGame}
-            disabled={!selectedPair}
-            style={styles.bottomButton}
+            title="Random"
+            variant="outline"
+            size="md"
+            icon="shuffle-outline"
+            onPress={handleRandomPair}
+            style={styles.actionButton}
           />
+          
+          <Button
+            title="Custom"
+            variant="outline"
+            size="md"
+            icon="add-outline"
+            onPress={() => setShowCreateForm(true)}
+            style={styles.actionButton}
+          />
+        </View>
+
+        {/* Select Button */}
+        <Button
+          title="Select a Pair"
+          variant="primary"
+          size="lg"
+          onPress={handleSelectPair}
+          style={styles.selectButton}
+          disabled={!selectedPair}
+        />
+      </View>
+
+      {/* Create Form Modal */}
+      {showCreateForm && (
+        <View style={styles.createFormOverlay}>
+          <View style={styles.createFormContainer}>
+            <View style={styles.createFormHeader}>
+              <Text style={styles.createFormTitle}>Create Custom Pair</Text>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => {
+                  setShowCreateForm(false);
+                  setNewPairTerm0('');
+                  setNewPairTerm1('');
+                }}
+              >
+                <Ionicons name="close" size={layout.iconSize.sm} color={colors.gray600} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.createFormInputs}>
+              <TextInput
+                style={styles.createInputFull}
+                placeholder="First term (e.g., Light)"
+                placeholderTextColor={colors.gray500}
+                value={newPairTerm0}
+                onChangeText={setNewPairTerm0}
+                autoCapitalize="words"
+                autoCorrect={true}
+              />
+
+              <View style={styles.swapIconContainer}>
+                <Ionicons 
+                  name="swap-horizontal" 
+                  size={layout.iconSize.md} 
+                  color={colors.gray400} 
+                />
+              </View>
+
+              <TextInput
+                style={styles.createInputFull}
+                placeholder="Second term (e.g., Dark)"
+                placeholderTextColor={colors.gray500}
+                value={newPairTerm1}
+                onChangeText={setNewPairTerm1}
+                autoCapitalize="words"
+                autoCorrect={true}
+              />
+            </View>
+
+            <Button
+              title={creating ? "Creating..." : "Save Pair"}
+              variant="primary"
+              size="lg"
+              onPress={handleCreateCustomPair}
+              style={styles.saveButton}
+              disabled={creating || !newPairTerm0.trim() || !newPairTerm1.trim()}
+              loading={creating}
+            />
+          </View>
         </View>
       )}
     </KeyboardAvoidingView>
@@ -602,141 +534,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: spacing['3xl'],
-    paddingHorizontal: spacing.lg, 
-    paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
     backgroundColor: colors.white,
     borderBottomWidth: 1,
     borderBottomColor: colors.gray200,
   },
-  
+
   headerButton: {
     padding: spacing.sm,
+    borderRadius: 8
   },
 
-  // First Player Display
-  firstPlayerContainer: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+  // Slim Player Banner
+  playerBanner: {
     backgroundColor: colors.gray100,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.gray200,
-    alignItems: 'center',
   },
 
-  firstPlayerText: {
+  playerBannerText: {
     fontSize: typography.fontSize.base,
-    color: colors.gray600,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.gray700,
     textAlign: 'center',
   },
 
-  firstPlayerName: {
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.secondary,
-  },
-
-  roundIndicatorText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.warning,
-    fontWeight: typography.fontWeight.semibold,
-    marginTop: spacing.xs,
-  },
-
-  // Action Buttons
-  actionButtonsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.md,
-    backgroundColor: colors.white,
-  },
-
-  actionButton: {
-    maxHeight: 50,
-    flex: 1,
-  },
-
-  // Create Form
-  createFormContainer: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    backgroundColor: colors.white,
-  },
-
-  createFormScrollView: {
-    flex: 1,
-  },
-
-  createFormScrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-
-  createForm: {
-    backgroundColor: colors.gray50,
-    borderRadius: 12,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.gray200,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    marginVertical: spacing.lg,
-  },
-
-  createFormHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-  },
-
-  createFormTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
+  playerName: {
+    fontWeight: typography.fontWeight.bold,
     color: colors.primary,
   },
 
-  closeButton: {
-    padding: spacing.xs,
-    borderRadius: 20,
-    backgroundColor: colors.gray200,
+  // Scrollable Content
+  scrollableContent: {
+    flex: 1,
   },
 
-  createFormInputs: {
-    marginBottom: spacing.xl,
-  },
-
-  createInputFull: {
-    width: '100%',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.md,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.gray300,
-    backgroundColor: colors.white,
-    fontSize: typography.fontSize.base,
-    color: colors.gray800,
-    marginBottom: spacing.md,
-    minHeight: 50,
-  },
-
-  swapIconContainer: {
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-
-  saveButton: {
-    width: '100%',
-    minHeight: 50,
+  scrollContentContainer: {
+    paddingBottom: spacing.xl,
   },
 
   // Custom Pairs Dropdown
   customDropdownContainer: {
     marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
     marginBottom: spacing.md,
     backgroundColor: colors.white,
     borderRadius: 8,
@@ -761,12 +604,11 @@ const styles = StyleSheet.create({
   customDropdownContent: {
     borderTopWidth: 1,
     borderTopColor: colors.gray200,
-    maxHeight: 200, // Keep the max height for the container
+    maxHeight: 200,
   },
 
-  // NEW: Scrollable area for custom pairs
   customDropdownScrollView: {
-    maxHeight: 180, // Slightly less than container to show border
+    maxHeight: 180,
   },
 
   customDropdownItem: {
@@ -774,7 +616,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.gray100,
-    minHeight: 44, // Ensure consistent height
+    minHeight: 44,
   },
 
   customDropdownItemSelected: {
@@ -785,19 +627,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 28, // Ensure content has minimum height
+    minHeight: 28,
   },
 
   customDropdownItemText: {
     fontSize: typography.fontSize.sm,
     color: colors.gray700,
     flex: 1,
-    marginRight: spacing.sm, // Add spacing between text and delete button
+    marginRight: spacing.sm,
   },
 
   customDropdownDeleteButton: {
     padding: spacing.xs,
-    minWidth: 32, // Ensure consistent touch target
+    minWidth: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -840,30 +682,21 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
 
-  // Scrollable Content
-  scrollableContent: {
-    flex: 1,
-  },
-
-  scrollContentContainer: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-
   galleryTitle: {
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.semibold,
     color: colors.gray700,
     marginBottom: spacing.md,
     textAlign: 'center',
+    marginHorizontal: spacing.lg,
   },
 
   // Pairs List
   pairsList: {
+    paddingHorizontal: spacing.lg,
     gap: spacing.sm,
   },
 
-  // Pair Items
   pairItem: {
     backgroundColor: colors.white,
     borderRadius: 8,
@@ -934,7 +767,7 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
 
-  // No Results/Empty States
+  // No Results
   noResultsContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -957,20 +790,106 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Fixed Bottom Button
-  bottomButtonContainer: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+  // Fixed Bottom Container
+  bottomContainer: {
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: colors.gray200,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    paddingBottom: spacing.xl, // Extra padding for safe area
   },
 
-  bottomButton: {
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+    gap: spacing.md,
+  },
+
+  actionButton: {
+    flex: 1,
+  },
+
+  selectButton: {
     width: '100%',
   },
 
-  // Loading State
+  // Create Form Modal
+  createFormOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+
+  createFormContainer: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: spacing.xl,
+    marginHorizontal: spacing.lg,
+    width: screenWidth - (spacing.lg * 2),
+    maxWidth: 400,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+
+  createFormHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
+
+  createFormTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.primary,
+  },
+
+  closeButton: {
+    padding: spacing.xs,
+    borderRadius: 20,
+    backgroundColor: colors.gray200,
+  },
+
+  createFormInputs: {
+    marginBottom: spacing.xl,
+  },
+
+  createInputFull: {
+    width: '100%',
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.gray300,
+    backgroundColor: colors.white,
+    fontSize: typography.fontSize.base,
+    color: colors.gray800,
+    marginBottom: spacing.md,
+    minHeight: 50,
+  },
+
+  swapIconContainer: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+
+  saveButton: {
+    width: '100%',
+    minHeight: 50,
+  },
+
   loadingText: {
     marginTop: spacing.md,
     textAlign: 'center',
