@@ -82,7 +82,24 @@ export default function WavelengthPairs() {
   const handleRandomPair = async () => {
     try {
       const randomPair = await getRandomPair();
-      setSelectedPair(randomPair);
+      if (!randomPair) {
+        Alert.alert('Error', 'No pairs available for random selection.');
+        return;
+      }
+
+      console.log('Random pair selected:', randomPair); // Debug log
+
+      // Navigate directly to game start with random pair
+      router.push({
+        pathname: '/wavelength/wavelength-gamestart',
+        params: {
+          players: JSON.stringify(players),
+          firstPlayer,
+          selectedPair: JSON.stringify(randomPair), // randomPair is already WordPairs format
+          playerScores: JSON.stringify(existingScores),
+          playerHistory: JSON.stringify(existingHistory),
+        }
+      });
     } catch (error) {
       console.error('Error getting random pair:', error);
       Alert.alert('Error', 'Failed to get random pair. Please try again.');
@@ -101,11 +118,11 @@ export default function WavelengthPairs() {
     };
 
     router.push({
-      pathname: '/wavelength/wavelength-game',
+      pathname: '/wavelength/wavelength-gamestart',
       params: {
         players: JSON.stringify(players),
         firstPlayer,
-        wordPairs: JSON.stringify(wordPairs),
+        selectedPair: JSON.stringify(wordPairs),
         playerScores: JSON.stringify(existingScores),
         playerHistory: JSON.stringify(existingHistory),
       }
@@ -454,7 +471,7 @@ export default function WavelengthPairs() {
 
         {/* Select Button */}
         <Button
-          title="Select a Pair"
+          title="Next"
           variant="primary"
           size="lg"
           onPress={handleSelectPair}
@@ -543,7 +560,7 @@ const styles = StyleSheet.create({
 
   headerButton: {
     padding: spacing.sm,
-    borderRadius: 8
+    borderRadius: 8,
   },
 
   // Slim Player Banner
