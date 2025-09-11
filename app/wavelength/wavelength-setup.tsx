@@ -237,11 +237,21 @@ export default function WavelengthSetup() {
     }
   };
 
+  const handleDuplicatePlayer = () => {
+    alert('Player name already exists');
+  }
+  
   const handleAddPlayer = () => {
-    if (playerName.trim() && players.length < 8) {
-      setPlayers([...players, playerName.trim().toUpperCase()]);
-      setPlayerName('');
-      setPlayerCount(players.length + 1);
+    const trimmedName = playerName.trim().toUpperCase();
+    
+    if (trimmedName && players.length < 8) {
+      if (players.includes(trimmedName)) {
+        handleDuplicatePlayer();
+      } else {
+        setPlayers([...players, trimmedName]);
+        setPlayerName('');
+        setPlayerCount(players.length + 1);
+      }
     }
   };
 

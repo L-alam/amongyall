@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
 
     // Score display styles
     scoresContainer: {
-        width: '100%',
+        width: '80%',
         backgroundColor: colors.gray100,
         borderRadius: 12,
         padding: spacing.lg,

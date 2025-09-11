@@ -1,20 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, Animated, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Alert, Animated, Dimensions, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { playerStorageService } from '../../lib/playerStorageService';
 
-import { colors, spacing, layout, typography } from '../../constants/theme';
-import { 
-  textStyles, 
-  layoutStyles, 
-  createButtonStyle, 
-  createButtonTextStyle,
-  createInputStyle,
-  combineStyles 
-} from '../../utils/styles';
 import { Button } from '../../components/Button';
+import { colors, layout, spacing, typography } from '../../constants/theme';
+import {
+  createInputStyle
+} from '../../utils/styles';
 
 // Try to import gesture handler - with fallback
 let PanGestureHandler, State;
@@ -216,11 +211,21 @@ export default function QuestionSetup() {
     });
   };
 
+  const handleDuplicatePlayer = () => {
+    alert('Player name already exists');
+  }
+  
   const handleAddPlayer = () => {
-    if (playerName.trim() && players.length < 8) {
-      setPlayers([...players, playerName.trim().toUpperCase()]);
-      setPlayerName('');
-      setPlayerCount(players.length + 1);
+    const trimmedName = playerName.trim().toUpperCase();
+    
+    if (trimmedName && players.length < 8) {
+      if (players.includes(trimmedName)) {
+        handleDuplicatePlayer();
+      } else {
+        setPlayers([...players, trimmedName]);
+        setPlayerName('');
+        setPlayerCount(players.length + 1);
+      }
     }
   };
 
