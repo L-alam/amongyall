@@ -518,9 +518,7 @@ const styles = StyleSheet.create({
     
     revealButton: {
         height: '40%',
-        width: '100%',
-        maxHeight: 300,
-        maxWidth: 300,
+        width: '80%',
     },
     
     // Scale Screen Styles (Black Background)

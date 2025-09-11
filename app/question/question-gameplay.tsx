@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Pressable, ScrollView, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Alert, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { colors, spacing, layout, typography } from '../../constants/theme';
-import { 
-  textStyles, 
-  layoutStyles, 
-  combineStyles,
-} from '../../utils/styles';
 import { Button } from '../../components/Button';
+import { colors, layout, spacing, typography } from '../../constants/theme';
+import {
+  combineStyles,
+  layoutStyles,
+  textStyles,
+} from '../../utils/styles';
 
 import Animated, {
   interpolate,
@@ -503,9 +503,9 @@ const styles = StyleSheet.create({
 
   controlsContainer: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm, // Reduce from spacing.md
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm, // Reduce from spacing.md
   },
 
   controlButton: {
@@ -514,8 +514,10 @@ const styles = StyleSheet.create({
 
   backButtonContainer: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.md, // Reduce from spacing.lg
+    paddingTop: 0, // Remove any top padding
   },
+  
 
   backButton: {
     width: '100%',
@@ -528,6 +530,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl, // Add vertical padding to prevent edge touching
   },
 
   modalContent: {
@@ -535,14 +538,18 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: spacing.xl,
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 350, // Reduce from 400 to make it more centered visually
     alignItems: 'center',
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+    // Add these for better centering:
+    marginHorizontal: 'auto',
+    alignSelf: 'center',
   },
+  
 
   modalHeader: {
     alignItems: 'center',

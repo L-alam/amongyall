@@ -1,21 +1,17 @@
 // Assigns all the players a word and a spy and a confirmation screen before the game starts
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Pressable, SafeAreaView, Alert, } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Alert, Dimensions, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { colors, spacing, layout, typography } from '../../constants/theme';
-import { 
-  textStyles, 
-  layoutStyles, 
-  createButtonStyle, 
-  createButtonTextStyle,
-  createInputStyle,
-  combineStyles,
-} from '../../utils/styles';
 import { Button } from '../../components/Button';
-import { themes, getRandomWordsFromTheme, getAllThemeNames } from '../../constants/theme';
+import { colors, layout, spacing, typography } from '../../constants/theme';
+import {
+  combineStyles,
+  layoutStyles,
+  textStyles
+} from '../../utils/styles';
 
 import Animated, {
   interpolate,
@@ -402,7 +398,7 @@ const styles = StyleSheet.create({
 
     // Flip card container
     flipCard: {
-      width: screenWidth - spacing.lg * 2,
+      width: '80%',
       height: Math.min(screenHeight * 0.5, 400),
       maxWidth: 600,
       alignSelf: 'center',
@@ -521,7 +517,7 @@ const styles = StyleSheet.create({
     },
 
     nextButton: {
-        width: '100%',
+      width: '80%',
     },
 
     readyTitle: {
