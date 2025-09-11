@@ -253,21 +253,21 @@ export default function Index() {
         {/* Game Mode Buttons */}
         <View style={styles.buttonContainer}>
           <Button
-            title="Word Chameleon"
+            title="Word Game"
             onPress={() => handleGameModePress('Word Chameleon')}
             size="lg"
             style={styles.gameButton}
           />
           
           <Button
-            title="Question Chameleon"
+            title="Question Game"
             onPress={() => handleGameModePress('Question Chameleon')}
             size="lg"
             style={styles.gameButton}
           />
           
           <Button
-            title="WaveLength"
+            title="Frequency"
             onPress={() => handleGameModePress('WaveLength')}
             size="lg"
             style={styles.gameButton}

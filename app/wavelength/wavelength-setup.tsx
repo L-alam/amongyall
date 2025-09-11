@@ -1,20 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, Animated, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Alert, Animated, Dimensions, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { playerStorageService } from '../../lib/playerStorageService';
 
-import { colors, spacing, layout, typography } from '../../constants/theme';
-import { 
-  textStyles, 
-  layoutStyles, 
-  createButtonStyle, 
-  createButtonTextStyle,
-  createInputStyle,
-  combineStyles 
-} from '../../utils/styles';
 import { Button } from '../../components/Button';
+import { colors, layout, spacing, typography } from '../../constants/theme';
+import {
+  createInputStyle
+} from '../../utils/styles';
 
 // Try to import gesture handler - with fallback
 let PanGestureHandler, State;
@@ -197,10 +192,6 @@ export default function WavelengthSetup() {
     router.push('/');
   };
 
-  const handleBackToHome = () => {
-    router.push('/');
-  };
-
   const handleNext = async () => {
     // Validate minimum players
     if (players.length < 3) {
@@ -280,7 +271,7 @@ export default function WavelengthSetup() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Fixed Header - Higher on screen */}
       <View style={[styles.header, isSmallScreen && styles.headerSmall]}>
-        <TouchableOpacity style={styles.headerButton} onPress={handleBackToHome}>
+        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
           <Ionicons 
             name="arrow-back" 
             size={isSmallScreen ? layout.iconSize.md : layout.iconSize.lg} 
