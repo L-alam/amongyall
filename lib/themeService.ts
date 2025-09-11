@@ -5,6 +5,7 @@ import { supabase } from './supabase';
 const ANONYMOUS_THEME_LIMIT = 3;
 
 export interface Theme {
+  words: any;
   id: string;
   name: string;
   is_premium: boolean;

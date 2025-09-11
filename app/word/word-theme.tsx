@@ -1,18 +1,18 @@
 // Screen that allows user to choose number of cards, theme, random theme
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Dimensions, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-import { colors, spacing, layout, typography } from '../../constants/theme';
-import { 
-  textStyles, 
-  layoutStyles, 
-  combineStyles,
-} from '../../utils/styles';
 import { Button } from '../../components/Button';
-import { getAllThemeNames, getRandomWordsFromTheme, getUserCustomThemes, deleteCustomTheme, Theme } from '../../lib/themeService';
+import { colors, layout, spacing, typography } from '../../constants/theme';
+import { Theme, deleteCustomTheme, getAllThemeNames, getRandomWordsFromTheme, getUserCustomThemes } from '../../lib/themeService';
+import {
+  combineStyles,
+  layoutStyles,
+  textStyles,
+} from '../../utils/styles';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -38,6 +38,7 @@ export default function WordTheme() {
   const [customThemesExpanded, setCustomThemesExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSelectingRandom, setIsSelectingRandom] = useState(false);
+  const [previewNumCards, setPreviewNumCards] = useState(initialNumCards);
 
   // Card options for bubble selection
   const CARD_OPTIONS = [4, 6, 8, 10];
@@ -235,6 +236,18 @@ export default function WordTheme() {
     }
   };
 
+  const getDisplayCardCount = (themeName: string) => {
+    const preview = themePreviews[themeName];
+    if (!preview || !preview.words) return previewNumCards;
+    
+    // Return the minimum of selected cards or available cards in theme
+    return Math.min(previewNumCards, preview.words.length);
+  };
+
+  useEffect(() => {
+    setPreviewNumCards(numCards);
+  }, [numCards]);
+
   const handleCreateCustomTheme = () => {
     router.push({
       pathname: '/word/word-custom-theme',
@@ -316,6 +329,10 @@ export default function WordTheme() {
     );
   };
 
+  const isCustomTheme = (themeName: string) => {
+    return customThemes.some(customTheme => customTheme.name === themeName);
+  };
+
   const refreshThemePreview = (themeName: string) => {
     loadThemePreview(themeName, true);
   };
@@ -347,7 +364,7 @@ export default function WordTheme() {
     if (theme.name.toLowerCase().includes(searchQuery.toLowerCase())) {
       return true;
     }
-    
+  
     // Check if any words in the theme match
     const preview = themePreviews[theme.name];
     if (preview && preview.words.length > 0) {
@@ -400,19 +417,21 @@ export default function WordTheme() {
           <View style={styles.themePreview}>
             <View style={styles.previewHeader}>
               <Text style={styles.previewTitle}>
-                {theme} Preview ({numCards} cards)
+                {theme} Preview ({previewNumCards} cards)
               </Text>
-              <TouchableOpacity 
-                style={styles.refreshButton} 
-                onPress={() => refreshThemePreview(theme)}
-                disabled={preview?.loading}
-              >
-                {preview?.loading ? (
-                  <ActivityIndicator size="small" color={colors.secondary} />
-                ) : (
-                  <Ionicons name="refresh" size={layout.iconSize.sm} color={colors.secondary} />
-                )}
-              </TouchableOpacity>
+              {!isCustomTheme(theme) && (
+                <TouchableOpacity 
+                  style={styles.refreshButton} 
+                  onPress={() => refreshThemePreview(theme)}
+                  disabled={preview?.loading}
+                >
+                  {preview?.loading ? (
+                    <ActivityIndicator size="small" color={colors.secondary} />
+                  ) : (
+                    <Ionicons name="refresh" size={layout.iconSize.sm} color={colors.secondary} />
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
             
             {/* Two-column grid for preview cards */}
@@ -442,7 +461,7 @@ export default function WordTheme() {
     const isSelected = selectedTheme === theme.name;
     const isExpanded = expandedTheme === theme.name;
     const preview = themePreviews[theme.name];
-
+    
     return (
       <View style={styles.themeItemContainer}>
         <View style={styles.themeItemRow}>
@@ -493,19 +512,9 @@ export default function WordTheme() {
           <View style={styles.themePreview}>
             <View style={styles.previewHeader}>
               <Text style={styles.previewTitle}>
-                {theme.name} Preview ({numCards} cards)
+                {theme.name} Preview
               </Text>
-              <TouchableOpacity 
-                style={styles.refreshButton} 
-                onPress={() => refreshThemePreview(theme.name)}
-                disabled={preview?.loading}
-              >
-                {preview?.loading ? (
-                  <ActivityIndicator size="small" color={colors.secondary} />
-                ) : (
-                  <Ionicons name="refresh" size={layout.iconSize.sm} color={colors.secondary} />
-                )}
-              </TouchableOpacity>
+              {/* No refresh button for custom themes */}
             </View>
             
             {/* Two-column grid for preview cards */}
