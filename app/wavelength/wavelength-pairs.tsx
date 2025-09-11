@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { colors, layout, spacing, typography } from '../../constants/theme';
@@ -295,11 +295,7 @@ export default function WavelengthPairs() {
   }
 
   return (
-    <KeyboardAvoidingView 
-      style={layoutStyles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
+    <View style={layoutStyles.container}>
       {/* Fixed Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
@@ -318,7 +314,7 @@ export default function WavelengthPairs() {
         </Text>
       </View>
 
-      {/* Scrollable Content */}
+      {/* Scrollable Content Area */}
       <ScrollView 
         style={styles.scrollableContent}
         contentContainerStyle={styles.scrollContentContainer}
@@ -391,15 +387,15 @@ export default function WavelengthPairs() {
         {/* Search Field */}
         <View style={styles.searchContainer}>
           <Ionicons 
-            name="search-outline" 
+            name="search" 
             size={layout.iconSize.sm} 
-            color={colors.gray500} 
+            color={colors.gray400} 
             style={styles.searchIcon}
           />
           <TextInput
             style={styles.searchInput}
             placeholder="Search word pairs..."
-            placeholderTextColor={colors.gray500}
+            placeholderTextColor={colors.gray400}
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCapitalize="none"
@@ -413,7 +409,7 @@ export default function WavelengthPairs() {
               <Ionicons 
                 name="close-circle" 
                 size={layout.iconSize.sm} 
-                color={colors.gray500} 
+                color={colors.gray400} 
               />
             </TouchableOpacity>
           )}
@@ -434,7 +430,7 @@ export default function WavelengthPairs() {
         ) : (
           <View style={styles.noResultsContainer}>
             <Ionicons 
-              name="search-outline" 
+              name="search" 
               size={48} 
               color={colors.gray400} 
             />
@@ -540,7 +536,7 @@ export default function WavelengthPairs() {
           </View>
         </View>
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -670,15 +666,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
 
-  // Search Field
+  // Search Field - matching word-theme.tsx styling
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.gray100,
+    backgroundColor: colors.white,
     borderRadius: 8,
     paddingHorizontal: spacing.md,
     marginHorizontal: spacing.lg,
-    marginVertical: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: colors.gray200,
   },
@@ -691,7 +688,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: spacing.md,
     fontSize: typography.fontSize.base,
-    color: colors.gray800,
+    color: colors.gray900,
   },
 
   clearSearchButton: {
@@ -807,25 +804,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Fixed Bottom Container
+  // Fixed Bottom Container - matching word-theme.tsx style
   bottomContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: colors.gray200,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    paddingBottom: spacing.xl, // Extra padding for safe area
+    paddingBottom: spacing.xl,
+    gap: spacing.md,
   },
 
   actionButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
     gap: spacing.md,
   },
 
   actionButton: {
     flex: 1,
+    minHeight: 44,
   },
 
   selectButton: {
