@@ -13,8 +13,8 @@ import {
   createCustomPair,
   deleteCustomPair,
   getAllWavelengthPairs,
-  getCustomPairs,
-  getRandomPair
+  getRandomPair,
+  getUserCustomPairs
 } from '../../lib/wavelengthService';
 import {
   layoutStyles
@@ -54,7 +54,7 @@ export default function WavelengthPairs() {
       
       const [allPairsData, customPairsData] = await Promise.all([
         getAllWavelengthPairs(),
-        getCustomPairs()
+        getUserCustomPairs()
       ]);
       
       setAllPairs(allPairsData);

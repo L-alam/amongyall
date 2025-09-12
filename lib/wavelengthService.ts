@@ -1,7 +1,9 @@
+// lib/wavelengthService.ts 
 import { authService } from './authService';
 import { supabase } from './supabase';
 
-const ANONYMOUS_PAIR_LIMIT = 5;
+const ANONYMOUS_PAIR_LIMIT = 10; // Updated to 10
+const AUTHENTICATED_PAIR_LIMIT = 10; // New limit for authenticated users
 
 export interface WavelengthPair {
   id: string;
@@ -17,11 +19,13 @@ export interface WordPairs {
   negative: string;
 }
 
-// Get all wavelength pairs
+// Get all wavelength pairs (ONLY built-in pairs for main feed)
 export const getAllWavelengthPairs = async (): Promise<WavelengthPair[]> => {
   const { data, error } = await supabase
     .from('pairs')
     .select('*')
+    // FIXED: Only return built-in pairs (is_custom = false OR NULL)
+    .or('is_custom.is.null,is_custom.eq.false')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -32,12 +36,12 @@ export const getAllWavelengthPairs = async (): Promise<WavelengthPair[]> => {
   return data || [];
 };
 
-// Get only built-in (non-custom) pairs
+// Get only built-in (non-custom) pairs - EXPLICIT function for main feed
 export const getBuiltInPairs = async (): Promise<WavelengthPair[]> => {
   const { data, error } = await supabase
     .from('pairs')
     .select('*')
-    .eq('is_custom', false)
+    .or('is_custom.is.null,is_custom.eq.false')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -48,23 +52,47 @@ export const getBuiltInPairs = async (): Promise<WavelengthPair[]> => {
   return data || [];
 };
 
-// Get only custom pairs
-export const getCustomPairs = async (): Promise<WavelengthPair[]> => {
-  const { data, error } = await supabase
-    .from('pairs')
-    .select('*')
-    .eq('is_custom', true)
-    .order('created_at', { ascending: false });
+// REMOVED: getCustomPairs function that returned ALL custom pairs
+// This was causing the privacy issue where users could see each other's custom pairs
 
-  if (error) {
-    console.error('Error fetching custom pairs:', error);
-    throw error;
+// Check pair limit for ALL users (anonymous and authenticated)
+export const checkPairLimit = async (): Promise<{ canCreate: boolean; count: number; limit: number }> => {
+  const userId = authService.getUserId();
+  
+  let query = supabase
+    .from('pairs')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_custom', true);
+
+  // Apply user-specific filter
+  if (userId) {
+    query = query.eq('created_by', userId);
+  } else {
+    query = query.is('created_by', null);
   }
 
-  return data || [];
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error checking pair count:', error);
+    const limit = userId ? AUTHENTICATED_PAIR_LIMIT : ANONYMOUS_PAIR_LIMIT;
+    return { canCreate: false, count: 0, limit };
+  }
+
+  const count = data?.length || 0;
+  const limit = userId ? AUTHENTICATED_PAIR_LIMIT : ANONYMOUS_PAIR_LIMIT;
+  
+  return {
+    canCreate: count < limit,
+    count,
+    limit
+  };
 };
 
-// Get user's custom pairs (authenticated users only)
+// Legacy function name - kept for compatibility but updated logic
+export const checkAnonymousPairLimit = checkPairLimit;
+
+// Get user's custom pairs (works for both anonymous and authenticated users)
 export const getUserCustomPairs = async (): Promise<WavelengthPair[]> => {
   const userId = authService.getUserId();
   
@@ -103,7 +131,7 @@ export const getUserCustomPairs = async (): Promise<WavelengthPair[]> => {
   return data || [];
 };
 
-// Get anonymous custom pairs (created_by is null)
+// Get anonymous custom pairs (created_by is null) - ADMIN USE ONLY
 export const getAnonymousCustomPairs = async (): Promise<WavelengthPair[]> => {
   const { data, error } = await supabase
     .from('pairs')
@@ -120,15 +148,15 @@ export const getAnonymousCustomPairs = async (): Promise<WavelengthPair[]> => {
   return data || [];
 };
 
-// Get a random pair from all pairs
+// Get a random pair from built-in pairs only (for main feed)
 export const getRandomPair = async (): Promise<WordPairs | null> => {
   try {
-    const allPairs = await getAllWavelengthPairs();
+    const builtInPairs = await getBuiltInPairs(); // FIXED: Use built-in pairs only
     
-    if (allPairs.length === 0) return null;
+    if (builtInPairs.length === 0) return null;
     
-    const randomIndex = Math.floor(Math.random() * allPairs.length);
-    const selectedPair = allPairs[randomIndex];
+    const randomIndex = Math.floor(Math.random() * builtInPairs.length);
+    const selectedPair = builtInPairs[randomIndex];
     
     return {
       positive: selectedPair.term_0,
@@ -160,16 +188,16 @@ export const getRandomBuiltInPair = async (): Promise<WordPairs | null> => {
   }
 };
 
-// Get multiple random pairs
-export const getRandomPairs = async (count: number, customOnly: boolean = false): Promise<WordPairs[]> => {
+// Get multiple random pairs from built-in pairs only
+export const getRandomPairs = async (count: number): Promise<WordPairs[]> => {
   try {
-    const allPairs = customOnly ? await getCustomPairs() : await getAllWavelengthPairs();
+    const builtInPairs = await getBuiltInPairs(); // FIXED: Use built-in pairs only
     
-    if (allPairs.length === 0) return [];
+    if (builtInPairs.length === 0) return [];
     
     // Shuffle and take requested count
-    const shuffled = [...allPairs].sort(() => Math.random() - 0.5);
-    const selectedPairs = shuffled.slice(0, Math.min(count, allPairs.length));
+    const shuffled = [...builtInPairs].sort(() => Math.random() - 0.5);
+    const selectedPairs = shuffled.slice(0, Math.min(count, builtInPairs.length));
     
     return selectedPairs.map(pair => ({
       positive: pair.term_0,
@@ -183,6 +211,13 @@ export const getRandomPairs = async (count: number, customOnly: boolean = false)
 
 // Create a new custom pair (works with or without authentication)
 export const createCustomPair = async (term0: string, term1: string): Promise<WavelengthPair> => {
+  // Check pair limit for ALL users
+  const limitCheck = await checkPairLimit();
+  
+  if (!limitCheck.canCreate) {
+    throw new Error(`PAIR_LIMIT_REACHED:${limitCheck.count}:${limitCheck.limit}`);
+  }
+
   // Validate input
   if (!term0?.trim() || !term1?.trim()) {
     throw new Error('Both terms must be provided and cannot be empty');
@@ -222,14 +257,30 @@ export const createCustomPair = async (term0: string, term1: string): Promise<Wa
     throw error;
   }
 
-  console.log('Pair created successfully:', `${newPair.term_0} / ${newPair.term_1}`);
+  console.log('Pair created successfully');
   return newPair;
+};
+
+// Check if a pair already exists
+export const pairExists = async (term0: string, term1: string): Promise<boolean> => {
+  const { data, error } = await supabase
+    .from('pairs')
+    .select('id')
+    .or(`and(term_0.eq.${term0},term_1.eq.${term1}),and(term_0.eq.${term1},term_1.eq.${term0})`)
+    .limit(1);
+
+  if (error) {
+    console.error('Error checking if pair exists:', error);
+    return false;
+  }
+
+  return (data && data.length > 0) ?? false;
 };
 
 // Delete a custom pair
 export const deleteCustomPair = async (pairId: string): Promise<void> => {
   const userId = authService.getUserId();
-
+  
   // Build the delete query
   let query = supabase
     .from('pairs')
@@ -238,7 +289,7 @@ export const deleteCustomPair = async (pairId: string): Promise<void> => {
     .eq('is_custom', true);
 
   // If user is authenticated, only allow deleting their own pairs
-  // If not authenticated, allow deleting anonymous pairs
+  // If not authenticated, allow deleting anonymous pairs (created_by is null)
   if (userId) {
     query = query.eq('created_by', userId);
   } else {
@@ -251,66 +302,6 @@ export const deleteCustomPair = async (pairId: string): Promise<void> => {
     console.error('Error deleting custom pair:', error);
     throw error;
   }
-};
-
-// Update a custom pair
-export const updateCustomPair = async (pairId: string, term0: string, term1: string): Promise<WavelengthPair> => {
-  // Validate input
-  if (!term0?.trim() || !term1?.trim()) {
-    throw new Error('Both terms must be provided and cannot be empty');
-  }
-
-  const userId = authService.getUserId();
-
-  // Build the update query
-  let query = supabase
-    .from('pairs')
-    .update({
-      term_0: term0.trim(),
-      term_1: term1.trim(),
-    })
-    .eq('id', pairId)
-    .eq('is_custom', true);
-
-  // Ensure user can only update their own pairs
-  if (userId) {
-    query = query.eq('created_by', userId);
-  } else {
-    query = query.is('created_by', null);
-  }
-
-  const { data: updatedPair, error } = await query.select().single();
-
-  if (error) {
-    console.error('Error updating custom pair:', error);
-    throw error;
-  }
-
-  if (!updatedPair) {
-    throw new Error('Pair not found or you do not have permission to update it');
-  }
-
-  return updatedPair;
-};
-
-// Check if a pair already exists
-export const pairExists = async (term0: string, term1: string): Promise<boolean> => {
-  const { data, error } = await supabase
-    .from('pairs')
-    .select('id')
-    .or(`and(term_0.eq.${term0.trim()},term_1.eq.${term1.trim()}),and(term_0.eq.${term1.trim()},term_1.eq.${term0.trim()})`)
-    .single();
-
-  if (error && error.code === 'PGRST116') { // Not found
-    return false;
-  }
-
-  if (error) {
-    console.error('Error checking pair existence:', error);
-    throw error;
-  }
-
-  return !!data;
 };
 
 // Get pairs count
@@ -364,32 +355,4 @@ export const convertToWordPairs = (pair: WavelengthPair): WordPairs => {
 // Convert multiple database pairs to game format
 export const convertToWordPairsArray = (pairs: WavelengthPair[]): WordPairs[] => {
   return pairs.map(convertToWordPairs);
-};
-
-
-export const checkAnonymousPairLimit = async (): Promise<{ canCreate: boolean; count: number; limit: number }> => {
-  const userId = authService.getUserId();
-  
-  if (userId) {
-    return { canCreate: true, count: 0, limit: 0 };
-  }
-  
-  const { data, error } = await supabase
-    .from('pairs')
-    .select('id', { count: 'exact', head: true })
-    .eq('is_custom', true)
-    .is('created_by', null);
-
-  if (error) {
-    console.error('Error checking anonymous pair count:', error);
-    return { canCreate: false, count: 0, limit: ANONYMOUS_PAIR_LIMIT };
-  }
-
-  const count = data?.length || 0;
-  
-  return {
-    canCreate: count < ANONYMOUS_PAIR_LIMIT,
-    count,
-    limit: ANONYMOUS_PAIR_LIMIT
-  };
 };

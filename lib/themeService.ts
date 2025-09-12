@@ -1,8 +1,9 @@
-// lib/themeService.ts (Fixed - Works without authentication)
+// lib/themeService.ts 
 import { authService } from './authService';
 import { supabase } from './supabase';
 
-const ANONYMOUS_THEME_LIMIT = 3;
+const ANONYMOUS_THEME_LIMIT = 10; // Updated to 10
+const AUTHENTICATED_THEME_LIMIT = 10; // New limit for authenticated users
 
 export interface Theme {
   words: any;
@@ -25,11 +26,13 @@ export interface ThemeWithWords extends Theme {
   words: string[];
 }
 
-// Get all themes
+// Get all themes (ONLY built-in themes for main feed)
 export const getAllThemes = async (): Promise<Theme[]> => {
   const { data, error } = await supabase
     .from('themes')
     .select('*')
+    // FIXED: Only return built-in themes (NULL created_at and created_by OR is_custom = false)
+    .or('is_custom.is.null,is_custom.eq.false')
     .order('name');
 
   if (error) {
@@ -40,9 +43,25 @@ export const getAllThemes = async (): Promise<Theme[]> => {
   return data || [];
 };
 
-// Get all theme names
+// NEW: Get only built-in themes explicitly
+export const getBuiltInThemes = async (): Promise<Theme[]> => {
+  const { data, error } = await supabase
+    .from('themes')
+    .select('*')
+    .or('is_custom.is.null,is_custom.eq.false')
+    .order('name');
+
+  if (error) {
+    console.error('Error fetching built-in themes:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+// Get all theme names (ONLY built-in themes for dropdown)
 export const getAllThemeNames = async (): Promise<string[]> => {
-  const themes = await getAllThemes();
+  const themes = await getBuiltInThemes(); // FIXED: Use built-in themes only
   return themes.map(theme => theme.name);
 };
 
@@ -124,15 +143,113 @@ export const getThemeWithWords = async (themeName: string): Promise<ThemeWithWor
   };
 };
 
-export const createCustomTheme = async (themeName: string, words: string[]): Promise<Theme> => {
-  // Check anonymous user limit first
-  const limitCheck = await checkAnonymousThemeLimit();
+// Check theme limit for ALL users (anonymous and authenticated)
+export const checkThemeLimit = async (): Promise<{ canCreate: boolean; count: number; limit: number }> => {
+  const userId = authService.getUserId();
   
-  if (!limitCheck.canCreate) {
-    throw new Error(`ANONYMOUS_LIMIT_REACHED:${limitCheck.count}:${limitCheck.limit}`);
+  let query = supabase
+    .from('themes')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_custom', true);
+
+  // Apply user-specific filter
+  if (userId) {
+    query = query.eq('created_by', userId);
+  } else {
+    query = query.is('created_by', null);
   }
 
-  // Rest of your existing createCustomTheme function...
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error checking theme count:', error);
+    const limit = userId ? AUTHENTICATED_THEME_LIMIT : ANONYMOUS_THEME_LIMIT;
+    return { canCreate: false, count: 0, limit };
+  }
+
+  const count = data?.length || 0;
+  const limit = userId ? AUTHENTICATED_THEME_LIMIT : ANONYMOUS_THEME_LIMIT;
+  
+  return {
+    canCreate: count < limit,
+    count,
+    limit
+  };
+};
+
+// Legacy function name - kept for compatibility but updated logic
+export const checkAnonymousThemeLimit = checkThemeLimit;
+
+// Get user's custom themes (works for both anonymous and authenticated users)
+export const getUserCustomThemes = async (): Promise<Theme[]> => {
+  const userId = authService.getUserId();
+  
+  if (!userId) {
+    // If no user ID, return anonymous themes (themes with created_by = null)
+    console.log('No user ID - fetching anonymous themes');
+    
+    const { data, error } = await supabase
+      .from('themes')
+      .select('*')
+      .eq('is_custom', true)
+      .is('created_by', null)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching anonymous custom themes:', error);
+      throw error;
+    }
+
+    console.log('Found anonymous themes:', data?.length || 0);
+    return data || [];
+  }
+
+  // User is authenticated - return their themes
+  console.log('Fetching themes for user:', userId);
+  const { data, error } = await supabase
+    .from('themes')
+    .select('*')
+    .eq('is_custom', true)
+    .eq('created_by', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching user custom themes:', error);
+    throw error;
+  }
+
+  console.log('Found user themes:', data?.length || 0);
+  return data || [];
+};
+
+// REMOVED: getAllCustomThemes function that was causing the privacy issue
+// This function was returning ALL custom themes, allowing users to see each other's items
+
+// Get themes created by anonymous users (no created_by) - ADMIN USE ONLY
+export const getAnonymousCustomThemes = async (): Promise<Theme[]> => {
+  const { data, error } = await supabase
+    .from('themes')
+    .select('*')
+    .eq('is_custom', true)
+    .is('created_by', null)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching anonymous custom themes:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+export const createCustomTheme = async (themeName: string, words: string[]): Promise<Theme> => {
+  // Check theme limit for ALL users
+  const limitCheck = await checkThemeLimit();
+  
+  if (!limitCheck.canCreate) {
+    throw new Error(`THEME_LIMIT_REACHED:${limitCheck.count}:${limitCheck.limit}`);
+  }
+
   const userId = authService.getUserId();
   
   console.log('Creating theme with user ID:', userId || 'anonymous');
@@ -199,111 +316,6 @@ export const createCustomTheme = async (themeName: string, words: string[]): Pro
 
   console.log('Theme created successfully:', newTheme.name);
   return newTheme;
-};
-
-// Check if anonymous user has reached their limit
-export const checkAnonymousThemeLimit = async (): Promise<{ canCreate: boolean; count: number; limit: number }> => {
-  const userId = authService.getUserId();
-  
-  // If user is authenticated, they have no limits
-  if (userId) {
-    return { canCreate: true, count: 0, limit: 0 };
-  }
-  
-  // Count anonymous themes (created_by is null)
-  const { data, error } = await supabase
-    .from('themes')
-    .select('id', { count: 'exact', head: true })
-    .eq('is_custom', true)
-    .is('created_by', null);
-
-  if (error) {
-    console.error('Error checking anonymous theme count:', error);
-    return { canCreate: false, count: 0, limit: ANONYMOUS_THEME_LIMIT };
-  }
-
-  const count = data?.length || 0;
-  
-  return {
-    canCreate: count < ANONYMOUS_THEME_LIMIT,
-    count,
-    limit: ANONYMOUS_THEME_LIMIT
-  };
-};
-
-// Get user's custom themes (works for both anonymous and authenticated users)
-export const getUserCustomThemes = async (): Promise<Theme[]> => {
-  const userId = authService.getUserId();
-  
-  if (!userId) {
-    // If no user ID, return anonymous themes (themes with created_by = null)
-    console.log('No user ID - fetching anonymous themes');
-    
-    const { data, error } = await supabase
-      .from('themes')
-      .select('*')
-      .eq('is_custom', true)
-      .is('created_by', null)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching anonymous custom themes:', error);
-      throw error;
-    }
-
-    console.log('Found anonymous themes:', data?.length || 0);
-    return data || [];
-  }
-
-  // User is authenticated - return their themes
-  console.log('Fetching themes for user:', userId);
-  const { data, error } = await supabase
-    .from('themes')
-    .select('*')
-    .eq('is_custom', true)
-    .eq('created_by', userId)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching user custom themes:', error);
-    throw error;
-  }
-
-  console.log('Found user themes:', data?.length || 0);
-  return data || [];
-};
-
-// Get all custom themes (for browsing - includes anonymous themes)
-export const getAllCustomThemes = async (): Promise<Theme[]> => {
-  const { data, error } = await supabase
-    .from('themes')
-    .select('*')
-    .eq('is_custom', true)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching custom themes:', error);
-    throw error;
-  }
-
-  return data || [];
-};
-
-// Get themes created by anonymous users (no created_by)
-export const getAnonymousCustomThemes = async (): Promise<Theme[]> => {
-  const { data, error } = await supabase
-    .from('themes')
-    .select('*')
-    .eq('is_custom', true)
-    .is('created_by', null)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching anonymous custom themes:', error);
-    throw error;
-  }
-
-  return data || [];
 };
 
 export const deleteCustomTheme = async (themeId: string): Promise<void> => {
