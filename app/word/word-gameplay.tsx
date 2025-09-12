@@ -1,17 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Alert, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useInterstitialAd } from '../../components/InterstitialAd';
 
-import { colors, spacing, layout, typography } from '../../constants/theme';
-import { 
-  textStyles, 
-  layoutStyles, 
-  combineStyles,
-} from '../../utils/styles';
-import { Button } from '../../components/Button';
-import { getRandomWordsFromTheme } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button } from '../../components/Button';
+import { colors, getRandomWordsFromTheme, layout, spacing, typography } from '../../constants/theme';
+import {
+  combineStyles,
+  layoutStyles,
+  textStyles,
+} from '../../utils/styles';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -21,6 +20,7 @@ export default function WordGameplay() {
   const gameWord = params.gameWord as string || '';
   const spyIndex = parseInt(params.spyIndex as string) || 0;
   const players = JSON.parse(params.players as string || '[]') as string[];
+  const { showAd } = useInterstitialAd();
   
   // Get words from params, or fallback to generating new ones if missing
   let words: string[] = [];
@@ -55,6 +55,13 @@ export default function WordGameplay() {
 
   const handleBack = () => {
     router.push('/');
+  };
+
+  const handleGoBackHome = () => {
+    // Show interstitial ad before going home
+    showAd(() => {
+      router.push('/'); 
+    });
   };
 
   const handleWordPress = (word: string) => {
@@ -257,7 +264,7 @@ export default function WordGameplay() {
             variant="primary"
             size="lg"
             icon="home-outline"
-            onPress={handleBack}
+            onPress={handleGoBackHome}
             style={styles.backButton}
           />
         </View>

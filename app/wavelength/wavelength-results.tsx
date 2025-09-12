@@ -7,6 +7,8 @@ import { Button } from '../../components/Button';
 import { colors, layout, spacing, typography } from '../../constants/theme';
 import { WordPairs } from '../../lib/wavelengthService';
 
+import { useInterstitialAd } from '../../components/InterstitialAd';
+
 
 interface PlayerVote {
     playerName: string;
@@ -73,6 +75,8 @@ export default function WavelengthResults() {
     // Parse goal zone values once and memoize them
     const goalZoneStart = useMemo(() => parseInt(params.goalZoneStart as string) || 8, [params.goalZoneStart]);
     const goalZoneEnd = useMemo(() => parseInt(params.goalZoneEnd as string) || 12, [params.goalZoneEnd]);
+
+    const { showAd } = useInterstitialAd();
     
     // Get the scale player from params
     const scalePlayer = useMemo(() => params.firstPlayer as string || '', [params.firstPlayer]);
@@ -256,9 +260,14 @@ export default function WavelengthResults() {
         setShowFinalScoreboard(true);
     };
 
+
     const handleBackToSetup = () => {
-        router.push('/wavelength/wavelength-setup');
-    };
+        // Show interstitial ad before going home
+        showAd(() => {
+          // This callback runs after ad closes
+          router.push('/wavelength/wavelength-setup'); // Navigate to home
+        });
+      };
 
     const handleNextRound = () => {
         const nextPlayerInfo = getNextPlayerInfo();

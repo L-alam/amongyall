@@ -18,6 +18,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { useInterstitialAd } from '../../components/InterstitialAd';
+
 const { width: screenWidth } = Dimensions.get('window');
 
 interface PlayerResponse {
@@ -135,6 +137,8 @@ export default function QuestionGameplay() {
   const [showImposterReveal, setShowImposterReveal] = useState(false);
   const [imposterRevealed, setImposterRevealed] = useState(false);
 
+  const { showAd } = useInterstitialAd();
+
   // Find the spy player
   const spyPlayer = responses.find(response => response.isSpy);
 
@@ -147,6 +151,15 @@ export default function QuestionGameplay() {
   const handleBack = () => {
     router.push('/');
   };
+
+  const handleGoBackHome = () => {
+    // Show interstitial ad before going home
+    showAd(() => {
+      // This callback runs after ad closes
+      router.push('/'); // Navigate to home
+    });
+  };
+
 
   const handleCardPress = (index: number) => {
     if (revealedCards[index]) return; // Already revealed, do nothing
@@ -228,7 +241,7 @@ export default function QuestionGameplay() {
       
 
         
-        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+        <TouchableOpacity style={styles.headerButton} onPress={handleGoBackHome}>
           <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
       </View>
@@ -302,7 +315,7 @@ export default function QuestionGameplay() {
             variant="primary"
             size="md"
             icon="home-outline"
-            onPress={handleBack}
+            onPress={handleGoBackHome}
             style={styles.backButton}
           />
         </View>

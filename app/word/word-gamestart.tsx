@@ -398,9 +398,8 @@ const styles = StyleSheet.create({
 
     // Flip card container
     flipCard: {
-      width: '80%',
+      width: '90%',
       height: Math.min(screenHeight * 0.5, 400),
-      maxWidth: 600,
       alignSelf: 'center',
       marginBottom: spacing.xl,
   },
@@ -517,7 +516,7 @@ const styles = StyleSheet.create({
     },
 
     nextButton: {
-      width: '80%',
+      width: '90%',
     },
 
     readyTitle: {

@@ -93,7 +93,7 @@ const GetProScreen: React.FC<GetProScreenProps> = ({ navigation }) => {
 
         {/* Pricing */}
         <View style={styles.pricingContainer}>
-          <Text style={styles.priceAmount}>$3</Text>
+          <Text style={styles.priceAmount}>$2.99</Text>
           <Text style={styles.pricePeriod}>per month</Text>
         </View>
 
