@@ -1,15 +1,39 @@
-// components/BannerAd.tsx
-import React, { useRef } from 'react';
-import { Platform } from 'react-native';
-import { BannerAd, BannerAdSize, TestIds, useForeground } from 'react-native-google-mobile-ads';
+// components/BannerAd.tsx (Expo Go Safe)
+import Constants from 'expo-constants';
+import React from 'react';
+import { Platform, Text, View } from 'react-native';
 
-const adUnitId = __DEV__ ? TestIds.ADAPTIVE_BANNER : 'ca-app-pub-8062066976620321/5683692937';
+// Check if we're in Expo Go
+const isExpoGo = Constants.appOwnership === 'expo';
 
 export default function AdBanner() {
-  const bannerRef = useRef<BannerAd>(null);
+  // Always show placeholder in Expo Go
+  if (isExpoGo) {
+    return (
+      <View style={{
+        height: 50,
+        backgroundColor: '#f0f0f0',
+        justifyContent: 'center',
+        alignItems: 'center',
+        margin: 10,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderStyle: 'dashed',
+      }}>
+        <Text style={{ color: '#666', fontSize: 12 }}>
+          📱 Banner Ad (Will appear in TestFlight)
+        </Text>
+      </View>
+    );
+  }
 
-  // (iOS) WKWebView can terminate if app is in a "suspended state", resulting in an empty banner when app returns to foreground.
-  // Therefore it's advised to "manually" request a new ad when the app is foregrounded (https://groups.google.com/g/google-admob-ads-sdk/c/rwBpqOUr8m8).
+  // This won't run in Expo Go, but will work in TestFlight
+  const { BannerAd, BannerAdSize, TestIds, useForeground } = require('react-native-google-mobile-ads');
+  const adUnitId = __DEV__ ? TestIds.ADAPTIVE_BANNER : 'ca-app-pub-8062066976620321/5683692937';
+  
+  const bannerRef = React.useRef<any>(null);
+
   useForeground(() => {
     Platform.OS === 'ios' && bannerRef.current?.load();
   });

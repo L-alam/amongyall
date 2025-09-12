@@ -4,7 +4,7 @@
     "slug": "amongyall",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/amongyall_icon1.svg",
+    "icon": "./assets/images/amongyall_icon1.png",
     "scheme": "amongyall",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,

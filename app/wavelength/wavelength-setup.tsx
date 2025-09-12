@@ -11,8 +11,10 @@ import {
   createInputStyle
 } from '../../utils/styles';
 
+import AdBanner from '../../components/BannerAd';
+
 // Try to import gesture handler - with fallback
-let PanGestureHandler, State;
+let PanGestureHandler: React.JSX.IntrinsicAttributes | null, State: { END: any; } | null;
 try {
   const gestureHandler = require('react-native-gesture-handler');
   PanGestureHandler = gestureHandler.PanGestureHandler;
@@ -480,6 +482,12 @@ export default function WavelengthSetup() {
           ]}
         />
       </View>
+
+      {/* ADD THE BANNER HERE */}
+      <View style={styles.adContainer}>
+          <AdBanner />
+        </View>
+
     </SafeAreaView>
   );
 }
@@ -810,5 +818,13 @@ const styles = StyleSheet.create({
   
   nextButtonDisabled: {
     opacity: 0.5,
+  },
+
+  adContainer: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    paddingVertical: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray200,
   },
 });

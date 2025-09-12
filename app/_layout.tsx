@@ -1,19 +1,30 @@
-// app/_layout.tsx
+// app/_layout.tsx (Expo Go Safe)
+import Constants from 'expo-constants';
 import { Stack } from "expo-router";
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import mobileAds from 'react-native-google-mobile-ads';
 
 export default function RootLayout() {
   useEffect(() => {
-    // Initialize Google Mobile Ads
-    mobileAds()
-      .initialize()
-      .then(adapterStatuses => {
-        // Initialization complete!
-        console.log('Google Mobile Ads initialized');
-      });
+    // Only initialize AdMob if not in Expo Go
+    const isExpoGo = Constants.appOwnership === 'expo';
+    
+    if (!isExpoGo) {
+      // This will only run in TestFlight/production builds
+      try {
+        const mobileAds = require('react-native-google-mobile-ads').default;
+        mobileAds()
+          .initialize()
+          .then((adapterStatuses: any) => {
+            console.log('Google Mobile Ads initialized');
+          });
+      } catch (error) {
+        console.warn('Failed to initialize AdMob:', error);
+      }
+    } else {
+      console.log('Running in Expo Go - AdMob disabled');
+    }
   }, []);
 
   return (
