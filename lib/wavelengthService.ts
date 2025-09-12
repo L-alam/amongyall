@@ -61,17 +61,16 @@ export const checkPairLimit = async (): Promise<{ canCreate: boolean; count: num
   
   let query = supabase
     .from('pairs')
-    .select('id', { count: 'exact', head: true })
+    .select('*', { count: 'exact', head: true })
     .eq('is_custom', true);
 
-  // Apply user-specific filter
   if (userId) {
     query = query.eq('created_by', userId);
   } else {
     query = query.is('created_by', null);
   }
 
-  const { data, error } = await query;
+  const { count, error } = await query; // Fixed: use count instead of data
 
   if (error) {
     console.error('Error checking pair count:', error);
@@ -79,12 +78,12 @@ export const checkPairLimit = async (): Promise<{ canCreate: boolean; count: num
     return { canCreate: false, count: 0, limit };
   }
 
-  const count = data?.length || 0;
+  const actualCount = count || 0;
   const limit = userId ? AUTHENTICATED_PAIR_LIMIT : ANONYMOUS_PAIR_LIMIT;
   
   return {
-    canCreate: count < limit,
-    count,
+    canCreate: actualCount < limit,
+    count: actualCount,
     limit
   };
 };

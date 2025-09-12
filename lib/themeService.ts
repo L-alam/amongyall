@@ -149,7 +149,7 @@ export const checkThemeLimit = async (): Promise<{ canCreate: boolean; count: nu
   
   let query = supabase
     .from('themes')
-    .select('id', { count: 'exact', head: true })
+    .select('*', { count: 'exact', head: true }) // Changed from 'id' to '*'
     .eq('is_custom', true);
 
   // Apply user-specific filter
@@ -159,7 +159,7 @@ export const checkThemeLimit = async (): Promise<{ canCreate: boolean; count: nu
     query = query.is('created_by', null);
   }
 
-  const { data, error } = await query;
+  const { count, error } = await query; // Use 'count' instead of 'data'
 
   if (error) {
     console.error('Error checking theme count:', error);
@@ -167,15 +167,18 @@ export const checkThemeLimit = async (): Promise<{ canCreate: boolean; count: nu
     return { canCreate: false, count: 0, limit };
   }
 
-  const count = data?.length || 0;
+  const actualCount = count || 0; // Use the count directly
   const limit = userId ? AUTHENTICATED_THEME_LIMIT : ANONYMOUS_THEME_LIMIT;
   
+  console.log(`Theme count check - User: ${userId || 'anonymous'}, Count: ${actualCount}, Limit: ${limit}`);
+  
   return {
-    canCreate: count < limit,
-    count,
+    canCreate: actualCount < limit,
+    count: actualCount,
     limit
   };
 };
+
 
 // Legacy function name - kept for compatibility but updated logic
 export const checkAnonymousThemeLimit = checkThemeLimit;

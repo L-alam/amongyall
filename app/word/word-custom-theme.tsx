@@ -78,7 +78,6 @@ export default function WordCustomTheme() {
   const getThemeNameValidation = () => {
     const trimmedName = themeName.trim();
     if (trimmedName.length === 0) return { isValid: false, message: '' };
-    if (trimmedName.length < 3) return { isValid: false, message: 'Theme name must be at least 3 characters' };
     if (trimmedName.length > 50) return { isValid: false, message: 'Theme name must be 50 characters or less' };
     return { isValid: true, message: '' };
   };
@@ -332,45 +331,6 @@ export default function WordCustomTheme() {
         contentContainerStyle={styles.scrollContentContainer}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Theme Limit Warning */}
-        {themeLimit && (
-          <View style={[
-            styles.limitWarningContainer, 
-            isAtLimit && styles.limitWarningContainerError,
-            isApproachingLimit && !isAtLimit && styles.limitWarningContainerWarning
-          ]}>
-            <View style={styles.limitWarningHeader}>
-              <Ionicons 
-                name={isAtLimit ? "warning" : "information-circle"} 
-                size={layout.iconSize.sm} 
-                color={isAtLimit ? colors.error : isApproachingLimit ? colors.warning : colors.primary} 
-              />
-              <Text style={[
-                styles.limitWarningTitle,
-                isAtLimit && styles.limitWarningTitleError,
-                isApproachingLimit && !isAtLimit && styles.limitWarningTitleWarning
-              ]}>
-                Custom Theme Limit: {themeLimit.count}/{themeLimit.limit}
-              </Text>
-            </View>
-            {isAtLimit ? (
-              <Text style={styles.limitWarningText}>
-                You've reached the maximum number of custom themes. {isAuthenticated ? 
-                  'Delete an existing theme to create a new one.' : 
-                  'Log in to get your own 10 custom themes, or delete an existing theme to create a new one.'
-                }
-              </Text>
-            ) : isApproachingLimit ? (
-              <Text style={styles.limitWarningText}>
-                You're approaching your theme limit. You can create {themeLimit.limit - themeLimit.count} more.
-              </Text>
-            ) : (
-              <Text style={styles.limitWarningText}>
-                You can create {themeLimit.limit - themeLimit.count} more custom themes.
-              </Text>
-            )}
-          </View>
-        )}
 
         {/* Number of Cards Selection */}
         <View style={styles.cardSelectionContainer}>
@@ -510,6 +470,45 @@ export default function WordCustomTheme() {
             💡 Create your own custom word theme! Make sure all words are filled in and your theme name is unique. Use AI assistance for inspiration!
           </Text>
         </View>
+
+        {/* Theme Limit Warning */}
+        {themeLimit && (
+          <View style={[
+            styles.limitWarningContainer, 
+            isAtLimit && styles.limitWarningContainerError,
+            isApproachingLimit && !isAtLimit && styles.limitWarningContainerWarning
+          ]}>
+            <View style={styles.limitWarningHeader}>
+              <Ionicons 
+                name={isAtLimit ? "warning" : "information-circle"} 
+                size={layout.iconSize.sm} 
+                color={isAtLimit ? colors.error : isApproachingLimit ? colors.warning : colors.primary} 
+              />
+              <Text style={[
+                styles.limitWarningTitle,
+                isAtLimit && styles.limitWarningTitleError,
+                isApproachingLimit && !isAtLimit && styles.limitWarningTitleWarning
+              ]}>
+                Custom Theme Limit: {themeLimit.count}/{themeLimit.limit}
+              </Text>
+            </View>
+            {isAtLimit ? (
+              <Text style={styles.limitWarningText}>
+                You've reached the maximum number of custom themes. Delete an existing theme to create a new one.
+              </Text>
+            ) : isApproachingLimit ? (
+              <Text style={styles.limitWarningText}>
+                You're approaching your theme limit. You can create {themeLimit.limit - themeLimit.count} more.
+              </Text>
+            ) : (
+              <Text style={styles.limitWarningText}>
+                You can create {themeLimit.limit - themeLimit.count} more custom themes.
+              </Text>
+            )}
+          </View>
+        )}
+
+
       </ScrollView>
 
       {/* Fixed Bottom Buttons */}
@@ -558,7 +557,8 @@ const styles = StyleSheet.create({
     borderColor: colors.primary + '30',
     borderRadius: 8,
     padding: spacing.md,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
+    marginTop: spacing.lg,
   },
 
   limitWarningContainerWarning: {
