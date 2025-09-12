@@ -7,11 +7,11 @@ import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View 
 import { Button } from '../../components/Button';
 import { colors, layout, spacing, typography } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
-import { checkAnonymousThemeLimit, createCustomTheme } from '../../lib/themeService';
+import { createCustomTheme } from '../../lib/themeService';
 import {
-    createInputStyle,
-    layoutStyles,
-    textStyles
+  createInputStyle,
+  layoutStyles,
+  textStyles
 } from '../../utils/styles';
 
 export default function CreateThemeScreen() {
@@ -126,7 +126,7 @@ export default function CreateThemeScreen() {
       setNameError(themeValidation.message);
       return;
     }
-
+  
     if (!areAllWordsValid()) {
       Alert.alert(
         'Incomplete Words',
@@ -134,87 +134,84 @@ export default function CreateThemeScreen() {
       );
       return;
     }
-
-    // Check anonymous user limit BEFORE attempting to save
-    if (!isAuthenticated) {
-      try {
-        const limitCheck = await checkAnonymousThemeLimit();
-        if (!limitCheck.canCreate) {
-          Alert.alert(
-            'Theme Limit Reached',
-            `You've created ${limitCheck.count} out of ${limitCheck.limit} free custom themes. Log in to create unlimited themes and sync them across devices!`,
-            [
-              {
-                text: 'Continue as Guest',
-                style: 'cancel'
-              },
-              {
-                text: 'Log In with Google',
-                onPress: async () => {
-                  try {
-                    const { user, error: signInError } = await signInWithGoogle();
-                    if (signInError) {
-                      Alert.alert('Login Failed', 'Please try again.');
-                    } else if (user) {
-                      // After successful login, try saving again
-                      handleSaveTheme();
-                    }
-                  } catch (signInError) {
+  
+    // Check theme limit BEFORE attempting to save
+    try {
+      const limitCheck = await checkThemeLimit(); // Use the new function name
+      if (!limitCheck.canCreate) {
+        const userType = isAuthenticated ? 'You have' : 'You\'ve';
+        const loginPrompt = isAuthenticated ? '' : ' Log in to create unlimited themes and sync them across devices!';
+        
+        Alert.alert(
+          'Theme Limit Reached',
+          `${userType} created ${limitCheck.count} out of ${limitCheck.limit} custom themes.${loginPrompt}`,
+          [
+            {
+              text: isAuthenticated ? 'OK' : 'Continue as Guest',
+              style: 'cancel'
+            },
+            ...(isAuthenticated ? [] : [{
+              text: 'Log In with Google',
+              onPress: async () => {
+                try {
+                  const { user, error: signInError } = await signInWithGoogle();
+                  if (signInError) {
                     Alert.alert('Login Failed', 'Please try again.');
+                  } else if (user) {
+                    // After successful login, try saving again
+                    handleSaveTheme();
                   }
+                } catch (signInError) {
+                  Alert.alert('Login Failed', 'Please try again.');
                 }
               }
-            ]
-          );
-          return; // Exit early if limit reached
-        }
-      } catch (error) {
-        console.error('Error checking anonymous limit:', error);
-        Alert.alert('Error', 'Unable to check theme limit. Please try again.');
-        return;
+            }])
+          ]
+        );
+        return; // Exit early if limit reached
       }
+    } catch (error) {
+      console.error('Error checking theme limit:', error);
+      Alert.alert('Error', 'Unable to check theme limit. Please try again.');
+      return;
     }
-
+  
     setSaving(true);
     setNameError('');
-
+  
     try {
-      // Filter out empty words and trim whitespace
-      const cleanWords = words.map(word => word.trim()).filter(word => word.length > 0);
-      
-      const newTheme = await createCustomTheme(themeName.trim(), cleanWords);
+      const nonEmptyWords = words.filter(word => word.trim().length > 0);
+      await createCustomTheme(themeName.trim(), nonEmptyWords);
       
       Alert.alert(
-        'Theme Created!',
-        `Your custom theme "${themeName.trim()}" has been created successfully.`,
+        'Success!',
+        `Theme "${themeName.trim()}" has been created successfully.`,
         [
           {
-            text: 'Create Another',
-            onPress: () => {
-              setThemeName('');
-              setWords(Array(numCards).fill(''));
-            },
-          },
-          {
-            text: 'Done',
+            text: 'OK',
             onPress: () => {
               router.back();
-            },
-          },
+            }
+          }
         ]
       );
-    } catch (error) {
-      console.error('Error saving theme:', error);
+    } catch (error: any) {
+      console.error('Error creating theme:', error);
       
-      // Handle specific error types
-      if (error instanceof Error && error.message.includes('already exists')) {
-        setNameError('A theme with this name already exists. Please choose a different name.');
-      } else {
+      // Handle the new error format
+      if (error.message.includes('THEME_LIMIT_REACHED')) {
+        const [, count, limit] = error.message.split(':');
+        const userType = isAuthenticated ? 'You have' : 'You\'ve';
+        const loginPrompt = isAuthenticated ? '' : ' Log in to create unlimited themes!';
+        
         Alert.alert(
-          'Save Failed',
-          'Failed to save your custom theme. Please try again.',
-          [{ text: 'OK' }]
+          'Theme Limit Reached',
+          `${userType} created ${count} out of ${limit} custom themes.${loginPrompt}`
         );
+      } else if (error.message.includes('already exists')) {
+        setNameError('A theme with this name already exists');
+      } else {
+        Alert.alert('Error', 'Failed to create theme. Please try again.');
       }
     } finally {
       setSaving(false);

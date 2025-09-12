@@ -6,7 +6,7 @@ import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View 
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '../../components/Button';
 import { colors, layout, spacing, typography } from '../../constants/theme';
-import { checkAnonymousThemeLimit, createCustomTheme } from '../../lib/themeService'; // Add checkAnonymousThemeLimit import
+import { checkThemeLimit, createCustomTheme } from '../../lib/themeService'; // Updated import
 import {
   createInputStyle,
   layoutStyles,
@@ -24,9 +24,24 @@ export default function WordCustomTheme() {
   const [numCards, setNumCards] = useState(initialNumCards);
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState('');
+  const [themeLimit, setThemeLimit] = useState<{ count: number; limit: number } | null>(null);
 
   // Card options for bubble selection
   const CARD_OPTIONS = [4, 6, 8, 10];
+
+  // Check theme limit on component mount
+  useEffect(() => {
+    checkCurrentThemeLimit();
+  }, [isAuthenticated]);
+
+  const checkCurrentThemeLimit = async () => {
+    try {
+      const limitCheck = await checkThemeLimit();
+      setThemeLimit({ count: limitCheck.count, limit: limitCheck.limit });
+    } catch (error) {
+      console.error('Error checking theme limit:', error);
+    }
+  };
 
   // Update words array when numCards changes
   useEffect(() => {
@@ -97,6 +112,31 @@ export default function WordCustomTheme() {
     }
   };
 
+  const handleHome = () => {
+    // Check if user has unsaved changes
+    const hasChanges = themeName.trim().length > 0 || words.some(word => word.trim().length > 0);
+    
+    if (hasChanges) {
+      Alert.alert(
+        'Discard Changes?',
+        'You have unsaved changes. Are you sure you want to go back?',
+        [
+          {
+            text: 'Stay',
+            style: 'cancel',
+          },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => router.push('/'),
+          },
+        ]
+      );
+    } else {
+      router.push('/');
+    }
+  };
+
   const handleWordChange = (index: number, value: string) => {
     const newWords = [...words];
     newWords[index] = value;
@@ -137,44 +177,53 @@ export default function WordCustomTheme() {
       return;
     }
 
-    // Check anonymous user limit BEFORE attempting to save
-    if (!isAuthenticated) {
-      try {
-        const limitCheck = await checkAnonymousThemeLimit();
-        if (!limitCheck.canCreate) {
-          Alert.alert(
-            'Theme Limit Reached',
-            `You've created ${limitCheck.count} out of ${limitCheck.limit} free custom themes. Log in to create unlimited themes and sync them across devices!`,
-            [
-              {
-                text: 'Continue as Guest',
-                style: 'cancel'
-              },
-              {
-                text: 'Log In with Google',
-                onPress: async () => {
-                  try {
-                    const { user, error: signInError } = await signInWithGoogle();
-                    if (signInError) {
-                      Alert.alert('Login Failed', 'Please try again.');
-                    } else if (user) {
-                      // After successful login, try saving again
+    // Check theme limit BEFORE attempting to save
+    try {
+      const limitCheck = await checkThemeLimit();
+      if (!limitCheck.canCreate) {
+        const userType = isAuthenticated ? 'You have' : 'You\'ve';
+        const accountType = isAuthenticated ? 'account' : 'guest session';
+        const actionText = isAuthenticated ? 
+          'Delete an existing theme to create a new one.' : 
+          'Log in to get your own 10 custom themes, or delete an existing theme to create a new one.';
+        
+        Alert.alert(
+          'Theme Limit Reached',
+          `${userType} reached the maximum of ${limitCheck.limit} custom themes for this ${accountType}. ${actionText}`,
+          [
+            {
+              text: 'OK',
+              style: 'cancel'
+            },
+            ...(isAuthenticated ? [] : [{
+              text: 'Log In',
+              onPress: async () => {
+                try {
+                  const { user, error: signInError } = await signInWithGoogle();
+                  if (signInError) {
+                    Alert.alert('Login Failed', 'Please try again.');
+                  } else if (user) {
+                    // Refresh theme limit after login
+                    await checkCurrentThemeLimit();
+                    // Try saving again if they now have space
+                    const newLimitCheck = await checkThemeLimit();
+                    if (newLimitCheck.canCreate) {
                       handleSaveTheme();
                     }
-                  } catch (signInError) {
-                    Alert.alert('Login Failed', 'Please try again.');
                   }
+                } catch (signInError) {
+                  Alert.alert('Login Failed', 'Please try again.');
                 }
               }
-            ]
-          );
-          return; // Exit early if limit reached
-        }
-      } catch (error) {
-        console.error('Error checking anonymous limit:', error);
-        Alert.alert('Error', 'Unable to check theme limit. Please try again.');
-        return;
+            }])
+          ]
+        );
+        return; // Exit early if limit reached
       }
+    } catch (error) {
+      console.error('Error checking theme limit:', error);
+      Alert.alert('Error', 'Unable to check theme limit. Please try again.');
+      return;
     }
 
     setSaving(true);
@@ -185,6 +234,9 @@ export default function WordCustomTheme() {
       const cleanWords = words.map(word => word.trim()).filter(word => word.length > 0);
       
       const newTheme = await createCustomTheme(themeName.trim(), cleanWords);
+      
+      // Update theme limit count after successful creation
+      await checkCurrentThemeLimit();
       
       Alert.alert(
         'Theme Saved!',
@@ -214,11 +266,21 @@ export default function WordCustomTheme() {
           },
         ]
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving theme:', error);
       
-      // Handle specific error types
-      if (error instanceof Error && error.message.includes('already exists')) {
+      // Handle the new error format
+      if (error.message && error.message.includes('THEME_LIMIT_REACHED')) {
+        const [, count, limit] = error.message.split(':');
+        const userType = isAuthenticated ? 'You have' : 'You\'ve';
+        const accountType = isAuthenticated ? 'account' : 'guest session';
+        
+        Alert.alert(
+          'Theme Limit Reached',
+          `${userType} reached the maximum of ${limit} custom themes for this ${accountType}.`,
+          [{ text: 'OK' }]
+        );
+      } else if (error.message && error.message.includes('already exists')) {
         setNameError('A theme with this name already exists. Please choose a different name.');
       } else {
         Alert.alert(
@@ -247,6 +309,10 @@ export default function WordCustomTheme() {
   const themeValidation = getThemeNameValidation();
   const emptyWordCount = getEmptyWordCount();
 
+  // Check if user is approaching or at limit
+  const isApproachingLimit = themeLimit && themeLimit.count >= themeLimit.limit - 2;
+  const isAtLimit = themeLimit && themeLimit.count >= themeLimit.limit;
+
   return (
     <View style={styles.container}>
       {/* Fixed Header */}
@@ -255,11 +321,10 @@ export default function WordCustomTheme() {
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+        <TouchableOpacity style={styles.headerButton} onPress={handleHome}>
           <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
       </View>
-
 
       {/* Scrollable Content */}
       <ScrollView 
@@ -267,8 +332,47 @@ export default function WordCustomTheme() {
         contentContainerStyle={styles.scrollContentContainer}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Theme Limit Warning */}
+        {themeLimit && (
+          <View style={[
+            styles.limitWarningContainer, 
+            isAtLimit && styles.limitWarningContainerError,
+            isApproachingLimit && !isAtLimit && styles.limitWarningContainerWarning
+          ]}>
+            <View style={styles.limitWarningHeader}>
+              <Ionicons 
+                name={isAtLimit ? "warning" : "information-circle"} 
+                size={layout.iconSize.sm} 
+                color={isAtLimit ? colors.error : isApproachingLimit ? colors.warning : colors.primary} 
+              />
+              <Text style={[
+                styles.limitWarningTitle,
+                isAtLimit && styles.limitWarningTitleError,
+                isApproachingLimit && !isAtLimit && styles.limitWarningTitleWarning
+              ]}>
+                Custom Theme Limit: {themeLimit.count}/{themeLimit.limit}
+              </Text>
+            </View>
+            {isAtLimit ? (
+              <Text style={styles.limitWarningText}>
+                You've reached the maximum number of custom themes. {isAuthenticated ? 
+                  'Delete an existing theme to create a new one.' : 
+                  'Log in to get your own 10 custom themes, or delete an existing theme to create a new one.'
+                }
+              </Text>
+            ) : isApproachingLimit ? (
+              <Text style={styles.limitWarningText}>
+                You're approaching your theme limit. You can create {themeLimit.limit - themeLimit.count} more.
+              </Text>
+            ) : (
+              <Text style={styles.limitWarningText}>
+                You can create {themeLimit.limit - themeLimit.count} more custom themes.
+              </Text>
+            )}
+          </View>
+        )}
 
-          {/* Number of Cards Selection */}
+        {/* Number of Cards Selection */}
         <View style={styles.cardSelectionContainer}>
           <Text style={styles.cardSelectionHeader}>Number of Cards</Text>
           <View style={styles.cardOptionBubbles}>
@@ -292,137 +396,137 @@ export default function WordCustomTheme() {
           </View>
         </View>
           
-          {/* Theme Name Section */}
-          <View style={layoutStyles.section}>
-            <Text style={textStyles.h4}>Theme Name</Text>
-            <TextInput
-              style={[
-                styles.themeNameInput,
-                !themeValidation.isValid && themeName.trim().length > 0 && styles.inputError,
-                nameError.length > 0 && styles.inputError
-              ]}
-              placeholder="Enter a unique theme name..."
-              placeholderTextColor={colors.gray400}
-              value={themeName}
-              onChangeText={(text) => {
-                setThemeName(text);
-                setNameError('');
-              }}
-              maxLength={50}
-              autoCapitalize="words"
-              returnKeyType="next"
-            />
-            {(themeValidation.message || nameError) && (
-              <Text style={styles.errorText}>
-                {nameError || themeValidation.message}
-              </Text>
-            )}
-            <Text style={styles.characterCount}>
-              {themeName.length}/50 characters
-            </Text>
-          </View>
-
-          {/* Words Section */}
-          <View style={layoutStyles.section}>
-            <View style={styles.wordsHeader}>
-              <Text style={textStyles.h4}>Words</Text>
-              <TouchableOpacity 
-                style={styles.clearButton} 
-                onPress={clearAllWords}
-                disabled={words.every(word => word.trim().length === 0)}
-              >
-                <Ionicons 
-                  name="trash-outline" 
-                  size={layout.iconSize.sm} 
-                  color={words.every(word => word.trim().length === 0) ? colors.gray400 : colors.error} 
-                />
-                <Text style={[
-                  styles.clearButtonText,
-                  words.every(word => word.trim().length === 0) && styles.clearButtonTextDisabled
-                ]}>
-                  Clear All
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {emptyWordCount > 0 && (
-              <View style={styles.progressContainer}>
-                <Text style={styles.progressText}>
-                  {numCards - emptyWordCount} of {numCards} words completed
-                </Text>
-                <View style={styles.progressBar}>
-                  <View 
-                    style={[
-                      styles.progressFill,
-                      { width: `${((numCards - emptyWordCount) / numCards) * 100}%` }
-                    ]} 
-                  />
-                </View>
-              </View>
-            )}
-
-            <View style={styles.wordsGrid}>
-              {words.map((word, index) => (
-                <View key={index} style={styles.wordInputContainer}>
-                  <Text style={styles.wordLabel}>Word {index + 1}</Text>
-                  <TextInput
-                    style={[
-                      styles.wordInput,
-                      word.trim().length === 0 && styles.wordInputEmpty
-                    ]}
-                    placeholder={`Enter word ${index + 1}...`}
-                    placeholderTextColor={colors.gray400}
-                    value={word}
-                    onChangeText={(text) => handleWordChange(index, text)}
-                    autoCapitalize="words"
-                    returnKeyType={index === words.length - 1 ? "done" : "next"}
-                  />
-                  {word.trim().length > 0 && (
-                    <TouchableOpacity 
-                      style={styles.clearWordButton}
-                      onPress={() => handleWordChange(index, '')}
-                    >
-                      <Ionicons name="close-circle" size={20} color={colors.gray400} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))}
-            </View>
-          </View>
-
-          {/* Action Buttons */}
-          <Button
-            title="AI Assistance"
-            variant="outline"
-            size="md"
-            icon="sparkles-outline"
-            onPress={handleAIAssistance}
-            style={styles.aiButton}
+        {/* Theme Name Section */}
+        <View style={layoutStyles.section}>
+          <Text style={textStyles.h4}>Theme Name</Text>
+          <TextInput
+            style={[
+              styles.themeNameInput,
+              !themeValidation.isValid && themeName.trim().length > 0 && styles.inputError,
+              nameError.length > 0 && styles.inputError
+            ]}
+            placeholder="Enter a unique theme name..."
+            placeholderTextColor={colors.gray400}
+            value={themeName}
+            onChangeText={(text) => {
+              setThemeName(text);
+              setNameError('');
+            }}
+            maxLength={50}
+            autoCapitalize="words"
+            returnKeyType="next"
           />
-
-          {/* Help Text */}
-          <View style={styles.helpContainer}>
-            <Text style={styles.helpText}>
-              💡 Create your own custom word theme! Make sure all words are filled in and your theme name is unique. Use AI assistance for inspiration!
+          {(themeValidation.message || nameError) && (
+            <Text style={styles.errorText}>
+              {nameError || themeValidation.message}
             </Text>
-          </View>
-        </ScrollView>
-
-        {/* Fixed Bottom Buttons */}
-        <View style={styles.bottomButtonsContainer}>            
-          <Button
-            title={saving ? "Saving..." : "Save & Start Game"}
-            variant="primary"
-            size="lg"
-            icon={saving ? undefined : "save-outline"}
-            onPress={handleSaveTheme}
-            disabled={!canSaveTheme()}
-            loading={saving}
-            style={styles.bottomButton}
-          />
+          )}
+          <Text style={styles.characterCount}>
+            {themeName.length}/50 characters
+          </Text>
         </View>
+
+        {/* Words Section */}
+        <View style={layoutStyles.section}>
+          <View style={styles.wordsHeader}>
+            <Text style={textStyles.h4}>Words</Text>
+            <TouchableOpacity 
+              style={styles.clearButton} 
+              onPress={clearAllWords}
+              disabled={words.every(word => word.trim().length === 0)}
+            >
+              <Ionicons 
+                name="trash-outline" 
+                size={layout.iconSize.sm} 
+                color={words.every(word => word.trim().length === 0) ? colors.gray400 : colors.error} 
+              />
+              <Text style={[
+                styles.clearButtonText,
+                words.every(word => word.trim().length === 0) && styles.clearButtonTextDisabled
+              ]}>
+                Clear All
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {emptyWordCount > 0 && (
+            <View style={styles.progressContainer}>
+              <Text style={styles.progressText}>
+                {numCards - emptyWordCount} of {numCards} words completed
+              </Text>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill,
+                    { width: `${((numCards - emptyWordCount) / numCards) * 100}%` }
+                  ]} 
+                />
+              </View>
+            </View>
+          )}
+
+          <View style={styles.wordsGrid}>
+            {words.map((word, index) => (
+              <View key={index} style={styles.wordInputContainer}>
+                <Text style={styles.wordLabel}>Word {index + 1}</Text>
+                <TextInput
+                  style={[
+                    styles.wordInput,
+                    word.trim().length === 0 && styles.wordInputEmpty
+                  ]}
+                  placeholder={`Enter word ${index + 1}...`}
+                  placeholderTextColor={colors.gray400}
+                  value={word}
+                  onChangeText={(text) => handleWordChange(index, text)}
+                  autoCapitalize="words"
+                  returnKeyType={index === words.length - 1 ? "done" : "next"}
+                />
+                {word.trim().length > 0 && (
+                  <TouchableOpacity 
+                    style={styles.clearWordButton}
+                    onPress={() => handleWordChange(index, '')}
+                  >
+                    <Ionicons name="close-circle" size={20} color={colors.gray400} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        <Button
+          title="AI Assistance"
+          variant="outline"
+          size="md"
+          icon="sparkles-outline"
+          onPress={handleAIAssistance}
+          style={styles.aiButton}
+        />
+
+        {/* Help Text */}
+        <View style={styles.helpContainer}>
+          <Text style={styles.helpText}>
+            💡 Create your own custom word theme! Make sure all words are filled in and your theme name is unique. Use AI assistance for inspiration!
+          </Text>
+        </View>
+      </ScrollView>
+
+      {/* Fixed Bottom Buttons */}
+      <View style={styles.bottomButtonsContainer}>            
+        <Button
+          title={saving ? "Saving..." : isAtLimit ? "Cannot Save - Limit Reached" : "Save & Start Game"}
+          variant="primary"
+          size="lg"
+          icon={saving ? undefined : isAtLimit ? "warning-outline" : "save-outline"}
+          onPress={handleSaveTheme}
+          disabled={!canSaveTheme() || isAtLimit}
+          loading={saving}
+          style={[styles.bottomButton, isAtLimit && styles.bottomButtonDisabled]}
+        />
       </View>
-    );
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -445,6 +549,53 @@ const styles = StyleSheet.create({
   
   headerButton: {
     padding: spacing.sm,
+  },
+
+  // Theme Limit Warning Styles
+  limitWarningContainer: {
+    backgroundColor: colors.primary + '10',
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+    borderRadius: 8,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+
+  limitWarningContainerWarning: {
+    backgroundColor: colors.warning + '10',
+    borderColor: colors.warning + '30',
+  },
+
+  limitWarningContainerError: {
+    backgroundColor: colors.error + '10',
+    borderColor: colors.error + '30',
+  },
+
+  limitWarningHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+
+  limitWarningTitle: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.primary,
+  },
+
+  limitWarningTitleWarning: {
+    color: colors.warning,
+  },
+
+  limitWarningTitleError: {
+    color: colors.error,
+  },
+
+  limitWarningText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray600,
+    lineHeight: typography.fontSize.sm * 1.4,
   },
 
   // Card Selection Styles
@@ -525,6 +676,10 @@ const styles = StyleSheet.create({
 
   bottomButton: {
     width: '100%',
+  },
+
+  bottomButtonDisabled: {
+    backgroundColor: colors.gray300,
   },
 
   // Theme Name Section

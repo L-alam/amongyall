@@ -1,4 +1,4 @@
-// lib/themeService.ts 
+// lib/themeService.ts (FIXED VERSION)
 import { authService } from './authService';
 import { supabase } from './supabase';
 
