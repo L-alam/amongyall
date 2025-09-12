@@ -20,7 +20,8 @@
         "foregroundImage": "./assets/images/user-circle.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.lalam.amongyall"
     },
     "web": {
       "bundler": "metro",
@@ -36,6 +37,13 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-8062066976620321~5784637423",
+          "iosAppId": "ca-app-pub-8062066976620321~5784637423"
         }
       ]
     ],
