@@ -9,7 +9,7 @@ import { useAuth } from '../../hooks/useAuth';
 import {
   WavelengthPair,
   WordPairs,
-  checkAnonymousPairLimit,
+  checkPairLimit,
   createCustomPair,
   deleteCustomPair,
   getAllWavelengthPairs,
@@ -43,10 +43,12 @@ export default function WavelengthPairs() {
   
   const [customPairs, setCustomPairs] = useState<WavelengthPair[]>([]);
   const [showCustomDropdown, setShowCustomDropdown] = useState(false);
+  const [pairLimit, setPairLimit] = useState<{ count: number; limit: number } | null>(null);
 
   useEffect(() => {
     loadPairs();
-  }, []);
+    checkCurrentPairLimit();
+  }, [isAuthenticated]);
 
   const loadPairs = async () => {
     try {
@@ -129,38 +131,63 @@ export default function WavelengthPairs() {
     });
   };
 
+
   const handleCreateCustomPair = async () => {
     if (!newPairTerm0.trim() || !newPairTerm1.trim()) {
       Alert.alert('Invalid Input', 'Please enter both terms for the pair.');
       return;
     }
-
+  
     if (newPairTerm0.trim().toLowerCase() === newPairTerm1.trim().toLowerCase()) {
       Alert.alert('Invalid Input', 'The two terms cannot be the same.');
       return;
     }
-
-    if (!isAuthenticated) {
-      try {
-        const canCreate = await checkAnonymousPairLimit();
-        if (!canCreate) {
-          Alert.alert(
-            'Limit Reached',
-            'You can create up to 5 custom pairs without an account. Sign in to create unlimited pairs.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Sign In', onPress: signInWithGoogle }
-            ]
-          );
-          return;
-        }
-      } catch (error) {
-        console.error('Error checking anonymous limit:', error);
-        Alert.alert('Error', 'Failed to create pair. Please try again.');
+  
+    // Check pair limit BEFORE attempting to create
+    try {
+      const limitCheck = await checkPairLimit();
+      if (!limitCheck.canCreate) {
+        const userType = isAuthenticated ? 'You have' : 'You\'ve';
+        
+        Alert.alert(
+          'Pair Limit Reached',
+          `${userType} reached the maximum of ${limitCheck.limit} custom pairs. Delete an existing pair to create a new one.`,
+          [
+            {
+              text: 'OK',
+              style: 'cancel'
+            },
+            ...(isAuthenticated ? [] : [{
+              text: 'Log In',
+              onPress: async () => {
+                try {
+                  const { user, error: signInError } = await signInWithGoogle();
+                  if (signInError) {
+                    Alert.alert('Login Failed', 'Please try again.');
+                  } else if (user) {
+                    // Refresh pair limit after login
+                    await checkCurrentPairLimit();
+                    // Try creating again if they now have space
+                    const newLimitCheck = await checkPairLimit();
+                    if (newLimitCheck.canCreate) {
+                      handleCreateCustomPair();
+                    }
+                  }
+                } catch (signInError) {
+                  Alert.alert('Login Failed', 'Please try again.');
+                }
+              }
+            }])
+          ]
+        );
         return;
       }
+    } catch (error) {
+      console.error('Error checking pair limit:', error);
+      Alert.alert('Error', 'Unable to check pair limit. Please try again.');
+      return;
     }
-
+  
     try {
       setCreating(true);
       
@@ -170,6 +197,7 @@ export default function WavelengthPairs() {
       );
       
       await loadPairs();
+      await checkCurrentPairLimit(); // Update limit count after successful creation
       setSelectedPair(newPair);
       
       setNewPairTerm0('');
@@ -178,9 +206,21 @@ export default function WavelengthPairs() {
       
       Alert.alert('Success', 'Custom pair created successfully!');
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating custom pair:', error);
-      if (error instanceof Error && error.message.includes('duplicate')) {
+      
+      // Handle the new error format
+      if (error.message && error.message.includes('PAIR_LIMIT_REACHED')) {
+        const [, count, limit] = error.message.split(':');
+        const userType = isAuthenticated ? 'You have' : 'You\'ve';
+        const accountType = isAuthenticated ? 'account' : 'guest session';
+        
+        Alert.alert(
+          'Pair Limit Reached',
+          `${userType} reached the maximum of ${limit} custom pairs for this ${accountType}.`,
+          [{ text: 'OK' }]
+        );
+      } else if (error.message && error.message.includes('duplicate')) {
         Alert.alert('Duplicate Pair', 'This pair already exists. Please choose different terms.');
       } else {
         Alert.alert('Error', 'Failed to create custom pair. Please try again.');
@@ -190,6 +230,7 @@ export default function WavelengthPairs() {
     }
   };
 
+  
   const handleDeleteCustomPair = async (pair: WavelengthPair) => {
     Alert.alert(
       'Delete Pair',
@@ -218,6 +259,16 @@ export default function WavelengthPairs() {
       ]
     );
   };
+
+  const checkCurrentPairLimit = async () => {
+    try {
+      const limitCheck = await checkPairLimit();
+      setPairLimit({ count: limitCheck.count, limit: limitCheck.limit });
+    } catch (error) {
+      console.error('Error checking pair limit:', error);
+    }
+  };
+
 
   const filteredPairs = allPairs.filter(pair => {
     if (!searchQuery.trim()) return true;

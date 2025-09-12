@@ -108,6 +108,10 @@ export default function WordAITheme() {
     router.back();
   };
 
+  const handleHome = () => {
+    router.push('/');
+  };
+
   const handleGenerateWords = async () => {
     if (!topic.trim()) {
       Alert.alert('Error', 'Please enter a topic first.');
@@ -396,7 +400,7 @@ export default function WordAITheme() {
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
        
-        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+        <TouchableOpacity style={styles.headerButton} onPress={handleHome}>
           <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
       </View>
