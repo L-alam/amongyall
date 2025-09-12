@@ -193,6 +193,11 @@ export default function Index() {
     return colors.primary;
   };
 
+  const handleGoToProScreen = () => {
+    // Replace 'GetPro' with whatever you name your screen in navigation
+    router.push('/get-pro');
+  };
+
   return (
     <View style={layoutStyles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
@@ -216,6 +221,24 @@ export default function Index() {
             </View>
           )}
         </TouchableOpacity>
+
+
+        {/* Spacer to push pro button to the right */}
+        <View style={{ flex: 1 }} />
+
+        {/* Go Pro Button */}
+        <TouchableOpacity 
+          style={[styles.headerButton, styles.proButton]} 
+          onPress={handleGoToProScreen}
+        >
+          <Ionicons 
+            name="diamond-outline"
+            size={layout.iconSize.md} 
+            color={colors.amber || '#F59E0B'} 
+          />
+        </TouchableOpacity>
+
+
       </View>
 
       {/* Main content */}
@@ -394,5 +417,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors?.background || '#ffffff',
     paddingVertical: spacing?.xs || 4,
+  },
+
+  proButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)', // Light amber background
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
