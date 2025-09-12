@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useInterstitialAd } from '../../components/InterstitialAd';
 
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '../../components/Button';
@@ -25,6 +26,8 @@ export default function WordCustomTheme() {
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState('');
   const [themeLimit, setThemeLimit] = useState<{ count: number; limit: number } | null>(null);
+
+  const { showAd } = useInterstitialAd('ca-app-pub-8062066976620321/4861086926');
 
   // Card options for bubble selection
   const CARD_OPTIONS = [4, 6, 8, 10];
@@ -293,17 +296,35 @@ export default function WordCustomTheme() {
     }
   };
 
+  // const handleAIAssistance = () => {
+  //   router.push({
+  //     pathname: '/word/word-ai-theme',
+  //     params: {
+  //       numCards: numCards.toString(),
+  //       players: JSON.stringify(players),
+  //       currentThemeName: themeName,
+  //       currentWords: JSON.stringify(words)
+  //     }
+  //   });
+  // };
+
   const handleAIAssistance = () => {
-    router.push({
-      pathname: '/word/word-ai-theme',
-      params: {
-        numCards: numCards.toString(),
-        players: JSON.stringify(players),
-        currentThemeName: themeName,
-        currentWords: JSON.stringify(words)
-      }
+    // Show video interstitial ad before AI assistance
+    showAd(() => {
+      // This callback runs after ad closes
+      // Add your AI assistance logic here
+      router.push({
+        pathname: '/word/word-ai-theme',
+        params: {
+          numCards: numCards.toString(),
+          players: JSON.stringify(players),
+          currentThemeName: themeName,
+          currentWords: JSON.stringify(words)
+        }
+      });
     });
   };
+
 
   const themeValidation = getThemeNameValidation();
   const emptyWordCount = getEmptyWordCount();
