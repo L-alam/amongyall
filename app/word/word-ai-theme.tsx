@@ -1,7 +1,7 @@
-// app/word/word-ai-theme.tsx
+// app/word/word-ai-theme.tsx (Updated with theme limit blocking)
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Dimensions, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { useAuth } from '../../hooks/useAuth';
@@ -9,7 +9,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../../components/Button';
 import { colors, layout, spacing, typography } from '../../constants/theme';
 import { GenerateWordsRequest, generateWordsWithAI } from '../../lib/openaiService';
-import { checkAnonymousThemeLimit, createCustomTheme } from '../../lib/themeService';
+import { checkThemeLimit, createCustomTheme } from '../../lib/themeService'; // Updated import
 import {
   createInputStyle,
   layoutStyles,
@@ -32,6 +32,7 @@ export default function WordAITheme() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [themeLimit, setThemeLimit] = useState<{ count: number; limit: number } | null>(null);
 
   // Edit modal state
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -42,14 +43,30 @@ export default function WordAITheme() {
   // Card options for bubble selection
   const CARD_OPTIONS = [4, 6, 8, 10];
 
+  // Check theme limit on component mount
+  useEffect(() => {
+    checkCurrentThemeLimit();
+  }, [isAuthenticated]);
+
+  const checkCurrentThemeLimit = async () => {
+    try {
+      const limitCheck = await checkThemeLimit();
+      setThemeLimit({ count: limitCheck.count, limit: limitCheck.limit });
+    } catch (error) {
+      console.error('Error checking theme limit:', error);
+    }
+  };
+
   // Validation functions
   const areAllWordsValid = () => {
     return generatedWords.length > 0 && generatedWords.every(word => word.trim().length > 0);
   };
 
+  const isAtLimit = themeLimit && themeLimit.count >= themeLimit.limit;
+
   const canSaveTheme = () => {
     const trimmedTopic = topic.trim();
-    return trimmedTopic.length >= 3 && areAllWordsValid() && !saving && !isGenerating;
+    return trimmedTopic.length >= 3 && areAllWordsValid() && !saving && !isGenerating && !isAtLimit;
   };
 
   // Edit modal functions
@@ -149,6 +166,48 @@ export default function WordAITheme() {
   };
 
   const handleSaveTheme = async () => {
+    // Check if at limit first
+    if (isAtLimit) {
+      const userType = isAuthenticated ? 'You have' : 'You\'ve';
+      const accountType = isAuthenticated ? 'account' : 'guest session';
+      const actionText = isAuthenticated ? 
+        'Delete an existing theme to create a new one.' : 
+        'Log in to get your own 10 custom themes, or delete an existing theme to create a new one.';
+      
+      Alert.alert(
+        'Theme Limit Reached',
+        `${userType} reached the maximum of ${themeLimit!.limit} custom themes for this ${accountType}. ${actionText}`,
+        [
+          {
+            text: 'OK',
+            style: 'cancel'
+          },
+          ...(isAuthenticated ? [] : [{
+            text: 'Log In',
+            onPress: async () => {
+              try {
+                const { user, error: signInError } = await signInWithGoogle();
+                if (signInError) {
+                  Alert.alert('Login Failed', 'Please try again.');
+                } else if (user) {
+                  // Refresh theme limit after login
+                  await checkCurrentThemeLimit();
+                  // Try saving again if they now have space
+                  const newLimitCheck = await checkThemeLimit();
+                  if (newLimitCheck.canCreate) {
+                    handleSaveTheme();
+                  }
+                }
+              } catch (signInError) {
+                Alert.alert('Login Failed', 'Please try again.');
+              }
+            }
+          }])
+        ]
+      );
+      return;
+    }
+
     // Final validation
     if (!topic.trim() || topic.trim().length < 3) {
       Alert.alert('Invalid Topic', 'Please enter a topic with at least 3 characters.');
@@ -160,44 +219,53 @@ export default function WordAITheme() {
       return;
     }
 
-    // Check anonymous user limit BEFORE attempting to save
-    if (!isAuthenticated) {
-      try {
-        const limitCheck = await checkAnonymousThemeLimit();
-        if (!limitCheck.canCreate) {
-          Alert.alert(
-            'Theme Limit Reached',
-            `You've created ${limitCheck.count} out of ${limitCheck.limit} free custom themes. Log in to create unlimited themes and sync them across devices!`,
-            [
-              {
-                text: 'Continue as Guest',
-                style: 'cancel'
-              },
-              {
-                text: 'Log In with Google',
-                onPress: async () => {
-                  try {
-                    const { user, error: signInError } = await signInWithGoogle();
-                    if (signInError) {
-                      Alert.alert('Login Failed', 'Please try again.');
-                    } else if (user) {
-                      // After successful login, try saving again
+    // Check theme limit BEFORE attempting to save
+    try {
+      const limitCheck = await checkThemeLimit();
+      if (!limitCheck.canCreate) {
+        const userType = isAuthenticated ? 'You have' : 'You\'ve';
+        const accountType = isAuthenticated ? 'account' : 'guest session';
+        const actionText = isAuthenticated ? 
+          'Delete an existing theme to create a new one.' : 
+          'Log in to get your own 10 custom themes, or delete an existing theme to create a new one.';
+        
+        Alert.alert(
+          'Theme Limit Reached',
+          `${userType} reached the maximum of ${limitCheck.limit} custom themes for this ${accountType}. ${actionText}`,
+          [
+            {
+              text: 'OK',
+              style: 'cancel'
+            },
+            ...(isAuthenticated ? [] : [{
+              text: 'Log In',
+              onPress: async () => {
+                try {
+                  const { user, error: signInError } = await signInWithGoogle();
+                  if (signInError) {
+                    Alert.alert('Login Failed', 'Please try again.');
+                  } else if (user) {
+                    // Refresh theme limit after login
+                    await checkCurrentThemeLimit();
+                    // Try saving again if they now have space
+                    const newLimitCheck = await checkThemeLimit();
+                    if (newLimitCheck.canCreate) {
                       handleSaveTheme();
                     }
-                  } catch (signInError) {
-                    Alert.alert('Login Failed', 'Please try again.');
                   }
+                } catch (signInError) {
+                  Alert.alert('Login Failed', 'Please try again.');
                 }
               }
-            ]
-          );
-          return; // Exit early if limit reached
-        }
-      } catch (error) {
-        console.error('Error checking anonymous limit:', error);
-        Alert.alert('Error', 'Unable to check theme limit. Please try again.');
+            }])
+          ]
+        );
         return;
       }
+    } catch (error) {
+      console.error('Error checking theme limit:', error);
+      Alert.alert('Error', 'Unable to check theme limit. Please try again.');
+      return;
     }
 
     setSaving(true);
@@ -210,6 +278,9 @@ export default function WordAITheme() {
       const cleanWords = generatedWords.map(word => word.trim()).filter(word => word.length > 0);
       
       const newTheme = await createCustomTheme(themeName, cleanWords);
+      
+      // Update theme limit count after successful creation
+      await checkCurrentThemeLimit();
       
       Alert.alert(
         'Theme Saved!',
@@ -240,11 +311,21 @@ export default function WordAITheme() {
           },
         ]
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving theme:', error);
       
-      // Handle specific error types
-      if (error instanceof Error && error.message.includes('already exists')) {
+      // Handle the new error format
+      if (error.message && error.message.includes('THEME_LIMIT_REACHED')) {
+        const [, count, limit] = error.message.split(':');
+        const userType = isAuthenticated ? 'You have' : 'You\'ve';
+        const accountType = isAuthenticated ? 'account' : 'guest session';
+        
+        Alert.alert(
+          'Theme Limit Reached',
+          `${userType} reached the maximum of ${limit} custom themes for this ${accountType}.`,
+          [{ text: 'OK' }]
+        );
+      } else if (error.message && error.message.includes('already exists')) {
         Alert.alert('Theme Name Taken', 'A theme with this name already exists. Please choose a different topic.');
       } else {
         Alert.alert(
@@ -376,12 +457,21 @@ export default function WordAITheme() {
         {/* Generate Button */}
         <View style={layoutStyles.section}>
           <Button
-            title={isGenerating ? "GENERATING..." : hasGenerated ? "REGENERATE WORDS" : "GENERATE WORDS"}
+            title={
+              isGenerating ? "GENERATING..." : 
+              isAtLimit ? "LIMIT REACHED" :
+              hasGenerated ? "REGENERATE WORDS" : 
+              "GENERATE WORDS"
+            }
             variant="secondary"
             size="md"
-            icon={isGenerating ? undefined : "sparkles-outline"}
+            icon={
+              isGenerating ? undefined : 
+              isAtLimit ? "warning-outline" :
+              "sparkles-outline"
+            }
             onPress={handleGenerateWords}
-            disabled={isGenerating || !topic.trim()}
+            disabled={isGenerating || !topic.trim() || isAtLimit}
             loading={isGenerating}
             style={styles.generateButton}
           />
@@ -442,14 +532,22 @@ export default function WordAITheme() {
           />
           
           <Button
-            title={saving ? "Saving..." : "Save & Start Game"}
+            title={
+              saving ? "Saving..." : 
+              isAtLimit ? "Cannot Save - Limit Reached" : 
+              "Save & Start Game"
+            }
             variant="primary"
             size="md"
-            icon={saving ? undefined : "save-outline"}
+            icon={
+              saving ? undefined : 
+              isAtLimit ? "warning-outline" : 
+              "save-outline"
+            }
             onPress={handleSaveTheme}
             disabled={!canSaveTheme()}
             loading={saving}
-            style={styles.bottomButton}
+            style={[styles.bottomButton, isAtLimit && styles.bottomButtonDisabled]}
           />
         </View>
       )}
@@ -603,6 +701,10 @@ const styles = StyleSheet.create({
 
   bottomButton: {
     width: '100%',
+  },
+
+  bottomButtonDisabled: {
+    backgroundColor: colors.gray300,
   },
 
   hintText: {
