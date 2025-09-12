@@ -260,21 +260,55 @@ export const createCustomPair = async (term0: string, term1: string): Promise<Wa
   return newPair;
 };
 
+
+
 // Check if a pair already exists
 export const pairExists = async (term0: string, term1: string): Promise<boolean> => {
-  const { data, error } = await supabase
+  const userId = authService.getUserId();
+  
+  // First check built-in pairs (available to everyone)
+  const { data: builtInData, error: builtInError } = await supabase
     .from('pairs')
     .select('id')
+    .or('is_custom.is.null,is_custom.eq.false')
     .or(`and(term_0.eq.${term0},term_1.eq.${term1}),and(term_0.eq.${term1},term_1.eq.${term0})`)
     .limit(1);
 
-  if (error) {
-    console.error('Error checking if pair exists:', error);
+  if (builtInError) {
+    console.error('Error checking built-in pairs:', builtInError);
     return false;
   }
 
-  return (data && data.length > 0) ?? false;
+  if (builtInData && builtInData.length > 0) {
+    return true; // Found in built-in pairs
+  }
+
+  // Then check current user's custom pairs
+  let customQuery = supabase
+    .from('pairs')
+    .select('id')
+    .eq('is_custom', true)
+    .or(`and(term_0.eq.${term0},term_1.eq.${term1}),and(term_0.eq.${term1},term_1.eq.${term0})`)
+    .limit(1);
+
+  // Filter by current user's pairs
+  if (userId) {
+    customQuery = customQuery.eq('created_by', userId);
+  } else {
+    customQuery = customQuery.is('created_by', null);
+  }
+
+  const { data: customData, error: customError } = await customQuery;
+
+  if (customError) {
+    console.error('Error checking user custom pairs:', customError);
+    return false;
+  }
+
+  return (customData && customData.length > 0) ?? false;
 };
+
+
 
 // Delete a custom pair
 export const deleteCustomPair = async (pairId: string): Promise<void> => {
