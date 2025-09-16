@@ -1,15 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import {
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { usePaymentService } from '../lib/paymentService';
+import { STRIPE_CONFIG } from '../lib/stripeConfig';
 
 // You'll need to import these from your existing files
 // import { colors, layout, layoutStyles } from '../path/to/your/styles';
@@ -19,11 +23,29 @@ interface GetProScreenProps {
 }
 
 const GetProScreen: React.FC<GetProScreenProps> = ({ navigation }) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const paymentService = usePaymentService();
   
-  const handleUpgradeToPro = () => {
-    // This is where you'll integrate Apple's payment system
-    console.log('Upgrade to Pro pressed');
-    // Example: initiate payment flow
+  const handleUpgradeToPro = async () => {
+    setIsLoading(true);
+    try {
+      // Initialize payment sheet with $3 amount
+      const initialized = await paymentService.initializePaymentSheet(3, 'usd');
+      
+      if (initialized) {
+        // Present the payment sheet
+        const success = await paymentService.presentPaymentSheet();
+        
+        if (success) {
+          // Navigate back to home screen after successful payment
+          handleGoBack();
+        }
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoBack = () => {
@@ -31,8 +53,9 @@ const GetProScreen: React.FC<GetProScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FEF3E2" />
+    <StripeProvider publishableKey={STRIPE_CONFIG.publishableKey}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FEF3E2" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -46,6 +69,7 @@ const GetProScreen: React.FC<GetProScreenProps> = ({ navigation }) => {
             color="#374151" 
           />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Upgrade to Pro</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -93,17 +117,22 @@ const GetProScreen: React.FC<GetProScreenProps> = ({ navigation }) => {
 
         {/* Pricing */}
         <View style={styles.pricingContainer}>
-          <Text style={styles.priceAmount}>$2.99</Text>
+          <Text style={styles.priceAmount}>$3</Text>
           <Text style={styles.pricePeriod}>per month</Text>
         </View>
 
         {/* Upgrade Button */}
         <TouchableOpacity 
-          style={styles.upgradeButton} 
+          style={[styles.upgradeButton, isLoading && styles.upgradeButtonDisabled]} 
           onPress={handleUpgradeToPro}
           activeOpacity={0.8}
+          disabled={isLoading}
         >
-          <Text style={styles.upgradeButtonText}>Upgrade to Pro</Text>
+          {isLoading ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={styles.upgradeButtonText}>Upgrade to Pro</Text>
+          )}
         </TouchableOpacity>
 
         <Text style={styles.disclaimer}>
@@ -111,6 +140,7 @@ const GetProScreen: React.FC<GetProScreenProps> = ({ navigation }) => {
         </Text>
       </ScrollView>
     </SafeAreaView>
+    </StripeProvider>
   );
 };
 
@@ -124,10 +154,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FEF3E2',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
   },
   backButton: {
     padding: 8,
+  },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+    marginLeft: -32, // Offset the back button width
   },
   headerSpacer: {
     width: 32,
@@ -228,6 +268,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
+  },
+  upgradeButtonDisabled: {
+    opacity: 0.6,
   },
   upgradeButtonText: {
     fontSize: 18,

@@ -52,7 +52,6 @@ class AuthService {
   }
 
   private handleDeepLink = async ({ url }: { url: string }) => {
-    console.log('Deep link received:', url);
     
     if (url.includes('auth/callback') || url.includes('#access_token')) {
       try {
@@ -267,7 +266,6 @@ class AuthService {
         return { user: null, error: new Error('No OAuth URL returned') };
       }
   
-      console.log('Opening Google OAuth URL:', data.url);
   
       const browserOptions: WebBrowser.AuthSessionOptions = {
         showInRecents: false,
