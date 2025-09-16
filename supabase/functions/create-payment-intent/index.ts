@@ -41,17 +41,21 @@ serve(async (req) => {
     // Get or create customer
     let customer
     const { data: profile } = await supabase
-      .from('profiles')
-      .select('stripe_customer_id, email')
+      .from('user_profiles')
+      .select('stripe_customer_id, display_name')
       .eq('id', userId)
       .single()
 
     if (profile?.stripe_customer_id) {
       customer = await stripe.customers.retrieve(profile.stripe_customer_id)
     } else {
+      // Get user email from auth.users
+      const { data: { user } } = await supabase.auth.admin.getUserById(userId)
+      
       // Create new customer
       customer = await stripe.customers.create({
-        email: profile?.email,
+        email: user?.email,
+        name: profile?.display_name,
         metadata: {
           supabase_user_id: userId,
         },
@@ -59,7 +63,7 @@ serve(async (req) => {
 
       // Save customer ID to profile
       await supabase
-        .from('profiles')
+        .from('user_profiles')
         .update({ stripe_customer_id: customer.id })
         .eq('id', userId)
     }

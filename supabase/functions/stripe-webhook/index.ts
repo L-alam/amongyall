@@ -60,7 +60,7 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
   try {
     // Update user profile to mark as pro
     const { error: profileError } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .update({
         is_pro: true,
         pro_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
@@ -102,7 +102,7 @@ async function handleSubscriptionPayment(invoice: Stripe.Invoice) {
   try {
     // Get user by customer ID
     const { data: profile } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('id')
       .eq('stripe_customer_id', customerId)
       .single()
@@ -114,7 +114,7 @@ async function handleSubscriptionPayment(invoice: Stripe.Invoice) {
 
     // Extend pro subscription
     const { error } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .update({
         is_pro: true,
         pro_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Extend 30 days
@@ -134,7 +134,7 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
   
   try {
     const { data: profile } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('id')
       .eq('stripe_customer_id', customerId)
       .single()
@@ -146,7 +146,7 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
 
     // Mark subscription as cancelled (but don't immediately revoke pro status)
     const { error } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .update({
         pro_cancelled_at: new Date(),
       })
