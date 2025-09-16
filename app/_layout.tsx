@@ -4,9 +4,13 @@ import { Stack } from "expo-router";
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { initializeStripe } from '../lib/stripeConfig';
 
 export default function RootLayout() {
   useEffect(() => {
+    // Initialize Stripe when app loads
+    initializeStripe();
+
     // Only initialize AdMob if not in Expo Go
     const isExpoGo = Constants.appOwnership === 'expo';
     
