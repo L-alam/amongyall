@@ -9,6 +9,11 @@ export interface UserProfile {
   is_anonymous: boolean;
   created_at: string;
   updated_at: string;
+  is_pro: boolean;
+  pro_expires_at: string | null;
+  pro_activated_at: string | null;
+  pro_cancelled_at: string | null;
+  stripe_customer_id: string | null;
 }
 
 export interface UserStats {
@@ -57,6 +62,33 @@ class UserProfileService {
     }
 
     return data;
+  }
+
+  // Check if user is pro and subscription is valid
+  async getProStatus(): Promise<{ isPro: boolean; expiresAt: string | null }> {
+    const userId = authService.getUserId();
+    if (!userId) return { isPro: false, expiresAt: null };
+
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('is_pro, pro_expires_at')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching pro status:', error);
+      return { isPro: false, expiresAt: null };
+    }
+
+    // Check if pro subscription is still valid
+    const now = new Date();
+    const expiresAt = data.pro_expires_at ? new Date(data.pro_expires_at) : null;
+    const isPro = data.is_pro && (!expiresAt || expiresAt > now);
+
+    return { 
+      isPro, 
+      expiresAt: data.pro_expires_at 
+    };
   }
 
   // Get user statistics
@@ -124,60 +156,6 @@ class UserProfileService {
       throw error;
     }
   }
-
-  // Delete user account and all associated data
-  async deleteUserAccount(): Promise<void> {
-    const userId = authService.getUserId();
-    if (!userId) throw new Error('User not authenticated');
-
-    // This will cascade delete all user data due to foreign key constraints
-    const { error } = await supabase.auth.admin.deleteUser(userId);
-
-    if (error) {
-      console.error('Error deleting user account:', error);
-      throw error;
-    }
-  }
-
-  // Check if user has created any content
-  async hasUserContent(): Promise<boolean> {
-    const stats = await this.getUserStats();
-    return stats.themes_created > 0 || stats.questions_created > 0 || stats.pairs_created > 0;
-  }
 }
 
 export const userProfileService = new UserProfileService();
-
-export const migrateAnonymousContentToUser = async (): Promise<void> => {
-  const userId = authService.getUserId();
-  if (!userId) throw new Error('User not authenticated');
-
-  try {
-    // Migrate anonymous themes
-    const { error: themesError } = await supabase
-      .from('themes')
-      .update({ created_by: userId })
-      .eq('is_custom', true)
-      .is('created_by', null);
-
-    if (themesError) {
-      console.error('Error migrating themes:', themesError);
-    }
-
-    // Migrate anonymous pairs
-    const { error: pairsError } = await supabase
-      .from('pairs')
-      .update({ created_by: userId })
-      .eq('is_custom', true)
-      .is('created_by', null);
-
-    if (pairsError) {
-      console.error('Error migrating pairs:', pairsError);
-    }
-
-    console.log('Successfully migrated anonymous content to user account');
-  } catch (error) {
-    console.error('Error in migrateAnonymousContentToUser:', error);
-    throw error;
-  }
-};

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -12,21 +12,30 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useProStatus } from '../hooks/useProStatus';
 import { usePaymentService } from '../lib/paymentService';
 import { STRIPE_CONFIG } from '../lib/stripeConfig';
 
 // You'll need to import these from your existing files
-import { colors, layout } from '../constants/theme';
+// import { colors, layout, layoutStyles } from '../path/to/your/styles';
 
 interface GetProScreenProps {
-  navigation?: any; // Replace with proper navigation type if using react-navigation
+  // No navigation prop needed with Expo Router
 }
 
-const GetProScreen: React.FC<GetProScreenProps> = ({ navigation }) => {
-  const [isLoading, setIsLoading] = useState(false);
+const GetProScreen: React.FC<GetProScreenProps> = () => {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
   const paymentService = usePaymentService();
-  
+  const { isPro, isLoading: proLoading } = useProStatus();
+
+  // Redirect to downloads if user is already pro
+  useEffect(() => {
+    if (!proLoading && isPro) {
+      router.replace('/downloads');
+    }
+  }, [isPro, proLoading, router]);
+
   const handleUpgradeToPro = async () => {
     setIsLoading(true);
     try {
@@ -39,11 +48,7 @@ const GetProScreen: React.FC<GetProScreenProps> = ({ navigation }) => {
         
         if (success) {
           // Navigate to downloads page after successful payment
-          if (navigation) {
-            navigation.navigate('Downloads');
-          } else {
-            router.push('/downloads');
-          }
+          router.push('/downloads');
         }
       }
     } catch (error) {
@@ -53,97 +58,108 @@ const GetProScreen: React.FC<GetProScreenProps> = ({ navigation }) => {
     }
   };
 
-  const handleBack = () => {
+  const handleGoBack = () => {
     router.back();
   };
 
-  const handleCancel = () => {
-    router.push('/');
-  };
+  // Show loading while checking pro status
+  if (proLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#F59E0B" />
+        <Text style={{ marginTop: 16, color: '#6B7280' }}>Checking subscription status...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <StripeProvider publishableKey={STRIPE_CONFIG.publishableKey}>
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FEF3E2" />
       
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-            <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}> </Text>
-          <TouchableOpacity style={styles.headerButton} onPress={handleCancel}>
-            <Ionicons name="close" size={layout.iconSize.md} color={colors.primary} />
-          </TouchableOpacity>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={handleGoBack}
+        >
+          <Ionicons 
+            name="arrow-back" 
+            size={24} 
+            color="#374151" 
+          />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Upgrade to Pro</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Pro Badge */}
+        <View style={styles.badgeContainer}>
+          <View style={styles.diamondBadge}>
+            <Ionicons 
+              name="diamond" 
+              size={40} 
+              color="#FFFFFF" 
+            />
+          </View>
+          <Text style={styles.badgeTitle}>Go Pro</Text>
+          <Text style={styles.badgeSubtitle}>Unlock the full potential of your app</Text>
         </View>
 
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Pro Badge */}
-          <View style={styles.badgeContainer}>
-            <View style={styles.diamondBadge}>
-              <Ionicons 
-                name="diamond" 
-                size={40} 
-                color="#FFFFFF" 
-              />
+        {/* Benefits Card */}
+        <View style={styles.benefitsCard}>
+          <Text style={styles.benefitsTitle}>Pro Benefits</Text>
+          
+          <View style={styles.benefitsList}>
+            <View style={styles.benefitItem}>
+              <View style={styles.checkIcon}>
+                <Ionicons name="checkmark" size={16} color="#059669" />
+              </View>
+              <Text style={styles.benefitText}>No Ads</Text>
             </View>
-            <Text style={styles.badgeTitle}>Go Pro</Text>
-            <Text style={styles.badgeSubtitle}>Unlock the full potential of your app</Text>
-          </View>
-
-          {/* Benefits Card */}
-          <View style={styles.benefitsCard}>
-            <Text style={styles.benefitsTitle}>Pro Benefits</Text>
             
-            <View style={styles.benefitsList}>
-              <View style={styles.benefitItem}>
-                <View style={styles.checkIcon}>
-                  <Ionicons name="checkmark" size={16} color="#059669" />
-                </View>
-                <Text style={styles.benefitText}>No Ads</Text>
+            <View style={styles.benefitItem}>
+              <View style={styles.checkIcon}>
+                <Ionicons name="checkmark" size={16} color="#059669" />
               </View>
-              
-              <View style={styles.benefitItem}>
-                <View style={styles.checkIcon}>
-                  <Ionicons name="checkmark" size={16} color="#059669" />
-                </View>
-                <Text style={styles.benefitText}>Unlimited Custom Themes/Pairs</Text>
+              <Text style={styles.benefitText}>Unlimited Custom Themes/Pairs</Text>
+            </View>
+            
+            <View style={styles.benefitItem}>
+              <View style={styles.checkIcon}>
+                <Ionicons name="checkmark" size={16} color="#059669" />
               </View>
-              
-              <View style={styles.benefitItem}>
-                <View style={styles.checkIcon}>
-                  <Ionicons name="checkmark" size={16} color="#059669" />
-                </View>
-                <Text style={styles.benefitText}>Download Items for Offline Use</Text>
-              </View>
+              <Text style={styles.benefitText}>Download Items for Offline Use</Text>
             </View>
           </View>
+        </View>
 
-          {/* Pricing */}
-          <View style={styles.pricingContainer}>
-            <Text style={styles.priceAmount}>$3</Text>
-            <Text style={styles.pricePeriod}>per month</Text>
-          </View>
+        {/* Pricing */}
+        <View style={styles.pricingContainer}>
+          <Text style={styles.priceAmount}>$3</Text>
+          <Text style={styles.pricePeriod}>per month</Text>
+        </View>
 
-          {/* Upgrade Button */}
-          <TouchableOpacity 
-            style={[styles.upgradeButton, isLoading && styles.upgradeButtonDisabled]} 
-            onPress={handleUpgradeToPro}
-            activeOpacity={0.8}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <Text style={styles.upgradeButtonText}>Upgrade to Pro</Text>
-            )}
-          </TouchableOpacity>
+        {/* Upgrade Button */}
+        <TouchableOpacity 
+          style={[styles.upgradeButton, isLoading && styles.upgradeButtonDisabled]} 
+          onPress={handleUpgradeToPro}
+          activeOpacity={0.8}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={styles.upgradeButtonText}>Upgrade to Pro</Text>
+          )}
+        </TouchableOpacity>
 
-          <Text style={styles.disclaimer}>
-            Cancel anytime. Terms and conditions apply.
-          </Text>
-        </ScrollView>
-      </SafeAreaView>
+        <Text style={styles.disclaimer}>
+          Cancel anytime. Terms and conditions apply.
+        </Text>
+      </ScrollView>
+    </SafeAreaView>
     </StripeProvider>
   );
 };
@@ -158,9 +174,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FEF3E2',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
   },
-  headerButton: {
+  backButton: {
     padding: 8,
   },
   headerTitle: {
@@ -169,6 +187,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#374151',
+    marginLeft: -32, // Offset the back button width
   },
   headerSpacer: {
     width: 32,
