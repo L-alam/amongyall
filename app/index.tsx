@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AdBanner from '../components/BannerAd';
+import { useProStatus } from '../hooks/useProStatus';
 
 // Safe imports with fallbacks
 let colors: any, spacing: any, layout: any, typography: any;
@@ -146,6 +147,7 @@ try {
 export default function Index() {
   const { user, isAnonymous, isPermanentUser, isLoading, anonymousEnabled } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const { isPro, isLoading: proLoading } = useProStatus();
 
   const handleGameModePress = (gameMode: string) => {
     try {
@@ -194,9 +196,15 @@ export default function Index() {
   };
 
   const handleGoToProScreen = () => {
-    // Replace 'GetPro' with whatever you name your screen in navigation
-    router.push('/get-pro');
+    if (isPro) {
+      // User is pro - go to downloads
+      router.push('/downloads');
+    } else {
+      // User is not pro - go to upgrade page
+      router.push('/get-pro');
+    }
   };
+  
 
   return (
     <View style={layoutStyles.container}>
@@ -230,14 +238,14 @@ export default function Index() {
         <TouchableOpacity 
           style={[styles.headerButton, styles.proButton]} 
           onPress={handleGoToProScreen}
+          disabled={proLoading}
         >
           <Ionicons 
-            name="diamond-outline"
+            name={isPro ? "star-outline" : "diamond-outline"}
             size={layout.iconSize.md} 
-            color={colors.amber || '#F59E0B'} 
+            color={isPro ? "#FFD700" : (colors.amber || '#F59E0B')} 
           />
         </TouchableOpacity>
-
 
       </View>
 

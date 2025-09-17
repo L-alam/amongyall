@@ -171,7 +171,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#374151',
-    marginLeft: -32,
   },
   headerSpacer: {
     width: 32,
