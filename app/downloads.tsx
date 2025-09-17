@@ -30,16 +30,21 @@ const BASIC_PAIRS = [
 interface CustomItem {
   id: string;
   name: string;
-  type: 'theme' | 'questions' | 'pairs';
+  type: 'theme' | 'pairs';
   size: string;
   created_at: string;
+  downloaded: boolean;
 }
 
 const DownloadsScreen: React.FC = () => {
   const router = useRouter();
   const [isDownloading, setIsDownloading] = useState(false);
-  const [selectedCustomItems, setSelectedCustomItems] = useState<string[]>([]);
-  const [customItems, setCustomItems] = useState<CustomItem[]>([]);
+  const [basicThemesDownloaded, setBasicThemesDownloaded] = useState(false);
+  const [basicPairsDownloaded, setBasicPairsDownloaded] = useState(false);
+  const [customThemes, setCustomThemes] = useState<CustomItem[]>([]);
+  const [customPairs, setCustomPairs] = useState<CustomItem[]>([]);
+  const [themesDropdownOpen, setThemesDropdownOpen] = useState(false);
+  const [pairsDropdownOpen, setPairsDropdownOpen] = useState(false);
 
   useEffect(() => {
     loadCustomItems();
@@ -48,15 +53,20 @@ const DownloadsScreen: React.FC = () => {
   const loadCustomItems = async () => {
     try {
       // Mock custom items - replace with actual API calls to your Supabase
-      const mockCustomItems: CustomItem[] = [
-        { id: '1', name: 'Custom Food Theme', type: 'theme', size: '2.3 KB', created_at: '2025-09-15' },
-        { id: '2', name: 'Sports Questions Pack', type: 'questions', size: '15.2 KB', created_at: '2025-09-14' },
-        { id: '3', name: 'Movie Word Pairs', type: 'pairs', size: '5.1 KB', created_at: '2025-09-13' },
-        { id: '4', name: 'Geography Custom Theme', type: 'theme', size: '3.7 KB', created_at: '2025-09-12' },
-        { id: '5', name: 'Trivia Questions Set', type: 'questions', size: '22.5 KB', created_at: '2025-09-11' },
-        { id: '6', name: 'Animal Pairs', type: 'pairs', size: '4.8 KB', created_at: '2025-09-10' },
+      const mockCustomThemes: CustomItem[] = [
+        { id: '1', name: 'Custom Food Theme', type: 'theme', size: '2.3 KB', created_at: '2025-09-15', downloaded: false },
+        { id: '2', name: 'Geography Custom Theme', type: 'theme', size: '3.7 KB', created_at: '2025-09-12', downloaded: false },
+        { id: '3', name: 'Movie Categories', type: 'theme', size: '1.9 KB', created_at: '2025-09-10', downloaded: false },
       ];
-      setCustomItems(mockCustomItems);
+
+      const mockCustomPairs: CustomItem[] = [
+        { id: '4', name: 'Movie Word Pairs', type: 'pairs', size: '5.1 KB', created_at: '2025-09-13', downloaded: false },
+        { id: '5', name: 'Animal Pairs', type: 'pairs', size: '4.8 KB', created_at: '2025-09-10', downloaded: false },
+        { id: '6', name: 'Science Terms', type: 'pairs', size: '6.2 KB', created_at: '2025-09-08', downloaded: false },
+      ];
+
+      setCustomThemes(mockCustomThemes);
+      setCustomPairs(mockCustomPairs);
     } catch (error) {
       console.error('Error loading custom items:', error);
     }
@@ -67,6 +77,8 @@ const DownloadsScreen: React.FC = () => {
   };
 
   const handleDownloadBasicThemes = async () => {
+    if (basicThemesDownloaded) return;
+    
     setIsDownloading(true);
     try {
       // Create downloadable content
@@ -98,9 +110,10 @@ const DownloadsScreen: React.FC = () => {
         dialogTitle: 'Save Basic Themes'
       });
 
+      setBasicThemesDownloaded(true);
       Alert.alert(
         'Download Complete!',
-        `Successfully downloaded ${BASIC_THEMES.length} basic themes. File saved and ready to share!`
+        `Successfully downloaded ${BASIC_THEMES.length} basic themes!`
       );
     } catch (error) {
       console.error('Download error:', error);
@@ -111,6 +124,8 @@ const DownloadsScreen: React.FC = () => {
   };
 
   const handleDownloadBasicPairs = async () => {
+    if (basicPairsDownloaded) return;
+    
     setIsDownloading(true);
     try {
       const downloadContent = {
@@ -143,6 +158,7 @@ const DownloadsScreen: React.FC = () => {
         dialogTitle: 'Save Basic Pairs'
       });
 
+      setBasicPairsDownloaded(true);
       Alert.alert(
         'Download Complete!',
         `Successfully downloaded ${BASIC_PAIRS.length} basic pair sets!`
@@ -154,78 +170,121 @@ const DownloadsScreen: React.FC = () => {
     }
   };
 
-  const handleDownloadCustomItems = async () => {
-    if (selectedCustomItems.length === 0) {
-      Alert.alert('No Items Selected', 'Please select custom items to download.');
-      return;
-    }
+  const handleDownloadCustomItem = async (item: CustomItem) => {
+    if (item.downloaded) return;
 
     setIsDownloading(true);
     try {
-      const selectedItems = customItems.filter(item => selectedCustomItems.includes(item.id));
-      
       const downloadContent = {
-        type: 'custom_content',
-        data: {
-          themes: selectedItems.filter(item => item.type === 'theme'),
-          questions: selectedItems.filter(item => item.type === 'questions'),
-          pairs: selectedItems.filter(item => item.type === 'pairs')
-        },
+        type: `custom_${item.type}`,
+        data: [item],
         metadata: {
           downloadDate: new Date().toISOString(),
-          selectedItemCount: selectedCustomItems.length,
+          itemId: item.id,
           version: '1.0',
           app: 'AmongYall'
         }
       };
 
-      const filename = `amongyall-custom-content-${Date.now()}.json`;
+      const filename = `amongyall-${item.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.json`;
       const fileUri = FileSystem.documentDirectory + filename;
       await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(downloadContent, null, 2));
 
       await Sharing.shareAsync(fileUri, {
         mimeType: 'application/json',
-        dialogTitle: 'Save Custom Content'
+        dialogTitle: `Save ${item.name}`
       });
 
-      Alert.alert(
-        'Download Complete!',
-        `Successfully downloaded ${selectedCustomItems.length} custom items!`
-      );
-      setSelectedCustomItems([]);
+      // Mark as downloaded
+      if (item.type === 'theme') {
+        setCustomThemes(prev => prev.map(theme => 
+          theme.id === item.id ? { ...theme, downloaded: true } : theme
+        ));
+      } else {
+        setCustomPairs(prev => prev.map(pair => 
+          pair.id === item.id ? { ...pair, downloaded: true } : pair
+        ));
+      }
+
+      Alert.alert('Download Complete!', `Successfully downloaded ${item.name}!`);
     } catch (error) {
-      Alert.alert('Download Failed', 'Unable to download custom items. Please try again.');
+      Alert.alert('Download Failed', `Unable to download ${item.name}. Please try again.`);
     } finally {
       setIsDownloading(false);
     }
   };
 
-  const toggleCustomItemSelection = (itemId: string) => {
-    setSelectedCustomItems(prev => 
-      prev.includes(itemId) 
-        ? prev.filter(id => id !== itemId)
-        : [...prev, itemId]
-    );
+  const handleDownloadAllCustomThemes = async () => {
+    const undownloadedThemes = customThemes.filter(theme => !theme.downloaded);
+    if (undownloadedThemes.length === 0) return;
+
+    setIsDownloading(true);
+    try {
+      const downloadContent = {
+        type: 'custom_themes_bulk',
+        data: undownloadedThemes,
+        metadata: {
+          downloadDate: new Date().toISOString(),
+          count: undownloadedThemes.length,
+          version: '1.0',
+          app: 'AmongYall'
+        }
+      };
+
+      const filename = `amongyall-all-custom-themes-${Date.now()}.json`;
+      const fileUri = FileSystem.documentDirectory + filename;
+      await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(downloadContent, null, 2));
+
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'application/json',
+        dialogTitle: 'Save All Custom Themes'
+      });
+
+      // Mark all as downloaded
+      setCustomThemes(prev => prev.map(theme => ({ ...theme, downloaded: true })));
+
+      Alert.alert('Download Complete!', `Successfully downloaded ${undownloadedThemes.length} custom themes!`);
+    } catch (error) {
+      Alert.alert('Download Failed', 'Unable to download custom themes. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
-  const selectAllCustomItems = () => {
-    setSelectedCustomItems(customItems.map(item => item.id));
-  };
+  const handleDownloadAllCustomPairs = async () => {
+    const undownloadedPairs = customPairs.filter(pair => !pair.downloaded);
+    if (undownloadedPairs.length === 0) return;
 
-  const deselectAllCustomItems = () => {
-    setSelectedCustomItems([]);
-  };
+    setIsDownloading(true);
+    try {
+      const downloadContent = {
+        type: 'custom_pairs_bulk',
+        data: undownloadedPairs,
+        metadata: {
+          downloadDate: new Date().toISOString(),
+          count: undownloadedPairs.length,
+          version: '1.0',
+          app: 'AmongYall'
+        }
+      };
 
-  const getItemIcon = (type: string) => {
-    switch (type) {
-      case 'theme':
-        return 'color-palette';
-      case 'questions':
-        return 'help-circle';
-      case 'pairs':
-        return 'link';
-      default:
-        return 'document';
+      const filename = `amongyall-all-custom-pairs-${Date.now()}.json`;
+      const fileUri = FileSystem.documentDirectory + filename;
+      await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(downloadContent, null, 2));
+
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'application/json',
+        dialogTitle: 'Save All Custom Pairs'
+      });
+
+      // Mark all as downloaded
+      setCustomPairs(prev => prev.map(pair => ({ ...pair, downloaded: true })));
+
+      Alert.alert('Download Complete!', `Successfully downloaded ${undownloadedPairs.length} custom pairs!`);
+    } catch (error) {
+      Alert.alert('Download Failed', 'Unable to download custom pairs. Please try again.');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -264,151 +323,182 @@ const DownloadsScreen: React.FC = () => {
         {/* Basic Content Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Basic Content</Text>
-          <Text style={styles.sectionDescription}>
-            Download our built-in themes and pairs for offline play
-          </Text>
           
-          <View style={styles.buttonRow}>
-            <TouchableOpacity 
-              style={[styles.downloadButton, isDownloading && styles.downloadButtonDisabled]} 
-              onPress={handleDownloadBasicThemes}
-              disabled={isDownloading}
-            >
-              {isDownloading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Ionicons name="download" size={20} color="#FFFFFF" />
-              )}
-              <Text style={styles.downloadButtonText}>
+          {/* Download All Basic Themes */}
+          <TouchableOpacity 
+            style={[styles.basicDownloadButton, basicThemesDownloaded && styles.downloadedButton]} 
+            onPress={handleDownloadBasicThemes}
+            disabled={isDownloading || basicThemesDownloaded}
+          >
+            <View style={styles.downloadButtonContent}>
+              <Text style={[styles.downloadButtonText, basicThemesDownloaded && styles.downloadedText]}>
                 Download All Basic Themes ({BASIC_THEMES.length})
               </Text>
-            </TouchableOpacity>
+              <View style={styles.downloadButtonIcon}>
+                {isDownloading ? (
+                  <ActivityIndicator size="small" color="#6366F1" />
+                ) : basicThemesDownloaded ? (
+                  <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+                ) : (
+                  <Ionicons name="download" size={24} color="#6366F1" />
+                )}
+              </View>
+            </View>
+          </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.downloadButton, isDownloading && styles.downloadButtonDisabled]} 
-              onPress={handleDownloadBasicPairs}
-              disabled={isDownloading}
-            >
-              {isDownloading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Ionicons name="download" size={20} color="#FFFFFF" />
-              )}
-              <Text style={styles.downloadButtonText}>
+          {/* Download All Basic Pairs */}
+          <TouchableOpacity 
+            style={[styles.basicDownloadButton, basicPairsDownloaded && styles.downloadedButton]} 
+            onPress={handleDownloadBasicPairs}
+            disabled={isDownloading || basicPairsDownloaded}
+          >
+            <View style={styles.downloadButtonContent}>
+              <Text style={[styles.downloadButtonText, basicPairsDownloaded && styles.downloadedText]}>
                 Download All Basic Pairs ({BASIC_PAIRS.length})
               </Text>
-            </TouchableOpacity>
-          </View>
+              <View style={styles.downloadButtonIcon}>
+                {isDownloading ? (
+                  <ActivityIndicator size="small" color="#6366F1" />
+                ) : basicPairsDownloaded ? (
+                  <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+                ) : (
+                  <Ionicons name="download" size={24} color="#6366F1" />
+                )}
+              </View>
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Custom Content Section */}
         <View style={styles.section}>
-          <View style={styles.customHeader}>
-            <Text style={styles.sectionTitle}>Custom Content</Text>
-            <View style={styles.selectionActions}>
-              <TouchableOpacity 
-                style={styles.selectionButton} 
-                onPress={selectAllCustomItems}
-              >
-                <Text style={styles.selectionButtonText}>Select All</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.selectionButton} 
-                onPress={deselectAllCustomItems}
-              >
-                <Text style={styles.selectionButtonText}>Clear</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          
-          <Text style={styles.sectionDescription}>
-            Select your custom themes, questions, and pairs to download
-          </Text>
+          <Text style={styles.sectionTitle}>Custom Content</Text>
 
-          {customItems.length > 0 ? (
-            <View style={styles.customItemsList}>
-              {customItems.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[
-                    styles.customItem,
-                    selectedCustomItems.includes(item.id) && styles.customItemSelected
-                  ]}
-                  onPress={() => toggleCustomItemSelection(item.id)}
-                >
-                  <View style={styles.itemInfo}>
-                    <View style={styles.itemIconContainer}>
-                      <Ionicons 
-                        name={getItemIcon(item.type)} 
-                        size={24} 
-                        color="#6366F1" 
-                      />
-                    </View>
-                    <View style={styles.itemDetails}>
-                      <Text style={styles.itemName}>{item.name}</Text>
-                      <Text style={styles.itemMeta}>
-                        {item.type.charAt(0).toUpperCase() + item.type.slice(1)} • {item.size}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={[
-                    styles.checkbox,
-                    selectedCustomItems.includes(item.id) && styles.checkboxSelected
-                  ]}>
-                    {selectedCustomItems.includes(item.id) && (
-                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="create-outline" size={64} color="#D1D5DB" />
-              <Text style={styles.emptyStateTitle}>No Custom Content</Text>
-              <Text style={styles.emptyStateSubtitle}>
-                Create custom themes, questions, or pairs to see them here
-              </Text>
-            </View>
-          )}
-
-          {customItems.length > 0 && (
+          {/* Custom Themes Dropdown */}
+          <View style={styles.dropdownContainer}>
             <TouchableOpacity 
-              style={[
-                styles.downloadCustomButton,
-                (selectedCustomItems.length === 0 || isDownloading) && styles.downloadButtonDisabled
-              ]} 
-              onPress={handleDownloadCustomItems}
-              disabled={selectedCustomItems.length === 0 || isDownloading}
+              style={styles.dropdownHeader}
+              onPress={() => setThemesDropdownOpen(!themesDropdownOpen)}
             >
-              {isDownloading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Ionicons name="download" size={20} color="#FFFFFF" />
-              )}
-              <Text style={styles.downloadButtonText}>
-                Download Selected Items ({selectedCustomItems.length})
-              </Text>
+              <View style={styles.dropdownHeaderLeft}>
+                <Ionicons name="color-palette" size={20} color="#6366F1" />
+                <Text style={styles.dropdownTitle}>Custom Themes ({customThemes.length})</Text>
+              </View>
+              <View style={styles.dropdownHeaderRight}>
+                {customThemes.length > 0 && (
+                  <TouchableOpacity 
+                    style={styles.downloadAllButton}
+                    onPress={handleDownloadAllCustomThemes}
+                    disabled={isDownloading || customThemes.every(theme => theme.downloaded)}
+                  >
+                    <Text style={styles.downloadAllText}>Download All</Text>
+                  </TouchableOpacity>
+                )}
+                <Ionicons 
+                  name={themesDropdownOpen ? "chevron-up" : "chevron-down"} 
+                  size={20} 
+                  color="#6B7280" 
+                />
+              </View>
             </TouchableOpacity>
-          )}
-        </View>
 
-        {/* Storage Info */}
-        <View style={styles.storageSection}>
-          <Text style={styles.sectionTitle}>Storage</Text>
-          <View style={styles.storageCard}>
-            <View style={styles.storageHeader}>
-              <Ionicons name="folder" size={20} color="#6366F1" />
-              <Text style={styles.storageTitle}>Local Storage</Text>
-            </View>
-            <Text style={styles.storageUsage}>2.4 MB used • Unlimited available</Text>
-            <View style={styles.storageBar}>
-              <View style={styles.storageBarFill} />
-            </View>
+            {themesDropdownOpen && (
+              <View style={styles.dropdownContent}>
+                {customThemes.length > 0 ? (
+                  customThemes.map((theme) => (
+                    <TouchableOpacity
+                      key={theme.id}
+                      style={styles.dropdownItem}
+                      onPress={() => handleDownloadCustomItem(theme)}
+                      disabled={isDownloading || theme.downloaded}
+                    >
+                      <Text style={[styles.itemName, theme.downloaded && styles.downloadedItemText]}>
+                        {theme.name}
+                      </Text>
+                      <View style={styles.itemAction}>
+                        {isDownloading ? (
+                          <ActivityIndicator size="small" color="#6366F1" />
+                        ) : theme.downloaded ? (
+                          <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                        ) : (
+                          <Ionicons name="download" size={20} color="#6366F1" />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <View style={styles.emptyDropdown}>
+                    <Text style={styles.emptyText}>No custom themes created yet</Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+
+          {/* Custom Pairs Dropdown */}
+          <View style={styles.dropdownContainer}>
+            <TouchableOpacity 
+              style={styles.dropdownHeader}
+              onPress={() => setPairsDropdownOpen(!pairsDropdownOpen)}
+            >
+              <View style={styles.dropdownHeaderLeft}>
+                <Ionicons name="link" size={20} color="#6366F1" />
+                <Text style={styles.dropdownTitle}>Custom Pairs ({customPairs.length})</Text>
+              </View>
+              <View style={styles.dropdownHeaderRight}>
+                {customPairs.length > 0 && (
+                  <TouchableOpacity 
+                    style={styles.downloadAllButton}
+                    onPress={handleDownloadAllCustomPairs}
+                    disabled={isDownloading || customPairs.every(pair => pair.downloaded)}
+                  >
+                    <Text style={styles.downloadAllText}>Download All</Text>
+                  </TouchableOpacity>
+                )}
+                <Ionicons 
+                  name={pairsDropdownOpen ? "chevron-up" : "chevron-down"} 
+                  size={20} 
+                  color="#6B7280" 
+                />
+              </View>
+            </TouchableOpacity>
+
+            {pairsDropdownOpen && (
+              <View style={styles.dropdownContent}>
+                {customPairs.length > 0 ? (
+                  customPairs.map((pair) => (
+                    <TouchableOpacity
+                      key={pair.id}
+                      style={styles.dropdownItem}
+                      onPress={() => handleDownloadCustomItem(pair)}
+                      disabled={isDownloading || pair.downloaded}
+                    >
+                      <Text style={[styles.itemName, pair.downloaded && styles.downloadedItemText]}>
+                        {pair.name}
+                      </Text>
+                      <View style={styles.itemAction}>
+                        {isDownloading ? (
+                          <ActivityIndicator size="small" color="#6366F1" />
+                        ) : pair.downloaded ? (
+                          <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                        ) : (
+                          <Ionicons name="download" size={20} color="#6366F1" />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <View style={styles.emptyDropdown}>
+                    <Text style={styles.emptyText}>No custom pairs created yet</Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
         </View>
 
-        {/* Action Buttons */}
+      </ScrollView>
+
+        {/* Back Button */}
         <View style={styles.actionsSection}>
           <TouchableOpacity 
             style={styles.primaryButton} 
@@ -418,7 +508,6 @@ const DownloadsScreen: React.FC = () => {
             <Text style={styles.primaryButtonText}>Back to Games</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -446,7 +535,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#374151',
-    marginLeft: -32,
   },
   headerSpacer: {
     width: 32,
@@ -493,190 +581,123 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 4,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    color: '#6B7280',
     marginBottom: 16,
   },
-  buttonRow: {
-    gap: 12,
+  basicDownloadButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  downloadButton: {
+  downloadedButton: {
+    borderColor: '#10B981',
+    backgroundColor: '#F0FDF4',
+  },
+  downloadButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#6366F1',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  downloadButtonDisabled: {
-    backgroundColor: '#9CA3AF',
+    justifyContent: 'space-between',
   },
   downloadButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  customHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  selectionActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  selectionButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 6,
-  },
-  selectionButtonText: {
-    fontSize: 12,
     fontWeight: '500',
     color: '#374151',
   },
-  customItemsList: {
-    gap: 8,
-    marginBottom: 16,
+  downloadedText: {
+    color: '#059669',
   },
-  customItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  downloadButtonIcon: {
+    marginLeft: 12,
+  },
+  dropdownContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
   },
-  customItemSelected: {
-    borderColor: '#6366F1',
-    backgroundColor: '#EEF2FF',
-  },
-  itemInfo: {
+  dropdownHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-  },
-  itemIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#EEF2FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  itemDetails: {
-    flex: 1,
-  },
-  itemName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 2,
-  },
-  itemMeta: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  checkboxSelected: {
-    backgroundColor: '#6366F1',
-    borderColor: '#6366F1',
-  },
-  downloadCustomButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#059669',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 48,
-    marginBottom: 16,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: '#374151',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    paddingHorizontal: 32,
-  },
-  storageSection: {
-    marginBottom: 32,
-  },
-  storageCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    justifyContent: 'space-between',
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
   },
-  storageHeader: {
+  dropdownHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    flex: 1,
   },
-  storageTitle: {
+  dropdownHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dropdownTitle: {
     fontSize: 16,
     fontWeight: '500',
     color: '#374151',
     marginLeft: 8,
   },
-  storageUsage: {
+  downloadAllButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 6,
+  },
+  downloadAllText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6366F1',
+  },
+  dropdownContent: {
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F9FAFB',
+  },
+  itemName: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#374151',
+    flex: 1,
+  },
+  downloadedItemText: {
+    color: '#059669',
+  },
+  itemAction: {
+    marginLeft: 12,
+  },
+  emptyDropdown: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  emptyText: {
     fontSize: 14,
     color: '#6B7280',
-    marginBottom: 12,
-  },
-  storageBar: {
-    height: 4,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  storageBarFill: {
-    height: '100%',
-    width: '15%',
-    backgroundColor: '#6366F1',
+    fontStyle: 'italic',
   },
   actionsSection: {
     gap: 12,
-    marginBottom: 32,
+    marginBottom: 20,
+    paddingHorizontal: 16,
+
   },
   primaryButton: {
     flexDirection: 'row',
