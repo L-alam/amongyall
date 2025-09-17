@@ -543,9 +543,6 @@ const DownloadsScreen: React.FC = () => {
               <Text style={styles.storageTitle}>Device Storage</Text>
             </View>
             <Text style={styles.storageUsage}>{storageSize} used • Offline content stored on device</Text>
-            <View style={styles.storageBar}>
-              <View style={styles.storageBarFill} />
-            </View>
             
             <TouchableOpacity 
               style={styles.clearButton}

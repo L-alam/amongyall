@@ -1,10 +1,10 @@
-// lib/wavelengthService.ts (FIXED VERSION)
+// lib/wavelengthService.ts (FIXED VERSION with better offline handling)
 import { authService } from './authService';
 import { offlineStorageService } from './offlineStorageService';
 import { supabase } from './supabase';
 
-const ANONYMOUS_PAIR_LIMIT = 10; // Updated to 10
-const AUTHENTICATED_PAIR_LIMIT = 10; // New limit for authenticated users
+const ANONYMOUS_PAIR_LIMIT = 10;
+const AUTHENTICATED_PAIR_LIMIT = 10;
 
 export interface WavelengthPair {
   id: string;
@@ -20,12 +20,24 @@ export interface WordPairs {
   negative: string;
 }
 
+// Helper function to check if we're offline
+const isOnline = async (): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('pairs')
+      .select('id')
+      .limit(1);
+    return !error;
+  } catch {
+    return false;
+  }
+};
+
 // Get all wavelength pairs (ONLY built-in pairs for main feed)
 export const getAllWavelengthPairs = async (): Promise<WavelengthPair[]> => {
   const { data, error } = await supabase
     .from('pairs')
     .select('*')
-    // FIXED: Only return built-in pairs (is_custom = false OR NULL)
     .or('is_custom.is.null,is_custom.eq.false')
     .order('created_at', { ascending: false });
 
@@ -53,84 +65,152 @@ export const getBuiltInPairs = async (): Promise<WavelengthPair[]> => {
   return data || [];
 };
 
-
 export const getAllWavelengthPairsWithOffline = async (): Promise<WavelengthPair[]> => {
   try {
-    // Get offline basic pairs
+    // Always try offline first
     const offlineBasicPairs = await offlineStorageService.getBasicPairs();
-    
-    // Get offline custom pairs
     const offlineCustomPairs = await offlineStorageService.getCustomPairs();
     
-    // If we have offline basic pairs, use those + online custom pairs
-    if (offlineBasicPairs.length > 0) {
-      console.log('Using offline basic pairs + online custom pairs');
-      const onlineCustomPairs = await getUserCustomPairs();
-      
-      // Combine offline basic + both offline and online custom
-      const combinedPairs: WavelengthPair[] = [];
-      const offlineCustomIds = new Set(offlineCustomPairs.map(p => p.id));
-      
-      // Add offline basic pairs
-      combinedPairs.push(...offlineBasicPairs);
-      
-      // Add offline custom pairs
-      combinedPairs.push(...offlineCustomPairs);
-      
-      // Add online custom pairs that aren't already offline
-      onlineCustomPairs.forEach(onlinePair => {
-        if (!offlineCustomIds.has(onlinePair.id)) {
-          combinedPairs.push(onlinePair);
-        }
-      });
-      
-      return combinedPairs;
+    console.log(`Found ${offlineBasicPairs.length} offline basic pairs and ${offlineCustomPairs.length} offline custom pairs`);
+    
+    // Check if we're online
+    const online = await isOnline();
+    
+    if (!online) {
+      console.log('Offline mode - using only locally stored pairs');
+      // Return offline pairs only
+      return [...offlineBasicPairs, ...offlineCustomPairs];
     }
     
-    // Fallback to online if no offline basic pairs
-    console.log('No offline basic pairs, using online data');
-    return await getAllWavelengthPairs();
+    // We're online - try to get online custom pairs and merge
+    try {
+      const onlineCustomPairs = await getUserCustomPairs();
+      console.log(`Found ${onlineCustomPairs.length} online custom pairs`);
+      
+      // If we have offline basic pairs, use those + online custom pairs
+      if (offlineBasicPairs.length > 0) {
+        console.log('Using offline basic pairs + online custom pairs');
+        const combinedPairs: WavelengthPair[] = [];
+        const offlineCustomIds = new Set(offlineCustomPairs.map(p => p.id));
+        
+        // Add offline basic pairs
+        combinedPairs.push(...offlineBasicPairs);
+        
+        // Add offline custom pairs
+        combinedPairs.push(...offlineCustomPairs);
+        
+        // Add online custom pairs that aren't already offline
+        onlineCustomPairs.forEach(onlinePair => {
+          if (!offlineCustomIds.has(onlinePair.id)) {
+            combinedPairs.push(onlinePair);
+          }
+        });
+        
+        return combinedPairs;
+      } else {
+        // No offline basic pairs, get online basic + custom
+        console.log('No offline basic pairs, using online data');
+        const onlineBasicPairs = await getAllWavelengthPairs();
+        return [...onlineBasicPairs, ...onlineCustomPairs];
+      }
+    } catch (onlineError) {
+      console.error('Error getting online custom pairs, falling back to offline only:', onlineError);
+      // Fall back to offline pairs only
+      return [...offlineBasicPairs, ...offlineCustomPairs];
+    }
   } catch (error) {
-    console.error('Error getting pairs with offline:', error);
-    // Final fallback to online only
-    return await getAllWavelengthPairs();
+    console.error('Error in getAllWavelengthPairsWithOffline:', error);
+    // Final fallback - try online only if we can't get offline data
+    try {
+      const online = await isOnline();
+      if (online) {
+        return await getAllWavelengthPairs();
+      } else {
+        // We're offline and can't get offline data - return empty array
+        console.log('Offline and no cached data available');
+        return [];
+      }
+    } catch (finalError) {
+      console.error('Final fallback failed:', finalError);
+      return [];
+    }
   }
 };
-
-// REMOVED: getCustomPairs function that returned ALL custom pairs
-// This was causing the privacy issue where users could see each other's custom pairs
 
 // Check pair limit for ALL users (anonymous and authenticated)
 export const checkPairLimit = async (): Promise<{ canCreate: boolean; count: number; limit: number }> => {
   const userId = authService.getUserId();
-  
-  let query = supabase
-    .from('pairs')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_custom', true);
-
-  if (userId) {
-    query = query.eq('created_by', userId);
-  } else {
-    query = query.is('created_by', null);
-  }
-
-  const { count, error } = await query; // Fixed: use count instead of data
-
-  if (error) {
-    console.error('Error checking pair count:', error);
-    const limit = userId ? AUTHENTICATED_PAIR_LIMIT : ANONYMOUS_PAIR_LIMIT;
-    return { canCreate: false, count: 0, limit };
-  }
-
-  const actualCount = count || 0;
   const limit = userId ? AUTHENTICATED_PAIR_LIMIT : ANONYMOUS_PAIR_LIMIT;
-  
-  return {
-    canCreate: actualCount < limit,
-    count: actualCount,
-    limit
-  };
+
+  try {
+    // First check if we're online
+    const online = await isOnline();
+    
+    if (!online) {
+      console.log('Offline mode - checking custom pairs limit from local storage');
+      // When offline, count custom pairs from local storage
+      const offlineCustomPairs = await offlineStorageService.getCustomPairs();
+      const actualCount = offlineCustomPairs.length;
+      
+      return {
+        canCreate: actualCount < limit,
+        count: actualCount,
+        limit
+      };
+    }
+
+    // We're online - check via Supabase
+    let query = supabase
+      .from('pairs')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_custom', true);
+
+    if (userId) {
+      query = query.eq('created_by', userId);
+    } else {
+      query = query.is('created_by', null);
+    }
+
+    const { count, error } = await query;
+
+    if (error) {
+      console.error('Error checking pair count online:', error);
+      // Fall back to offline count if online check fails
+      const offlineCustomPairs = await offlineStorageService.getCustomPairs();
+      const actualCount = offlineCustomPairs.length;
+      
+      return {
+        canCreate: actualCount < limit,
+        count: actualCount,
+        limit
+      };
+    }
+
+    const actualCount = count || 0;
+    
+    return {
+      canCreate: actualCount < limit,
+      count: actualCount,
+      limit
+    };
+  } catch (error) {
+    console.error('Error in checkPairLimit:', error);
+    // Final fallback - try to count offline pairs, otherwise allow creation
+    try {
+      const offlineCustomPairs = await offlineStorageService.getCustomPairs();
+      const actualCount = offlineCustomPairs.length;
+      
+      return {
+        canCreate: actualCount < limit,
+        count: actualCount,
+        limit
+      };
+    } catch (offlineError) {
+      console.error('Could not check offline pairs either:', offlineError);
+      // Ultimate fallback - allow creation with conservative approach
+      return { canCreate: true, count: 0, limit };
+    }
+  }
 };
 
 // Legacy function name - kept for compatibility but updated logic
@@ -175,34 +255,59 @@ export const getUserCustomPairs = async (): Promise<WavelengthPair[]> => {
   return data || [];
 };
 
-
 export const getUserCustomPairsWithOffline = async (): Promise<WavelengthPair[]> => {
   try {
-    // Get offline custom pairs
+    // Always try offline first
     const offlineCustomPairs = await offlineStorageService.getCustomPairs();
+    console.log(`Found ${offlineCustomPairs.length} offline custom pairs`);
     
-    // Get online custom pairs
-    const onlineCustomPairs = await getUserCustomPairs();
+    // Check if we're online
+    const online = await isOnline();
     
-    // Combine both, prioritizing offline versions if they exist
-    const combinedPairs: WavelengthPair[] = [];
-    const offlineIds = new Set(offlineCustomPairs.map(p => p.id));
+    if (!online) {
+      console.log('Offline mode - using only locally stored custom pairs');
+      return offlineCustomPairs;
+    }
     
-    // Add offline pairs first
-    combinedPairs.push(...offlineCustomPairs);
-    
-    // Add online pairs that aren't already offline
-    onlineCustomPairs.forEach(onlinePair => {
-      if (!offlineIds.has(onlinePair.id)) {
-        combinedPairs.push(onlinePair);
-      }
-    });
-    
-    return combinedPairs;
+    // We're online - try to get online custom pairs and merge
+    try {
+      const onlineCustomPairs = await getUserCustomPairs();
+      console.log(`Found ${onlineCustomPairs.length} online custom pairs`);
+      
+      // Combine both, prioritizing offline versions if they exist
+      const combinedPairs: WavelengthPair[] = [];
+      const offlineIds = new Set(offlineCustomPairs.map(p => p.id));
+      
+      // Add offline pairs first
+      combinedPairs.push(...offlineCustomPairs);
+      
+      // Add online pairs that aren't already offline
+      onlineCustomPairs.forEach(onlinePair => {
+        if (!offlineIds.has(onlinePair.id)) {
+          combinedPairs.push(onlinePair);
+        }
+      });
+      
+      return combinedPairs;
+    } catch (onlineError) {
+      console.error('Error getting online custom pairs, falling back to offline only:', onlineError);
+      return offlineCustomPairs;
+    }
   } catch (error) {
     console.error('Error getting custom pairs with offline:', error);
-    // Fallback to just online pairs
-    return await getUserCustomPairs();
+    // Final fallback - try online only if offline fails
+    try {
+      const online = await isOnline();
+      if (online) {
+        return await getUserCustomPairs();
+      } else {
+        console.log('Offline and no cached custom pairs available');
+        return [];
+      }
+    } catch (finalError) {
+      console.error('Final fallback for custom pairs failed:', finalError);
+      return [];
+    }
   }
 };
 
@@ -226,7 +331,7 @@ export const getAnonymousCustomPairs = async (): Promise<WavelengthPair[]> => {
 // Get a random pair from built-in pairs only (for main feed)
 export const getRandomPair = async (): Promise<WordPairs | null> => {
   try {
-    const builtInPairs = await getBuiltInPairs(); // FIXED: Use built-in pairs only
+    const builtInPairs = await getBuiltInPairs();
     
     if (builtInPairs.length === 0) return null;
     
@@ -259,13 +364,18 @@ export const getRandomPairWithOffline = async (): Promise<WordPairs | null> => {
       };
     }
     
-    // Fallback to online
-    console.log('No offline pairs, using online for random selection');
-    return await getRandomPair();
+    // Check if we're online before trying online fallback
+    const online = await isOnline();
+    if (online) {
+      console.log('No offline pairs, using online for random selection');
+      return await getRandomPair();
+    } else {
+      console.log('Offline and no cached pairs for random selection');
+      return null;
+    }
   } catch (error) {
     console.error('Error getting random pair with offline:', error);
-    // Final fallback to online
-    return await getRandomPair();
+    return null;
   }
 };
 
@@ -292,7 +402,7 @@ export const getRandomBuiltInPair = async (): Promise<WordPairs | null> => {
 // Get multiple random pairs from built-in pairs only
 export const getRandomPairs = async (count: number): Promise<WordPairs[]> => {
   try {
-    const builtInPairs = await getBuiltInPairs(); // FIXED: Use built-in pairs only
+    const builtInPairs = await getBuiltInPairs();
     
     if (builtInPairs.length === 0) return [];
     
@@ -362,55 +472,56 @@ export const createCustomPair = async (term0: string, term1: string): Promise<Wa
   return newPair;
 };
 
-
-
 // Check if a pair already exists
 export const pairExists = async (term0: string, term1: string): Promise<boolean> => {
-  const userId = authService.getUserId();
-  
-  // First check built-in pairs (available to everyone)
-  const { data: builtInData, error: builtInError } = await supabase
-    .from('pairs')
-    .select('id')
-    .or('is_custom.is.null,is_custom.eq.false')
-    .or(`and(term_0.eq.${term0},term_1.eq.${term1}),and(term_0.eq.${term1},term_1.eq.${term0})`)
-    .limit(1);
+  try {
+    const userId = authService.getUserId();
+    
+    // First check built-in pairs (available to everyone)
+    const { data: builtInData, error: builtInError } = await supabase
+      .from('pairs')
+      .select('id')
+      .or('is_custom.is.null,is_custom.eq.false')
+      .or(`and(term_0.eq.${term0},term_1.eq.${term1}),and(term_0.eq.${term1},term_1.eq.${term0})`)
+      .limit(1);
 
-  if (builtInError) {
-    console.error('Error checking built-in pairs:', builtInError);
+    if (builtInError) {
+      console.error('Error checking built-in pairs:', builtInError);
+      return false;
+    }
+
+    if (builtInData && builtInData.length > 0) {
+      return true; // Found in built-in pairs
+    }
+
+    // Then check current user's custom pairs
+    let customQuery = supabase
+      .from('pairs')
+      .select('id')
+      .eq('is_custom', true)
+      .or(`and(term_0.eq.${term0},term_1.eq.${term1}),and(term_0.eq.${term1},term_1.eq.${term0})`)
+      .limit(1);
+
+    // Filter by current user's pairs
+    if (userId) {
+      customQuery = customQuery.eq('created_by', userId);
+    } else {
+      customQuery = customQuery.is('created_by', null);
+    }
+
+    const { data: customData, error: customError } = await customQuery;
+
+    if (customError) {
+      console.error('Error checking user custom pairs:', customError);
+      return false;
+    }
+
+    return (customData && customData.length > 0) ?? false;
+  } catch (error) {
+    console.error('Error in pairExists:', error);
     return false;
   }
-
-  if (builtInData && builtInData.length > 0) {
-    return true; // Found in built-in pairs
-  }
-
-  // Then check current user's custom pairs
-  let customQuery = supabase
-    .from('pairs')
-    .select('id')
-    .eq('is_custom', true)
-    .or(`and(term_0.eq.${term0},term_1.eq.${term1}),and(term_0.eq.${term1},term_1.eq.${term0})`)
-    .limit(1);
-
-  // Filter by current user's pairs
-  if (userId) {
-    customQuery = customQuery.eq('created_by', userId);
-  } else {
-    customQuery = customQuery.is('created_by', null);
-  }
-
-  const { data: customData, error: customError } = await customQuery;
-
-  if (customError) {
-    console.error('Error checking user custom pairs:', customError);
-    return false;
-  }
-
-  return (customData && customData.length > 0) ?? false;
 };
-
-
 
 // Delete a custom pair
 export const deleteCustomPair = async (pairId: string): Promise<void> => {

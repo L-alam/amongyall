@@ -12,9 +12,11 @@ import {
   checkPairLimit,
   createCustomPair,
   deleteCustomPair,
-  getAllWavelengthPairs,
-  getRandomPair,
-  getUserCustomPairs
+  getAllWavelengthPairsWithOffline,
+  //getRandomPair,
+  //getUserCustomPairs,
+  //getRandomPairWithOffline,
+  getUserCustomPairsWithOffline
 } from '../../lib/wavelengthService';
 import {
   layoutStyles
@@ -54,24 +56,89 @@ export default function WavelengthPairs() {
     try {
       setLoading(true);
       
+      console.log('Loading pairs...');
+      
       const [allPairsData, customPairsData] = await Promise.all([
-        getAllWavelengthPairs(),
-        getUserCustomPairs()
+        getAllWavelengthPairsWithOffline(),
+        getUserCustomPairsWithOffline()
       ]);
+      
+      console.log(`Loaded ${allPairsData.length} total pairs and ${customPairsData.length} custom pairs`);
       
       setAllPairs(allPairsData);
       setCustomPairs(customPairsData);
       
+      // If we have no pairs at all, show a different message
+      if (allPairsData.length === 0 && customPairsData.length === 0) {
+        Alert.alert(
+          'No Pairs Available', 
+          'No word pairs are available offline. Please connect to the internet to download pairs for offline use.',
+          [{ text: 'OK' }]
+        );
+      }
+      
     } catch (error) {
       console.error('Error loading pairs:', error);
+      
+      // Instead of showing a generic error, show a more specific offline-friendly message
       Alert.alert(
-        'Error', 
-        'Failed to load word pairs. Please check your connection and try again.'
+        'Loading Issue', 
+        'Unable to load some word pairs. If you\'re offline, only downloaded pairs will be available.',
+        [
+          {
+            text: 'Continue Anyway',
+            onPress: () => {
+              // Try to load whatever we can get offline
+              loadOfflinePairsOnly();
+            }
+          },
+          {
+            text: 'OK'
+          }
+        ]
       );
     } finally {
       setLoading(false);
     }
   };
+
+  const loadOfflinePairsOnly = async () => {
+    try {
+      console.log('Loading offline pairs only...');
+      
+      // Import the offline storage service
+      const { offlineStorageService } = require('../../lib/offlineStorageService');
+      
+      const [offlineBasicPairs, offlineCustomPairs] = await Promise.all([
+        offlineStorageService.getBasicPairs(),
+        offlineStorageService.getCustomPairs()
+      ]);
+      
+      console.log(`Loaded ${offlineBasicPairs.length} offline basic pairs and ${offlineCustomPairs.length} offline custom pairs`);
+      
+      // Combine all offline pairs
+      const allOfflinePairs = [...offlineBasicPairs, ...offlineCustomPairs];
+      
+      setAllPairs(allOfflinePairs);
+      setCustomPairs(offlineCustomPairs);
+      
+      if (allOfflinePairs.length === 0) {
+        Alert.alert(
+          'No Offline Pairs', 
+          'No word pairs are available offline. Please connect to the internet and download pairs for offline use.',
+          [{ text: 'OK' }]
+        );
+      }
+      
+    } catch (error) {
+      console.error('Error loading offline pairs:', error);
+      // Set empty arrays so the UI doesn't break
+      setAllPairs([]);
+      setCustomPairs([]);
+    }
+  };
+
+
 
   const handleBack = () => {
     router.back();
@@ -83,28 +150,45 @@ export default function WavelengthPairs() {
 
   const handleRandomPair = async () => {
     try {
-      const randomPair = await getRandomPair();
-      if (!randomPair) {
-        Alert.alert('Error', 'No pairs available for random selection.');
+      // Use the new offline-friendly function
+      const allPairs = await getAllWavelengthPairsWithOffline();
+      
+      if (allPairs.length === 0) {
+        Alert.alert(
+          'No Pairs Available', 
+          'No pairs are available for random selection. Please connect to the internet to download pairs, or create custom pairs.',
+          [{ text: 'OK' }]
+        );
         return;
       }
-
-      console.log('Random pair selected:', randomPair); // Debug log
-
-      // Navigate directly to game start with random pair
+  
+      const randomIndex = Math.floor(Math.random() * allPairs.length);
+      const selectedPair = allPairs[randomIndex];
+      
+      const wordPairs: WordPairs = {
+        positive: selectedPair.term_0,
+        negative: selectedPair.term_1
+      };
+  
+      console.log('Random pair selected:', wordPairs);
+  
       router.push({
         pathname: '/wavelength/wavelength-gamestart',
         params: {
           players: JSON.stringify(players),
           firstPlayer,
-          selectedPair: JSON.stringify(randomPair), // randomPair is already WordPairs format
+          selectedPair: JSON.stringify(wordPairs),
           playerScores: JSON.stringify(existingScores),
           playerHistory: JSON.stringify(existingHistory),
         }
       });
     } catch (error) {
       console.error('Error getting random pair:', error);
-      Alert.alert('Error', 'Failed to get random pair. Please try again.');
+      Alert.alert(
+        'Random Selection Failed', 
+        'Unable to select a random pair. Please try selecting a pair manually.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
