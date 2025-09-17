@@ -1,8 +1,8 @@
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { getAllPairs } from './pairsService'; // You'll need to create this
-import { getAllQuestionSets } from './questionService'; // You'll need to create this
+import { getAllQuestionSets } from './questionService';
 import { getAllThemes, getWordsByThemeId } from './themeService';
+import { getAllWavelengthPairs } from './wavelengthService';
 
 export interface DownloadableContent {
   themes: any[];
@@ -70,7 +70,7 @@ class DownloadService {
   async downloadBasicPairs(): Promise<void> {
     try {
       // You'll need to implement getAllPairs() in your pairsService
-      const pairs = await getAllPairs();
+      const pairs = await getAllWavelengthPairs();
 
       const downloadContent = {
         type: 'basic_pairs',
@@ -145,7 +145,7 @@ class DownloadService {
       const [themes, questions, pairs] = await Promise.all([
         getAllThemes(),
         getAllQuestionSets(), // You'll need to implement this
-        getAllPairs() // You'll need to implement this
+        getAllWavelengthPairs() // You'll need to implement this
       ]);
 
       const downloadContent: DownloadableContent = {

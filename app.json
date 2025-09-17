@@ -45,6 +45,12 @@
           "androidAppId": "ca-app-pub-8062066976620321~5784637423",
           "iosAppId": "ca-app-pub-8062066976620321~5784637423"
         }
+      ],
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
       ]
     ],
     "experiments": {
