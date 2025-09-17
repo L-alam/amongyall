@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState } from 'react';
@@ -15,16 +15,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+// Import the actual services from your project
+import { getBuiltInThemes, getUserCustomThemes, getWordsByThemeId } from '../lib/themeService';
+import { getBuiltInPairs, getUserCustomPairs } from '../lib/wavelengthService';
+
 // Mock data for basic themes from your project
 const BASIC_THEMES = [
   'States', 'Civilizations', 'Transportation', 'School', 'Food', 
   'Drinks', 'Rooms', 'Sports', 'The Arts', 'Zoo', 'Geography', 
   'Hobbies', 'World Wonders', 'Phobias', 'Mythical Creatures', 
   'Jobs', 'US Presidents', 'Games', 'Inventions', 'Film Genres'
-];
-
-const BASIC_PAIRS = [
-  'Common Pairs', 'Rhyming Words', 'Opposites', 'Synonyms', 'Related Items'
 ];
 
 interface CustomItem {
@@ -45,6 +45,7 @@ const DownloadsScreen: React.FC = () => {
   const [customPairs, setCustomPairs] = useState<CustomItem[]>([]);
   const [themesDropdownOpen, setThemesDropdownOpen] = useState(false);
   const [pairsDropdownOpen, setPairsDropdownOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadCustomItems();
@@ -52,23 +53,41 @@ const DownloadsScreen: React.FC = () => {
 
   const loadCustomItems = async () => {
     try {
-      // Mock custom items - replace with actual API calls to your Supabase
-      const mockCustomThemes: CustomItem[] = [
-        { id: '1', name: 'Custom Food Theme', type: 'theme', size: '2.3 KB', created_at: '2025-09-15', downloaded: false },
-        { id: '2', name: 'Geography Custom Theme', type: 'theme', size: '3.7 KB', created_at: '2025-09-12', downloaded: false },
-        { id: '3', name: 'Movie Categories', type: 'theme', size: '1.9 KB', created_at: '2025-09-10', downloaded: false },
-      ];
+      setLoading(true);
+      
+      // Load actual custom themes and pairs from your services
+      const [customThemesData, customPairsData] = await Promise.all([
+        getUserCustomThemes(),
+        getUserCustomPairs()
+      ]);
 
-      const mockCustomPairs: CustomItem[] = [
-        { id: '4', name: 'Movie Word Pairs', type: 'pairs', size: '5.1 KB', created_at: '2025-09-13', downloaded: false },
-        { id: '5', name: 'Animal Pairs', type: 'pairs', size: '4.8 KB', created_at: '2025-09-10', downloaded: false },
-        { id: '6', name: 'Science Terms', type: 'pairs', size: '6.2 KB', created_at: '2025-09-08', downloaded: false },
-      ];
+      // Transform themes to CustomItem format
+      const transformedThemes: CustomItem[] = customThemesData.map(theme => ({
+        id: theme.id,
+        name: theme.name,
+        type: 'theme' as const,
+        size: '2.3 KB', // You could calculate actual size later
+        created_at: theme.created_at || new Date().toISOString(),
+        downloaded: false
+      }));
 
-      setCustomThemes(mockCustomThemes);
-      setCustomPairs(mockCustomPairs);
+      // Transform pairs to CustomItem format
+      const transformedPairs: CustomItem[] = customPairsData.map(pair => ({
+        id: pair.id,
+        name: `${pair.term_0} ↔ ${pair.term_1}`,
+        type: 'pairs' as const,
+        size: '1.2 KB',
+        created_at: pair.created_at || new Date().toISOString(),
+        downloaded: false
+      }));
+
+      setCustomThemes(transformedThemes);
+      setCustomPairs(transformedPairs);
     } catch (error) {
       console.error('Error loading custom items:', error);
+      Alert.alert('Error', 'Failed to load custom content');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -81,40 +100,65 @@ const DownloadsScreen: React.FC = () => {
     
     setIsDownloading(true);
     try {
+      // Get actual built-in themes from your service
+      const builtInThemes = await getBuiltInThemes();
+      
+      // Get words for each theme
+      const themesWithWords = await Promise.all(
+        builtInThemes.map(async (theme) => {
+          const words = await getWordsByThemeId(theme.id);
+          return {
+            id: theme.id,
+            name: theme.name,
+            words: words,
+            is_premium: theme.is_premium,
+            is_custom: theme.is_custom,
+            created_at: theme.created_at
+          };
+        })
+      );
+
       // Create downloadable content
       const downloadContent = {
         type: 'basic_themes',
-        data: BASIC_THEMES.map((theme, index) => ({
-          id: `theme_${index}`,
-          name: theme,
-          words: [`word1_${theme}`, `word2_${theme}`, `word3_${theme}`], // Mock words
-          is_premium: false,
-          is_custom: false,
-        })),
+        data: themesWithWords,
         metadata: {
           downloadDate: new Date().toISOString(),
-          count: BASIC_THEMES.length,
+          count: themesWithWords.length,
           version: '1.0',
-          app: 'AmongYall'
+          app: 'AmongYall',
+          description: 'Built-in themes with all words'
         }
       };
 
-      // Save to file
-      const filename = `amongyall-basic-themes-${Date.now()}.json`;
-      const fileUri = FileSystem.documentDirectory + filename;
-      await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(downloadContent, null, 2));
+      // For testing in Expo Go - just show an alert with the data
+      console.log('Download content:', JSON.stringify(downloadContent, null, 2));
+      
+      // Try to save and share file
+      try {
+        const filename = `amongyall-basic-themes-${Date.now()}.json`;
+        const fileUri = FileSystem.documentDirectory + filename;
+        await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(downloadContent, null, 2));
 
-      // Share file
-      await Sharing.shareAsync(fileUri, {
-        mimeType: 'application/json',
-        dialogTitle: 'Save Basic Themes'
-      });
+        // Share file
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'application/json',
+          dialogTitle: 'Save Basic Themes'
+        });
 
-      setBasicThemesDownloaded(true);
-      Alert.alert(
-        'Download Complete!',
-        `Successfully downloaded ${BASIC_THEMES.length} basic themes!`
-      );
+        setBasicThemesDownloaded(true);
+        Alert.alert(
+          'Download Complete!',
+          `Successfully downloaded ${themesWithWords.length} basic themes with all their words!\n\nCheck the console for the JSON data.`
+        );
+      } catch (fileError) {
+        // Fallback for testing - just show the data
+        Alert.alert(
+          'Data Retrieved Successfully!',
+          `Found ${themesWithWords.length} themes. File sharing not available in Expo Go, but check console for JSON data.`
+        );
+        setBasicThemesDownloaded(true);
+      }
     } catch (error) {
       console.error('Download error:', error);
       Alert.alert('Download Failed', 'Unable to download basic themes. Please try again.');
@@ -128,24 +172,26 @@ const DownloadsScreen: React.FC = () => {
     
     setIsDownloading(true);
     try {
+      // Get actual built-in pairs from your service
+      const builtInPairs = await getBuiltInPairs();
+
       const downloadContent = {
         type: 'basic_pairs',
-        data: BASIC_PAIRS.map((pairSet, index) => ({
-          id: `pairs_${index}`,
-          name: pairSet,
-          pairs: [
-            [`pair1_${pairSet}`, `match1_${pairSet}`],
-            [`pair2_${pairSet}`, `match2_${pairSet}`],
-            [`pair3_${pairSet}`, `match3_${pairSet}`]
-          ], // Mock pairs
-          is_premium: false,
-          is_custom: false,
+        data: builtInPairs.map(pair => ({
+          id: pair.id,
+          name: `${pair.term_0} ↔ ${pair.term_1}`,
+          term_0: pair.term_0,
+          term_1: pair.term_1,
+          is_premium: pair.is_premium,
+          is_custom: pair.is_custom,
+          created_at: pair.created_at
         })),
         metadata: {
           downloadDate: new Date().toISOString(),
-          count: BASIC_PAIRS.length,
+          count: builtInPairs.length,
           version: '1.0',
-          app: 'AmongYall'
+          app: 'AmongYall',
+          description: 'Built-in word pairs for Wavelength game'
         }
       };
 
@@ -161,7 +207,7 @@ const DownloadsScreen: React.FC = () => {
       setBasicPairsDownloaded(true);
       Alert.alert(
         'Download Complete!',
-        `Successfully downloaded ${BASIC_PAIRS.length} basic pair sets!`
+        `Successfully downloaded ${builtInPairs.length} basic pair sets!`
       );
     } catch (error) {
       Alert.alert('Download Failed', 'Unable to download basic pairs. Please try again.');
@@ -175,18 +221,42 @@ const DownloadsScreen: React.FC = () => {
 
     setIsDownloading(true);
     try {
+      let itemData: any = {};
+      
+      if (item.type === 'theme') {
+        // For themes, get the actual theme data with words
+        const customThemesData = await getUserCustomThemes();
+        const themeData = customThemesData.find(t => t.id === item.id);
+        
+        if (themeData) {
+          const words = await getWordsByThemeId(themeData.id);
+          itemData = {
+            ...themeData,
+            words: words
+          };
+        }
+      } else {
+        // For pairs, get the actual pair data
+        const customPairsData = await getUserCustomPairs();
+        const pairData = customPairsData.find(p => p.id === item.id);
+        if (pairData) {
+          itemData = pairData;
+        }
+      }
+
       const downloadContent = {
         type: `custom_${item.type}`,
-        data: [item],
+        data: [itemData],
         metadata: {
           downloadDate: new Date().toISOString(),
           itemId: item.id,
+          itemName: item.name,
           version: '1.0',
           app: 'AmongYall'
         }
       };
 
-      const filename = `amongyall-${item.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.json`;
+      const filename = `amongyall-${item.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}.json`;
       const fileUri = FileSystem.documentDirectory + filename;
       await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(downloadContent, null, 2));
 
@@ -208,6 +278,7 @@ const DownloadsScreen: React.FC = () => {
 
       Alert.alert('Download Complete!', `Successfully downloaded ${item.name}!`);
     } catch (error) {
+      console.error('Download error:', error);
       Alert.alert('Download Failed', `Unable to download ${item.name}. Please try again.`);
     } finally {
       setIsDownloading(false);
@@ -220,14 +291,29 @@ const DownloadsScreen: React.FC = () => {
 
     setIsDownloading(true);
     try {
+      // Get actual custom themes data with words
+      const customThemesData = await getUserCustomThemes();
+      const themesWithWords = await Promise.all(
+        customThemesData
+          .filter(theme => undownloadedThemes.some(ut => ut.id === theme.id))
+          .map(async (theme) => {
+            const words = await getWordsByThemeId(theme.id);
+            return {
+              ...theme,
+              words: words
+            };
+          })
+      );
+
       const downloadContent = {
         type: 'custom_themes_bulk',
-        data: undownloadedThemes,
+        data: themesWithWords,
         metadata: {
           downloadDate: new Date().toISOString(),
-          count: undownloadedThemes.length,
+          count: themesWithWords.length,
           version: '1.0',
-          app: 'AmongYall'
+          app: 'AmongYall',
+          description: 'All custom themes with words'
         }
       };
 
@@ -243,7 +329,7 @@ const DownloadsScreen: React.FC = () => {
       // Mark all as downloaded
       setCustomThemes(prev => prev.map(theme => ({ ...theme, downloaded: true })));
 
-      Alert.alert('Download Complete!', `Successfully downloaded ${undownloadedThemes.length} custom themes!`);
+      Alert.alert('Download Complete!', `Successfully downloaded ${themesWithWords.length} custom themes!`);
     } catch (error) {
       Alert.alert('Download Failed', 'Unable to download custom themes. Please try again.');
     } finally {
@@ -257,14 +343,21 @@ const DownloadsScreen: React.FC = () => {
 
     setIsDownloading(true);
     try {
+      // Get actual custom pairs data
+      const customPairsData = await getUserCustomPairs();
+      const filteredPairs = customPairsData.filter(pair => 
+        undownloadedPairs.some(up => up.id === pair.id)
+      );
+
       const downloadContent = {
         type: 'custom_pairs_bulk',
-        data: undownloadedPairs,
+        data: filteredPairs,
         metadata: {
           downloadDate: new Date().toISOString(),
-          count: undownloadedPairs.length,
+          count: filteredPairs.length,
           version: '1.0',
-          app: 'AmongYall'
+          app: 'AmongYall',
+          description: 'All custom word pairs'
         }
       };
 
@@ -280,13 +373,31 @@ const DownloadsScreen: React.FC = () => {
       // Mark all as downloaded
       setCustomPairs(prev => prev.map(pair => ({ ...pair, downloaded: true })));
 
-      Alert.alert('Download Complete!', `Successfully downloaded ${undownloadedPairs.length} custom pairs!`);
+      Alert.alert('Download Complete!', `Successfully downloaded ${filteredPairs.length} custom pairs!`);
     } catch (error) {
       Alert.alert('Download Failed', 'Unable to download custom pairs. Please try again.');
     } finally {
       setIsDownloading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
+            <Ionicons name="arrow-back" size={24} color="#374151" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Downloads</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color="#6366F1" />
+          <Text style={{ marginTop: 16, color: '#6B7280' }}>Loading content...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -354,7 +465,7 @@ const DownloadsScreen: React.FC = () => {
           >
             <View style={styles.downloadButtonContent}>
               <Text style={[styles.downloadButtonText, basicPairsDownloaded && styles.downloadedText]}>
-                Download All Basic Pairs ({BASIC_PAIRS.length})
+                Download All Basic Pairs
               </Text>
               <View style={styles.downloadButtonIcon}>
                 {isDownloading ? (
