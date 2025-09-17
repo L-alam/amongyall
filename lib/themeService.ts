@@ -1,5 +1,6 @@
 // lib/themeService.ts (FIXED VERSION)
 import { authService } from './authService';
+import { offlineStorageService } from './offlineStorageService';
 import { supabase } from './supabase';
 
 const ANONYMOUS_THEME_LIMIT = 10; // Updated to 10
@@ -61,12 +62,61 @@ export const getBuiltInThemes = async (): Promise<Theme[]> => {
 
 // Get all theme names (ONLY built-in themes for dropdown)
 export const getAllThemeNames = async (): Promise<string[]> => {
-  const themes = await getBuiltInThemes(); // FIXED: Use built-in themes only
-  return themes.map(theme => theme.name);
+  try {
+    // First check if we have offline themes
+    const offlineThemes = await offlineStorageService.getBasicThemes();
+    
+    if (offlineThemes.length > 0) {
+      console.log('Using offline basic themes');
+      return offlineThemes.map(theme => theme.name);
+    }
+    
+    // Fallback to online if no offline themes
+    console.log('No offline themes, fetching from Supabase');
+    const themes = await getBuiltInThemes();
+    return themes.map(theme => theme.name);
+  } catch (error) {
+    console.error('Error getting theme names:', error);
+    // Final fallback to online
+    const themes = await getBuiltInThemes();
+    return themes.map(theme => theme.name);
+  }
 };
+
 
 // Get words for a specific theme by name
 export const getWordsByThemeName = async (themeName: string): Promise<string[]> => {
+  try {
+    // First check offline basic themes
+    const offlineBasicThemes = await offlineStorageService.getBasicThemes();
+    const offlineBasicTheme = offlineBasicThemes.find(theme => theme.name === themeName);
+    
+    if (offlineBasicTheme) {
+      console.log(`Using offline words for theme: ${themeName}`);
+      return offlineBasicTheme.words;
+    }
+    
+    // Then check offline custom themes
+    const offlineCustomThemes = await offlineStorageService.getCustomThemes();
+    const offlineCustomTheme = offlineCustomThemes.find(theme => theme.name === themeName);
+    
+    if (offlineCustomTheme) {
+      console.log(`Using offline custom words for theme: ${themeName}`);
+      return offlineCustomTheme.words;
+    }
+    
+    // Fallback to online
+    console.log(`No offline data for theme: ${themeName}, fetching from Supabase`);
+    return await getOriginalWordsByThemeName(themeName);
+  } catch (error) {
+    console.error('Error getting words by theme name:', error);
+    // Final fallback to online
+    return await getOriginalWordsByThemeName(themeName);
+  }
+};
+
+
+const getOriginalWordsByThemeName = async (themeName: string): Promise<string[]> => {
   const { data, error } = await supabase
     .from('themes')
     .select(`
@@ -89,6 +139,8 @@ export const getWordsByThemeName = async (themeName: string): Promise<string[]> 
 
   return data.theme_words.map((item: any) => item.word);
 };
+
+
 
 // Get words for a specific theme by ID
 export const getWordsByThemeId = async (themeId: string): Promise<string[]> => {
@@ -177,6 +229,36 @@ export const checkThemeLimit = async (): Promise<{ canCreate: boolean; count: nu
     count: actualCount,
     limit
   };
+};
+
+export const getUserCustomThemesWithOffline = async (): Promise<Theme[]> => {
+  try {
+    // Get offline custom themes
+    const offlineCustomThemes = await offlineStorageService.getCustomThemes();
+    
+    // Get online custom themes
+    const onlineCustomThemes = await getUserCustomThemes();
+    
+    // Combine both, prioritizing offline versions if they exist
+    const combinedThemes: Theme[] = [];
+    const offlineIds = new Set(offlineCustomThemes.map(t => t.id));
+    
+    // Add offline themes first
+    combinedThemes.push(...offlineCustomThemes);
+    
+    // Add online themes that aren't already offline
+    onlineCustomThemes.forEach(onlineTheme => {
+      if (!offlineIds.has(onlineTheme.id)) {
+        combinedThemes.push(onlineTheme);
+      }
+    });
+    
+    return combinedThemes;
+  } catch (error) {
+    console.error('Error getting custom themes with offline:', error);
+    // Fallback to just online themes
+    return await getUserCustomThemes();
+  }
 };
 
 

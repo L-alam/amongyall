@@ -1,5 +1,6 @@
 // lib/wavelengthService.ts (FIXED VERSION)
 import { authService } from './authService';
+import { offlineStorageService } from './offlineStorageService';
 import { supabase } from './supabase';
 
 const ANONYMOUS_PAIR_LIMIT = 10; // Updated to 10
@@ -50,6 +51,50 @@ export const getBuiltInPairs = async (): Promise<WavelengthPair[]> => {
   }
 
   return data || [];
+};
+
+
+export const getAllWavelengthPairsWithOffline = async (): Promise<WavelengthPair[]> => {
+  try {
+    // Get offline basic pairs
+    const offlineBasicPairs = await offlineStorageService.getBasicPairs();
+    
+    // Get offline custom pairs
+    const offlineCustomPairs = await offlineStorageService.getCustomPairs();
+    
+    // If we have offline basic pairs, use those + online custom pairs
+    if (offlineBasicPairs.length > 0) {
+      console.log('Using offline basic pairs + online custom pairs');
+      const onlineCustomPairs = await getUserCustomPairs();
+      
+      // Combine offline basic + both offline and online custom
+      const combinedPairs: WavelengthPair[] = [];
+      const offlineCustomIds = new Set(offlineCustomPairs.map(p => p.id));
+      
+      // Add offline basic pairs
+      combinedPairs.push(...offlineBasicPairs);
+      
+      // Add offline custom pairs
+      combinedPairs.push(...offlineCustomPairs);
+      
+      // Add online custom pairs that aren't already offline
+      onlineCustomPairs.forEach(onlinePair => {
+        if (!offlineCustomIds.has(onlinePair.id)) {
+          combinedPairs.push(onlinePair);
+        }
+      });
+      
+      return combinedPairs;
+    }
+    
+    // Fallback to online if no offline basic pairs
+    console.log('No offline basic pairs, using online data');
+    return await getAllWavelengthPairs();
+  } catch (error) {
+    console.error('Error getting pairs with offline:', error);
+    // Final fallback to online only
+    return await getAllWavelengthPairs();
+  }
 };
 
 // REMOVED: getCustomPairs function that returned ALL custom pairs
@@ -130,6 +175,37 @@ export const getUserCustomPairs = async (): Promise<WavelengthPair[]> => {
   return data || [];
 };
 
+
+export const getUserCustomPairsWithOffline = async (): Promise<WavelengthPair[]> => {
+  try {
+    // Get offline custom pairs
+    const offlineCustomPairs = await offlineStorageService.getCustomPairs();
+    
+    // Get online custom pairs
+    const onlineCustomPairs = await getUserCustomPairs();
+    
+    // Combine both, prioritizing offline versions if they exist
+    const combinedPairs: WavelengthPair[] = [];
+    const offlineIds = new Set(offlineCustomPairs.map(p => p.id));
+    
+    // Add offline pairs first
+    combinedPairs.push(...offlineCustomPairs);
+    
+    // Add online pairs that aren't already offline
+    onlineCustomPairs.forEach(onlinePair => {
+      if (!offlineIds.has(onlinePair.id)) {
+        combinedPairs.push(onlinePair);
+      }
+    });
+    
+    return combinedPairs;
+  } catch (error) {
+    console.error('Error getting custom pairs with offline:', error);
+    // Fallback to just online pairs
+    return await getUserCustomPairs();
+  }
+};
+
 // Get anonymous custom pairs (created_by is null) - ADMIN USE ONLY
 export const getAnonymousCustomPairs = async (): Promise<WavelengthPair[]> => {
   const { data, error } = await supabase
@@ -164,6 +240,32 @@ export const getRandomPair = async (): Promise<WordPairs | null> => {
   } catch (error) {
     console.error('Error getting random pair:', error);
     return null;
+  }
+};
+
+export const getRandomPairWithOffline = async (): Promise<WordPairs | null> => {
+  try {
+    // First try offline basic pairs
+    const offlineBasicPairs = await offlineStorageService.getBasicPairs();
+    
+    if (offlineBasicPairs.length > 0) {
+      console.log('Using offline basic pairs for random selection');
+      const randomIndex = Math.floor(Math.random() * offlineBasicPairs.length);
+      const selectedPair = offlineBasicPairs[randomIndex];
+      
+      return {
+        positive: selectedPair.term_0,
+        negative: selectedPair.term_1
+      };
+    }
+    
+    // Fallback to online
+    console.log('No offline pairs, using online for random selection');
+    return await getRandomPair();
+  } catch (error) {
+    console.error('Error getting random pair with offline:', error);
+    // Final fallback to online
+    return await getRandomPair();
   }
 };
 
