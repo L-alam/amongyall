@@ -174,9 +174,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: '#FEF3E2',
   },
   backButton: {
     padding: 8,
@@ -187,7 +185,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#374151',
-    marginLeft: -32, // Offset the back button width
   },
   headerSpacer: {
     width: 32,

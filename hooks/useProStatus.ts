@@ -11,7 +11,6 @@ export interface ProStatus {
   isLoading: boolean;
 }
 
-// Helper function to check if we're online
 const isOnline = async (): Promise<boolean> => {
   try {
     const { data, error } = await supabase
