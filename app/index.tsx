@@ -208,19 +208,6 @@ export default function Index() {
   const handleGoToDownloads = () => {
     router.push('/downloads');
   }
-
-        //   {/* Go Pro Button */}
-        //   <TouchableOpacity 
-        //   style={[styles.headerButton, styles.proButton]} 
-        //   onPress={handleGoToProScreen}
-        //   disabled={proLoading}
-        // >
-        //   <Ionicons 
-        //     name={isPro ? "star-outline" : "diamond-outline"}
-        //     size={layout.iconSize.md} 
-        //     color={isPro ? "#FFD700" : (colors.amber || '#F59E0B')} 
-        //   />
-        // </TouchableOpacity>
   
 
   return (
@@ -252,8 +239,16 @@ export default function Index() {
         <View style={{ flex: 1 }} />
 
         {/* Go Pro Button */}
-        <TouchableOpacity style={styles.proButton} onPress={handleGoToDownloads}>
-          <Ionicons name="star-outline" size={layout.iconSize.md} color={colors.primary} />
+        <TouchableOpacity 
+          style={styles.headerButton} 
+          onPress={handleGoToProScreen}
+          disabled={proLoading}
+        >
+          <Ionicons 
+            name={isPro ? "star" : "diamond-outline"}
+            size={layout.iconSize.md} 
+            color={isPro ? "#3B82F6" : (colors.amber || '#F59E0B')} 
+          />
         </TouchableOpacity>
 
       </View>

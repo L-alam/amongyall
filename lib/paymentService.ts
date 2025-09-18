@@ -32,6 +32,7 @@ export const usePaymentService = (): PaymentService => {
 
       if (error) {
         console.error('Error creating payment intent:', error);
+        console.error('Error response:', error.details); // Add this line
         Alert.alert('Error', 'Failed to initialize payment');
         return false;
       }
@@ -48,6 +49,15 @@ export const usePaymentService = (): PaymentService => {
         defaultBillingDetails: {
           name: user.user_metadata?.full_name || user.email,
           email: user.email,
+        },
+        returnURL: 'amongyall://stripe-redirect',
+        applePay: {
+          merchantCountryCode: 'US',
+        },
+        googlePay: {
+          merchantCountryCode: 'US',
+          testEnv: true, // Set to false for production
+          currencyCode: 'USD',
         },
       });
 

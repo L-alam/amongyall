@@ -51,6 +51,13 @@
         {
           "iCloudContainerEnvironment": "Production"
         }
+      ],
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.lalam.amongyall",
+          "enableGooglePay": true
+        }
       ]
     ],
     "experiments": {
