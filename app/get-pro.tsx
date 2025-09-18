@@ -130,7 +130,10 @@ export default function GetProScreen() {
   }
 
   return (
-    <StripeProvider publishableKey={STRIPE_CONFIG.publishableKey}>
+    <StripeProvider 
+      publishableKey={STRIPE_CONFIG.publishableKey}
+      merchantIdentifier="merchant.com.lalam.amongyall"
+    >
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FEF3E2" />
       
