@@ -71,15 +71,20 @@ export const getAllThemeNames = async (): Promise<string[]> => {
       return offlineThemes.map(theme => theme.name);
     }
     
+    // Check if we're online before trying Supabase
+    const online = await isOnline();
+    if (!online) {
+      console.log('Offline and no cached themes available');
+      return [];
+    }
+    
     // Fallback to online if no offline themes
     console.log('No offline themes, fetching from Supabase');
     const themes = await getBuiltInThemes();
     return themes.map(theme => theme.name);
   } catch (error) {
     console.error('Error getting theme names:', error);
-    // Final fallback to online
-    const themes = await getBuiltInThemes();
-    return themes.map(theme => theme.name);
+    return []; // Return empty array instead of throwing
   }
 };
 
@@ -105,13 +110,19 @@ export const getWordsByThemeName = async (themeName: string): Promise<string[]> 
       return offlineCustomTheme.words;
     }
     
+    // Check if online before trying Supabase
+    const online = await isOnline();
+    if (!online) {
+      console.log(`No offline data for theme: ${themeName} and device is offline`);
+      return [];
+    }
+    
     // Fallback to online
     console.log(`No offline data for theme: ${themeName}, fetching from Supabase`);
     return await getOriginalWordsByThemeName(themeName);
   } catch (error) {
     console.error('Error getting words by theme name:', error);
-    // Final fallback to online
-    return await getOriginalWordsByThemeName(themeName);
+    return []; // Return empty array instead of throwing
   }
 };
 
@@ -233,31 +244,57 @@ export const checkThemeLimit = async (): Promise<{ canCreate: boolean; count: nu
 
 export const getUserCustomThemesWithOffline = async (): Promise<Theme[]> => {
   try {
-    // Get offline custom themes
+    // Always try offline first
     const offlineCustomThemes = await offlineStorageService.getCustomThemes();
+    console.log(`Found ${offlineCustomThemes.length} offline custom themes`);
     
-    // Get online custom themes
-    const onlineCustomThemes = await getUserCustomThemes();
+    // Check if we're online
+    const online = await isOnline();
     
-    // Combine both, prioritizing offline versions if they exist
-    const combinedThemes: Theme[] = [];
-    const offlineIds = new Set(offlineCustomThemes.map(t => t.id));
+    if (!online) {
+      console.log('Offline mode - using only locally stored custom themes');
+      return offlineCustomThemes;
+    }
     
-    // Add offline themes first
-    combinedThemes.push(...offlineCustomThemes);
-    
-    // Add online themes that aren't already offline
-    onlineCustomThemes.forEach(onlineTheme => {
-      if (!offlineIds.has(onlineTheme.id)) {
-        combinedThemes.push(onlineTheme);
-      }
-    });
-    
-    return combinedThemes;
+    // We're online - try to get online custom themes and merge
+    try {
+      const onlineCustomThemes = await getUserCustomThemes();
+      console.log(`Found ${onlineCustomThemes.length} online custom themes`);
+      
+      // Combine both, prioritizing offline versions if they exist
+      const combinedThemes: Theme[] = [];
+      const offlineIds = new Set(offlineCustomThemes.map(t => t.id));
+      
+      // Add offline themes first
+      combinedThemes.push(...offlineCustomThemes);
+      
+      // Add online themes that aren't already offline
+      onlineCustomThemes.forEach(onlineTheme => {
+        if (!offlineIds.has(onlineTheme.id)) {
+          combinedThemes.push(onlineTheme);
+        }
+      });
+      
+      return combinedThemes;
+    } catch (onlineError) {
+      console.error('Error getting online custom themes, falling back to offline only:', onlineError);
+      return offlineCustomThemes;
+    }
   } catch (error) {
     console.error('Error getting custom themes with offline:', error);
-    // Fallback to just online themes
-    return await getUserCustomThemes();
+    // Final fallback - try online only if offline fails
+    try {
+      const online = await isOnline();
+      if (online) {
+        return await getUserCustomThemes();
+      } else {
+        console.log('Offline and no cached custom themes available');
+        return [];
+      }
+    } catch (finalError) {
+      console.error('Final fallback for custom themes failed:', finalError);
+      return [];
+    }
   }
 };
 
@@ -464,4 +501,25 @@ export const canDeleteTheme = (theme: Theme): boolean => {
   }
   
   return false;
+};
+
+export const hasOfflineFeatures = async (): Promise<boolean> => {
+  try {
+    const downloadStatus = await offlineStorageService.getDownloadStatus();
+    return downloadStatus.basicPairsDownloaded || downloadStatus.basicThemesDownloaded;
+  } catch (error) {
+    return false;
+  }
+};
+
+export const isOnline = async (): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('themes')
+      .select('id')
+      .limit(1);
+    return !error;
+  } catch {
+    return false;
+  }
 };

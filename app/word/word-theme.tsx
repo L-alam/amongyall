@@ -7,7 +7,8 @@ import { ActivityIndicator, Alert, Dimensions, ScrollView, StyleSheet, Text, Tex
 
 import { Button } from '../../components/Button';
 import { colors, layout, spacing, typography } from '../../constants/theme';
-import { Theme, deleteCustomTheme, getAllThemeNames, getRandomWordsFromTheme, getUserCustomThemes } from '../../lib/themeService';
+import { Theme, deleteCustomTheme, getAllThemeNames, getRandomWordsFromTheme, getUserCustomThemesWithOffline, isOnline } from '../../lib/themeService';
+
 import {
   combineStyles,
   layoutStyles,
@@ -56,35 +57,26 @@ export default function WordTheme() {
     try {
       setLoading(true);
       
-      // Load both regular themes and custom themes
+      // Use offline-friendly functions
       const [regularThemes, userCustomThemes] = await Promise.all([
-        getAllThemeNames(),
-        getUserCustomThemes()
+        getAllThemeNames(), // This already checks offline first
+        getUserCustomThemesWithOffline() // This already exists
       ]);
       
       setThemeNames(regularThemes);
       setCustomThemes(userCustomThemes);
       
-      // Set the first theme as selected if we have themes
       if (regularThemes.length > 0 && !selectedTheme) {
         setSelectedTheme(regularThemes[0]);
       }
     } catch (error) {
       console.error('Error loading themes:', error);
-      Alert.alert(
-        'Error', 
-        'Failed to load themes. Please check your connection and try again.',
-        [
-          {
-            text: 'Retry',
-            onPress: loadThemes
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel'
-          }
-        ]
-      );
+      // Better error handling for offline scenarios
+      const errorMessage = 'Failed to load themes. If you\'re offline, only downloaded themes will be available.';
+      Alert.alert('Loading Issue', errorMessage, [
+        { text: 'Continue Anyway', onPress: () => setLoading(false) },
+        { text: 'Retry', onPress: loadThemes }
+      ]);
     } finally {
       setLoading(false);
     }
@@ -248,7 +240,19 @@ export default function WordTheme() {
     setPreviewNumCards(numCards);
   }, [numCards]);
 
-  const handleCreateCustomTheme = () => {
+  const handleCreateCustomTheme = async () => {
+    // Check if user has offline features (is pro user)
+    const hasOffline = await isOnline();
+    
+    if (!hasOffline) {
+      Alert.alert(
+        'Custom Themes Not Available Offline', 
+        'Custom theme creation is only available when connected to the internet.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
     router.push({
       pathname: '/word/word-custom-theme',
       params: {
