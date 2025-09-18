@@ -20,18 +20,6 @@ export interface WordPairs {
   negative: string;
 }
 
-// Helper function to check if we're offline
-const isOnline = async (): Promise<boolean> => {
-  try {
-    const { data, error } = await supabase
-      .from('pairs')
-      .select('id')
-      .limit(1);
-    return !error;
-  } catch {
-    return false;
-  }
-};
 
 // Get all wavelength pairs (ONLY built-in pairs for main feed)
 export const getAllWavelengthPairs = async (): Promise<WavelengthPair[]> => {
@@ -601,4 +589,16 @@ export const convertToWordPairs = (pair: WavelengthPair): WordPairs => {
 // Convert multiple database pairs to game format
 export const convertToWordPairsArray = (pairs: WavelengthPair[]): WordPairs[] => {
   return pairs.map(convertToWordPairs);
+};
+
+export const isOnline = async (): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('pairs')
+      .select('id')
+      .limit(1);
+    return !error;
+  } catch {
+    return false;
+  }
 };

@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+import { hasOfflineFeatures } from '@/lib/themeService';
 import { Button } from '../../components/Button';
 import { colors, layout, spacing, typography } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
@@ -16,7 +17,8 @@ import {
   //getRandomPair,
   //getUserCustomPairs,
   //getRandomPairWithOffline,
-  getUserCustomPairsWithOffline
+  getUserCustomPairsWithOffline,
+  isOnline
 } from '../../lib/wavelengthService';
 import {
   layoutStyles
@@ -138,7 +140,21 @@ export default function WavelengthPairs() {
     }
   };
 
-
+  const handleCustomButtonPress = async () => {
+    // Check if user is online
+    const online = await isOnline();
+    
+    if (!online) {
+      Alert.alert(
+        'Custom Pairs Not Available Offline', 
+        'Custom pair creation is only available when connected to the internet.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    setShowCreateForm(true);
+  };
 
   const handleBack = () => {
     router.back();
@@ -249,9 +265,7 @@ export default function WavelengthPairs() {
                   if (signInError) {
                     Alert.alert('Login Failed', 'Please try again.');
                   } else if (user) {
-                    // Refresh pair limit after login
                     await checkCurrentPairLimit();
-                    // Try creating again if they now have space
                     const newLimitCheck = await checkPairLimit();
                     if (newLimitCheck.canCreate) {
                       handleCreateCustomPair();
@@ -281,19 +295,30 @@ export default function WavelengthPairs() {
       );
       
       await loadPairs();
-      await checkCurrentPairLimit(); // Update limit count after successful creation
+      await checkCurrentPairLimit();
       setSelectedPair(newPair);
       
       setNewPairTerm0('');
       setNewPairTerm1('');
       setShowCreateForm(false);
       
-      Alert.alert('Success', 'Custom pair created successfully!');
+      // Show different success message based on online/offline status
+      const hasOffline = await hasOfflineFeatures();
+      const online = await isOnline();
+      
+      if (!online && hasOffline) {
+        Alert.alert(
+          'Pair Created Offline!', 
+          'Your custom pair has been saved locally and will sync to the cloud when you\'re back online.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Success', 'Custom pair created successfully!');
+      }
       
     } catch (error: any) {
       console.error('Error creating custom pair:', error);
       
-      // Handle the new error format
       if (error.message && error.message.includes('PAIR_LIMIT_REACHED')) {
         const [, count, limit] = error.message.split(':');
         const userType = isAuthenticated ? 'You have' : 'You\'ve';
@@ -595,7 +620,7 @@ export default function WavelengthPairs() {
             variant="outline"
             size="md"
             icon="add-outline"
-            onPress={() => setShowCreateForm(true)}
+            onPress={handleCustomButtonPress}
             style={styles.actionButton}
           />
         </View>
