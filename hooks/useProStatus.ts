@@ -11,6 +11,19 @@ export interface ProStatus {
   isLoading: boolean;
 }
 
+// Helper function to check if we're online
+const isOnline = async (): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .limit(1);
+    return !error;
+  } catch {
+    return false;
+  }
+};
+
 export const useProStatus = (): ProStatus => {
   const { user, isLoading: authLoading } = useAuth();
   const [proStatus, setProStatus] = useState<ProStatus>({
@@ -34,6 +47,15 @@ export const useProStatus = (): ProStatus => {
     }
 
     try {
+      // Check if we're online first
+      const online = await isOnline();
+      
+      if (!online) {
+        console.log('Offline - skipping pro status check');
+        setProStatus(prev => ({ ...prev, isLoading: false }));
+        return;
+      }
+
       const { data, error } = await supabase
         .from('user_profiles')
         .select('is_pro, pro_expires_at, pro_activated_at, pro_cancelled_at')
@@ -70,30 +92,40 @@ export const useProStatus = (): ProStatus => {
     }
   }, [user?.id, authLoading]);
 
-  // Subscribe to real-time changes in user_profiles
+  // Subscribe to real-time changes in user_profiles (only when online)
   useEffect(() => {
     if (!user?.id) return;
 
-    const subscription = supabase
-      .channel('user_profiles_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'user_profiles',
-          filter: `id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log('Pro status updated:', payload);
-          fetchProStatus();
-        }
-      )
-      .subscribe();
+    const setupSubscription = async () => {
+      const online = await isOnline();
+      if (!online) {
+        console.log('Offline - skipping real-time subscription');
+        return;
+      }
 
-    return () => {
-      subscription.unsubscribe();
+      const subscription = supabase
+        .channel('user_profiles_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'user_profiles',
+            filter: `id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log('Pro status updated:', payload);
+            fetchProStatus();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
     };
+
+    setupSubscription();
   }, [user?.id]);
 
   return proStatus;
