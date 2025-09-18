@@ -1,3 +1,4 @@
+// supabase/functions/stripe-webhook/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.21.0'
@@ -52,6 +53,53 @@ serve(async (req) => {
   }
 })
 
+async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
+  const userId = paymentIntent.metadata?.supabase_user_id
+
+  if (!userId) {
+    console.log('Skipping PaymentIntent - likely from subscription (handled elsewhere)')
+    return
+  }
+
+  try {
+    // Update user profile to mark as pro
+    const { error: profileError } = await supabase
+      .from('user_profiles')
+      .update({
+        is_pro: true,
+        pro_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+        pro_activated_at: new Date(),
+      })
+      .eq('id', userId)
+
+    if (profileError) {
+      console.error('Error updating profile:', profileError)
+      return
+    }
+
+    // Record the payment
+    const { error: paymentError } = await supabase
+      .from('payments')
+      .insert({
+        user_id: userId,
+        stripe_payment_intent_id: paymentIntent.id,
+        amount: paymentIntent.amount,
+        currency: paymentIntent.currency,
+        status: 'succeeded',
+        payment_method: 'stripe',
+        created_at: new Date(),
+      })
+
+    if (paymentError) {
+      console.error('Error recording payment:', paymentError)
+    }
+
+    console.log(`Successfully upgraded user ${userId} to pro`)
+  } catch (error) {
+    console.error('Error in handlePaymentSuccess:', error)
+  }
+}
+
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const customerId = subscription.customer as string
   
@@ -68,15 +116,21 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
       return
     }
 
-    // Calculate next billing date
-    const currentPeriodEnd = new Date(subscription.current_period_end * 1000)
+    // Calculate next billing date safely
+    let proExpiresAt = null
+    if (subscription.current_period_end && subscription.current_period_end > 0) {
+      const currentPeriodEnd = new Date(subscription.current_period_end * 1000)
+      proExpiresAt = currentPeriodEnd.toISOString()
+    }
+    
+    console.log(`Subscription details: status=${subscription.status}, period_end=${subscription.current_period_end}, expires_at=${proExpiresAt}`)
     
     // Update user profile
     const { error } = await supabase
       .from('user_profiles')
       .update({
         is_pro: subscription.status === 'active',
-        pro_expires_at: currentPeriodEnd.toISOString(),
+        pro_expires_at: proExpiresAt,
         pro_activated_at: subscription.status === 'active' ? new Date().toISOString() : null,
         stripe_subscription_id: subscription.id,
         subscription_status: subscription.status,
