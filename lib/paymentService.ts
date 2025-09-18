@@ -3,54 +3,62 @@ import { useStripe } from '@stripe/stripe-react-native';
 import { Alert } from 'react-native';
 import { supabase } from './supabase';
 
+
 export interface PaymentService {
-  initializePaymentSheet: (amount: number, currency: string) => Promise<boolean>;
-  presentPaymentSheet: () => Promise<boolean>;
-  createSubscription: (priceId: string) => Promise<boolean>;
+  createSubscription: (priceId?: string) => Promise<boolean>;
 }
+
+// Replace this with your actual Price ID from Stripe Dashboard
+const PRO_SUBSCRIPTION_PRICE_ID = "price_1S8mpCHCGWxH2Kw4LWeqCmP9";
 
 export const usePaymentService = (): PaymentService => {
   const { initPaymentSheet, presentPaymentSheet, confirmPayment } = useStripe();
 
-  const initializePaymentSheet = async (amount: number, currency = 'usd'): Promise<boolean> => {
+  const createSubscription = async (priceId: string = PRO_SUBSCRIPTION_PRICE_ID): Promise<boolean> => {
     try {
-      // Get current user
+      console.log('Starting subscription creation...');
+      
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
-        Alert.alert('Error', 'You must be logged in to make a payment');
+        Alert.alert('Error', 'You must be logged in to subscribe');
         return false;
       }
-
-      // Call your backend to create a payment intent
-      const { data, error } = await supabase.functions.invoke('create-payment-intent', {
+  
+      console.log('Creating subscription for user:', user.id);
+  
+      // Call your backend to create a subscription
+      const { data, error } = await supabase.functions.invoke('create-subscription', {
         body: {
-          amount: amount * 100, // Convert to cents
-          currency,
+          priceId,
           userId: user.id,
         },
       });
-
+  
       if (error) {
-        console.error('Error creating payment intent:', error);
-        console.error('Error response:', error.details); // Add this line
-        Alert.alert('Error', 'Failed to initialize payment');
+        console.error('Error creating subscription:', error);
+        Alert.alert('Error', `Failed to create subscription: ${error.message || 'Unknown error'}`);
         return false;
       }
-
-      const { clientSecret, ephemeralKey, customer } = data;
-
-      // Initialize the payment sheet
+  
+      console.log('Subscription created, initializing payment sheet...', data);
+  
+      const { clientSecret, subscriptionId } = data;
+  
+      if (!clientSecret) {
+        console.error('No client secret received');
+        Alert.alert('Error', 'Invalid response from server');
+        return false;
+      }
+  
+      // Initialize payment sheet with the subscription's client secret
       const { error: initError } = await initPaymentSheet({
         merchantDisplayName: 'AmongYall Pro',
         paymentIntentClientSecret: clientSecret,
-        customerEphemeralKeySecret: ephemeralKey,
-        customerId: customer,
         allowsDelayedPaymentMethods: true,
         defaultBillingDetails: {
           name: user.user_metadata?.full_name || user.email,
           email: user.email,
         },
-        returnURL: 'amongyall://stripe-redirect',
         applePay: {
           merchantCountryCode: 'US',
         },
@@ -60,93 +68,37 @@ export const usePaymentService = (): PaymentService => {
           currencyCode: 'USD',
         },
       });
-
+  
       if (initError) {
         console.error('Error initializing payment sheet:', initError);
         Alert.alert('Error', 'Failed to initialize payment');
         return false;
       }
-
-      return true;
-    } catch (error) {
-      console.error('Payment initialization error:', error);
-      Alert.alert('Error', 'Failed to initialize payment');
-      return false;
-    }
-  };
-
-  const handlePaymentSheet = async (): Promise<boolean> => {
-    try {
-      const { error } = await presentPaymentSheet();
-
-      if (error) {
-        if (error.code !== 'Canceled') {
-          Alert.alert('Payment Error', error.message);
+  
+      console.log('Payment sheet initialized, presenting...');
+  
+      // Present payment sheet
+      const { error: presentError } = await presentPaymentSheet();
+  
+      if (presentError) {
+        if (presentError.code !== 'Canceled') {
+          console.error('Payment presentation error:', presentError);
+          Alert.alert('Payment Error', presentError.message);
         }
         return false;
       }
-
-      // Payment succeeded
-      Alert.alert(
-        'Payment Successful!', 
-        'Welcome to AmongYall Pro! Your premium features are now active.',
-        [{ text: 'OK' }]
-      );
-
-      // Refresh user data to get updated pro status
-      await refreshUserProStatus();
-      
-      return true;
-    } catch (error) {
-      console.error('Payment sheet error:', error);
-      Alert.alert('Error', 'Payment failed');
-      return false;
-    }
-  };
-
-  const createSubscription = async (priceId: string): Promise<boolean> => {
-    try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        Alert.alert('Error', 'You must be logged in to subscribe');
-        return false;
-      }
-
-      // Call your backend to create a subscription
-      const { data, error } = await supabase.functions.invoke('create-subscription', {
-        body: {
-          priceId,
-          userId: user.id,
-        },
-      });
-
-      if (error) {
-        console.error('Error creating subscription:', error);
-        Alert.alert('Error', 'Failed to create subscription');
-        return false;
-      }
-
-      const { clientSecret } = data;
-
-      // Confirm the payment
-      const { error: confirmError } = await confirmPayment(clientSecret, {
-        paymentMethodType: 'Card',
-      });
-
-      if (confirmError) {
-        Alert.alert('Payment Error', confirmError.message);
-        return false;
-      }
-
+  
+      console.log('Payment confirmed successfully!');
+  
       Alert.alert(
         'Subscription Active!', 
-        'Welcome to AmongYall Pro! Your subscription is now active.',
+        'Welcome to AmongYall Pro! Your monthly subscription is now active and will renew automatically for $3/month.',
         [{ text: 'OK' }]
       );
-
+  
       await refreshUserProStatus();
       return true;
-
+  
     } catch (error) {
       console.error('Subscription error:', error);
       Alert.alert('Error', 'Subscription failed');
@@ -160,6 +112,15 @@ export const usePaymentService = (): PaymentService => {
       if (user) {
         // Trigger a refresh of user metadata or pro status
         await supabase.auth.refreshSession();
+        
+        // Fetch updated user profile data
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+          
+        console.log('Updated user profile after subscription:', profile);
       }
     } catch (error) {
       console.error('Error refreshing user status:', error);
@@ -167,8 +128,6 @@ export const usePaymentService = (): PaymentService => {
   };
 
   return {
-    initializePaymentSheet,
-    presentPaymentSheet: handlePaymentSheet,
     createSubscription,
   };
 };

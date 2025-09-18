@@ -1,9 +1,11 @@
+// app/get-pro.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { StripeProvider } from '@stripe/stripe-react-native';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -11,48 +13,67 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useProStatus } from '../hooks/useProStatus';
 import { usePaymentService } from '../lib/paymentService';
 import { STRIPE_CONFIG } from '../lib/stripeConfig';
+import { supabase } from '../lib/supabase';
 
-// You'll need to import these from your existing files
-// import { colors, layout, layoutStyles } from '../path/to/your/styles';
-
-interface GetProScreenProps {
-  // No navigation prop needed with Expo Router
-}
-
-const GetProScreen: React.FC<GetProScreenProps> = () => {
-  const router = useRouter();
+export default function GetProScreen() {
   const [isLoading, setIsLoading] = useState(false);
-  const paymentService = usePaymentService();
-  const { isPro, isLoading: proLoading } = useProStatus();
+  const [proLoading, setProLoading] = useState(true);
+  const [isAlreadyPro, setIsAlreadyPro] = useState(false);
+  const [proExpiresAt, setProExpiresAt] = useState<string | null>(null);
+  const { createSubscription } = usePaymentService();
 
-  // Redirect to downloads if user is already pro
   useEffect(() => {
-    if (!proLoading && isPro) {
-      router.replace('/downloads');
-    }
-  }, [isPro, proLoading, router]);
+    checkProStatus();
+  }, []);
 
-  const handleUpgradeToPro = async () => {
-    setIsLoading(true);
+  const checkProStatus = async () => {
     try {
-      // Initialize payment sheet with $3 amount
-      const initialized = await paymentService.initializePaymentSheet(3, 'usd');
-      
-      if (initialized) {
-        // Present the payment sheet
-        const success = await paymentService.presentPaymentSheet();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('is_pro, pro_expires_at, subscription_status')
+        .eq('id', user.id)
+        .single();
+
+      if (profile) {
+        console.log('Current pro status:', profile);
         
-        if (success) {
-          // Navigate to downloads page after successful payment
-          router.push('/downloads');
-        }
+        // Check if pro subscription is still valid
+        const now = new Date();
+        const expiresAt = profile.pro_expires_at ? new Date(profile.pro_expires_at) : null;
+        const isProValid = profile.is_pro && (!expiresAt || expiresAt > now);
+        
+        setIsAlreadyPro(isProValid);
+        setProExpiresAt(profile.pro_expires_at);
       }
     } catch (error) {
-      console.error('Payment error:', error);
+      console.error('Error checking pro status:', error);
+    } finally {
+      setProLoading(false);
+    }
+  };
+
+  const handleSubscribe = async () => {
+    setIsLoading(true);
+    try {
+      console.log('Starting subscription process...');
+      
+      const success = await createSubscription();
+      
+      if (success) {
+        console.log('Subscription successful, refreshing status...');
+        // Wait a moment for webhook to process
+        setTimeout(async () => {
+          await checkProStatus();
+          router.push('/');
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Subscription error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -72,147 +93,188 @@ const GetProScreen: React.FC<GetProScreenProps> = () => {
     );
   }
 
+  // If already pro, show status
+  if (isAlreadyPro) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FEF3E2" />
+        
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
+            <Ionicons name="arrow-back" size={24} color="#374151" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Pro Status</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        <View style={styles.proStatusContainer}>
+          <View style={styles.diamondBadge}>
+            <Ionicons name="diamond" size={40} color="#FFFFFF" />
+          </View>
+          <Text style={styles.proStatusTitle}>You're Already Pro! 🎉</Text>
+          <Text style={styles.proStatusSubtitle}>
+            Your subscription is active and will renew monthly.
+          </Text>
+          {proExpiresAt && (
+            <Text style={styles.expiryText}>
+              Next billing: {new Date(proExpiresAt).toLocaleDateString()}
+            </Text>
+          )}
+          
+          <TouchableOpacity style={styles.continueButton} onPress={() => router.push('/')}>
+            <Text style={styles.continueButtonText}>Continue to App</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <StripeProvider publishableKey={STRIPE_CONFIG.publishableKey}>
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FEF3E2" />
       
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={handleGoBack}
-        >
-          <Ionicons 
-            name="arrow-back" 
-            size={24} 
-            color="#374151" 
-          />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Upgrade to Pro</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Pro Badge */}
-        <View style={styles.badgeContainer}>
-          <View style={styles.diamondBadge}>
-            <Ionicons 
-              name="diamond" 
-              size={40} 
-              color="#FFFFFF" 
-            />
-          </View>
-          <Text style={styles.badgeTitle}>Go Pro</Text>
-          <Text style={styles.badgeSubtitle}>Unlock the full potential of your app</Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
+            <Ionicons name="arrow-back" size={24} color="#374151" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Upgrade to Pro</Text>
+          <View style={styles.headerSpacer} />
         </View>
 
-        {/* Benefits Card */}
-        <View style={styles.benefitsCard}>
-          <Text style={styles.benefitsTitle}>Pro Benefits</Text>
-          
-          <View style={styles.benefitsList}>
-            <View style={styles.benefitItem}>
-              <View style={styles.checkIcon}>
-                <Ionicons name="checkmark" size={16} color="#059669" />
-              </View>
-              <Text style={styles.benefitText}>No Ads</Text>
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {/* Pro Badge */}
+          <View style={styles.badgeContainer}>
+            <View style={styles.diamondBadge}>
+              <Ionicons name="diamond" size={40} color="#FFFFFF" />
+            </View>
+            <Text style={styles.badgeTitle}>Go Pro</Text>
+            <Text style={styles.badgeSubtitle}>
+              Unlock unlimited games and premium features
+            </Text>
+          </View>
+
+          {/* Features List */}
+          <View style={styles.featuresContainer}>
+            <Text style={styles.featuresTitle}>What's Included:</Text>
+            
+            <View style={styles.feature}>
+              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+              <Text style={styles.featureText}>Unlimited custom games</Text>
             </View>
             
-            <View style={styles.benefitItem}>
-              <View style={styles.checkIcon}>
-                <Ionicons name="checkmark" size={16} color="#059669" />
-              </View>
-              <Text style={styles.benefitText}>Unlimited Custom Themes/Pairs</Text>
+            <View style={styles.feature}>
+              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+              <Text style={styles.featureText}>Premium themes & questions</Text>
             </View>
             
-            <View style={styles.benefitItem}>
-              <View style={styles.checkIcon}>
-                <Ionicons name="checkmark" size={16} color="#059669" />
-              </View>
-              <Text style={styles.benefitText}>Download Items for Offline Use</Text>
+            <View style={styles.feature}>
+              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+              <Text style={styles.featureText}>No ads</Text>
+            </View>
+            
+            <View style={styles.feature}>
+              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+              <Text style={styles.featureText}>Priority support</Text>
             </View>
           </View>
-        </View>
 
-        {/* Pricing */}
-        <View style={styles.pricingContainer}>
-          <Text style={styles.priceAmount}>$3</Text>
-          <Text style={styles.pricePeriod}>per month</Text>
-        </View>
+          {/* Pricing */}
+          <View style={styles.pricingContainer}>
+            <Text style={styles.pricingTitle}>Monthly Subscription</Text>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceAmount}>$3.00</Text>
+              <Text style={styles.pricePeriod}>/month</Text>
+            </View>
+            <Text style={styles.pricingSubtitle}>
+              Renews automatically • Cancel anytime
+            </Text>
+          </View>
 
-        {/* Upgrade Button */}
-        <TouchableOpacity 
-          style={[styles.upgradeButton, isLoading && styles.upgradeButtonDisabled]} 
-          onPress={handleUpgradeToPro}
-          activeOpacity={0.8}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
-          ) : (
-            <Text style={styles.upgradeButtonText}>Upgrade to Pro</Text>
-          )}
-        </TouchableOpacity>
+          {/* Subscribe Button */}
+          <TouchableOpacity
+            style={[styles.subscribeButton, isLoading && styles.subscribeButtonDisabled]}
+            onPress={handleSubscribe}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="diamond" size={20} color="#FFFFFF" />
+                <Text style={styles.subscribeButtonText}>Start Subscription</Text>
+              </>
+            )}
+          </TouchableOpacity>
 
-        <Text style={styles.disclaimer}>
-          Cancel anytime. Terms and conditions apply.
-        </Text>
-      </ScrollView>
-    </SafeAreaView>
+          <Text style={styles.disclaimer}>
+            By subscribing, you agree to automatic monthly billing of $3.00. 
+            You can cancel anytime in your account settings.
+          </Text>
+        </ScrollView>
+      </SafeAreaView>
     </StripeProvider>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FEF3E2', // Light amber background
+    backgroundColor: '#FEF3E2',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     backgroundColor: '#FEF3E2',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
   backButton: {
     padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   headerTitle: {
-    flex: 1,
-    textAlign: 'center',
     fontSize: 18,
     fontWeight: '600',
     color: '#374151',
   },
   headerSpacer: {
-    width: 32,
+    width: 40,
   },
   scrollView: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   badgeContainer: {
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingVertical: 40,
   },
   diamondBadge: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F59E0B', // Amber gradient start
-    alignItems: 'center',
+    backgroundColor: '#F59E0B',
     justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
   },
   badgeTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#374151',
     marginBottom: 8,
@@ -222,84 +284,138 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
   },
-  benefitsCard: {
+  featuresContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 24,
-    marginBottom: 32,
+    marginVertical: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
   },
-  benefitsTitle: {
+  featuresTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#374151',
     marginBottom: 16,
   },
-  benefitsList: {
-    gap: 16,
-  },
-  benefitItem: {
+  feature: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 12,
   },
-  checkIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#DCFCE7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  benefitText: {
+  featureText: {
     fontSize: 16,
-    color: '#374151',
+    color: '#4B5563',
+    marginLeft: 12,
     flex: 1,
   },
   pricingContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
     alignItems: 'center',
-    marginBottom: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  pricingTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 8,
   },
   priceAmount: {
-    fontSize: 48,
+    fontSize: 36,
     fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 4,
+    color: '#F59E0B',
   },
   pricePeriod: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#6B7280',
+    marginLeft: 4,
   },
-  upgradeButton: {
+  pricingSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  subscribeButton: {
     backgroundColor: '#F59E0B',
-    borderRadius: 12,
     paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
     shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
   },
-  upgradeButtonDisabled: {
+  subscribeButtonDisabled: {
     opacity: 0.6,
   },
-  upgradeButtonText: {
+  subscribeButtonText: {
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    marginLeft: 8,
   },
   disclaimer: {
     fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 40,
+    lineHeight: 16,
+  },
+  proStatusContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  proStatusTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#374151',
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  proStatusSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  expiryText: {
+    fontSize: 14,
     color: '#9CA3AF',
     textAlign: 'center',
     marginBottom: 32,
   },
+  continueButton: {
+    backgroundColor: '#F59E0B',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+  },
+  continueButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
-
-export default GetProScreen;
