@@ -14,15 +14,19 @@ import {
 import { Button } from '../../components/Button';
 import { colors, layout, spacing, typography } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
+import { useProStatus } from '../../hooks/useProStatus';
+import { supabase } from '../../lib/supabase';
 import { UserProfile, UserStats, userProfileService } from '../../lib/userProfileService';
 import { layoutStyles, textStyles } from '../../utils/styles';
 
 export default function ProfileScreen() {
   const { user, isAnonymous, signOut, signInWithGoogle } = useAuth();
+  const { isPro } = useProStatus();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [cancellingSubscription, setCancellingSubscription] = useState(false);
 
   const loadProfileData = async () => {
     try {
@@ -122,6 +126,73 @@ export default function ProfileScreen() {
     router.push('/profile/rate-us');
   };
 
+  const handleCancelSubscription = () => {
+    Alert.alert(
+      'Cancel Subscription',
+      'Are you sure you want to cancel your Pro subscription? You will continue to have access to Pro features until the end of your current billing period.',
+      [
+        { text: 'Keep Subscription', style: 'cancel' },
+        {
+          text: 'Cancel Subscription',
+          style: 'destructive',
+          onPress: confirmCancelSubscription,
+        },
+      ]
+    );
+  };
+
+  const confirmCancelSubscription = async () => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to cancel your subscription');
+      return;
+    }
+
+    setCancellingSubscription(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('cancel-subscription', {
+        body: {
+          userId: user.id,
+        },
+      });
+
+      if (error) {
+        console.error('Error cancelling subscription:', error);
+        Alert.alert(
+          'Cancellation Failed',
+          'We could not cancel your subscription at this time. Please try again or contact support.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      if (data.success) {
+        Alert.alert(
+          'Subscription Cancelled',
+          'Your subscription has been cancelled. You will continue to have Pro access until the end of your current billing period.',
+          [{ text: 'OK' }]
+        );
+        // Refresh profile data to show updated status
+        await loadProfileData();
+      } else {
+        Alert.alert(
+          'Cancellation Failed',
+          data.error || 'We could not cancel your subscription at this time. Please try again or contact support.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error cancelling subscription:', error);
+      Alert.alert(
+        'Cancellation Failed',
+        'We could not cancel your subscription at this time. Please try again or contact support.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setCancellingSubscription(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={[layoutStyles.container, layoutStyles.centered]}>
@@ -166,6 +237,14 @@ export default function ProfileScreen() {
               <Text style={styles.userEmail}>
                 {user?.email || 'No email'}
               </Text>
+
+              {/* Pro Status Badge */}
+              {isPro && (
+                <View style={styles.proBadge}>
+                  <Ionicons name="diamond" size={16} color={colors.white} />
+                  <Text style={styles.proText}>Pro Member</Text>
+                </View>
+              )}
             </View>
           </View>
         )}
@@ -224,6 +303,25 @@ export default function ProfileScreen() {
             <Text style={styles.actionButtonText}>Rate Us</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
           </TouchableOpacity>
+
+          {/* Cancel Subscription Button - Only for signed-in Pro users */}
+          {!isAnonymous && isPro && (
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.cancelButton]} 
+              onPress={handleCancelSubscription}
+              disabled={cancellingSubscription}
+            >
+              <Ionicons 
+                name="close-circle-outline" 
+                size={20} 
+                color={colors.red || '#EF4444'} 
+              />
+              <Text style={[styles.actionButtonText, styles.cancelButtonText]}>
+                {cancellingSubscription ? 'Cancelling...' : 'Cancel Subscription'}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Authentication Button */}
@@ -306,6 +404,21 @@ const styles = StyleSheet.create({
     color: colors.gray600,
     marginBottom: spacing.xs,
   },
+  proBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.warning || '#F59E0B',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 12,
+    marginTop: spacing.xs,
+  },
+  proText: {
+    color: colors.white,
+    fontSize: typography.fontSize.xs,
+    fontWeight: typography.fontWeight.medium,
+    marginLeft: spacing.xs,
+  },
   statsSection: {
     marginBottom: spacing.lg,
   },
@@ -366,6 +479,13 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     color: colors.gray900,
     marginLeft: spacing.sm,
+  },
+  cancelButton: {
+    borderColor: colors.red || '#EF4444',
+    borderWidth: 1,
+  },
+  cancelButtonText: {
+    color: colors.red || '#EF4444',
   },
   signInSection: {
     marginBottom: spacing.lg,
