@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.lalam.amongyall",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "This app does not use the camera. Camera access may be requested by third-party libraries for optional features."
       }
     },
     "android": {
