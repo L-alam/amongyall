@@ -276,21 +276,6 @@ export default function Index() {
           <Text style={[textStyles.subtitle || styles.subtitle]}>Select a game mode</Text>
         </View>
 
-        {/* User Status - FIXED: Show only for anonymous users, not when no user */}
-        {user && isAnonymous && anonymousEnabled && (
-          <View style={styles.userStatusContainer}>
-            <Text style={styles.userStatusText}>
-              You're playing anonymously.{' '}
-              <Text 
-                style={styles.signInLink}
-                onPress={() => setShowLoginModal(true)}
-              >
-                Sign in
-              </Text>
-              {' '}to save your progress.
-            </Text>
-          </View>
-        )}
 
         {/* Game Mode Buttons */}
         <View style={styles.buttonContainer}>

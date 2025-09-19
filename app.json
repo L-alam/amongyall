@@ -12,18 +12,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.lalam.amongyall",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      },
-      "ios.NSCameraUsageDescription": "This app does not directly use the camera. The document picker feature may access the camera to scan documents.",
-      "ios.NSPhotoLibraryUsageDescription": "This app may access your photo library to select documents or images through the document picker.",
-      "ios.NSMicrophoneUsageDescription": "This app does not use the microphone. This permission may be requested by third-party libraries.",
-      "ios.NSLocationWhenInUseUsageDescription": "This app does not use location services. This permission may be requested by advertising libraries.",
-      "ios.NSBluetoothAlwaysUsageDescription": "This app does not use Bluetooth. This permission may be requested by third-party libraries.",
-      "ios.NSContactsUsageDescription": "This app does not access your contacts. This permission may be requested by third-party libraries.",
-      "ios.NSCalendarsUsageDescription": "This app does not access your calendar. This permission may be requested by third-party libraries.",
-      "ios.NSRemindersUsageDescription": "This app does not access your reminders. This permission may be requested by third-party libraries.",
-      "ios.NSMotionUsageDescription": "This app does not use motion data. This permission may be requested by third-party libraries.",
-      "ios.NSFaceIDUsageDescription": "This app does not use Face ID. This permission may be requested by payment processing libraries."
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "This app does not directly use the camera. The document picker feature may access the camera to scan documents."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -39,6 +30,7 @@
       "favicon": "./assets/images/user-circle.png"
     },
     "plugins": [
+      "./plugins/withInfoPlist",
       "expo-router",
       [
         "expo-splash-screen",
