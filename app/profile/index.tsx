@@ -18,7 +18,7 @@ import { UserProfile, UserStats, userProfileService } from '../../lib/userProfil
 import { layoutStyles, textStyles } from '../../utils/styles';
 
 export default function ProfileScreen() {
-  const { user, isAnonymous, signOut } = useAuth();
+  const { user, isAnonymous, signOut, signInWithGoogle } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,13 +26,20 @@ export default function ProfileScreen() {
 
   const loadProfileData = async () => {
     try {
-      const [profileData, statsData] = await Promise.all([
-        userProfileService.getCurrentUserProfile(),
-        userProfileService.getUserStats(),
-      ]);
-      
-      setProfile(profileData);
-      setStats(statsData);
+      if (!isAnonymous) {
+        const [profileData, statsData] = await Promise.all([
+          userProfileService.getCurrentUserProfile(),
+          userProfileService.getUserStats(),
+        ]);
+        
+        setProfile(profileData);
+        setStats(statsData);
+      } else {
+        // For anonymous users, still load stats but no profile
+        const statsData = await userProfileService.getUserStats();
+        setStats(statsData);
+        setProfile(null);
+      }
     } catch (error) {
       console.error('Error loading profile data:', error);
     } finally {
@@ -43,7 +50,7 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     loadProfileData();
-  }, []);
+  }, [isAnonymous]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -76,6 +83,17 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleSignIn = async () => {
+    try {
+      const result = await signInWithGoogle();
+      if (result.error) {
+        Alert.alert('Sign In Failed', 'Could not sign in with Google. Please try again.');
+      }
+    } catch (error) {
+      Alert.alert('Sign In Failed', 'Could not sign in with Google. Please try again.');
+    }
+  };
+
   const handleViewThemes = () => {
     router.push('/profile/themes');
   };
@@ -86,6 +104,22 @@ export default function ProfileScreen() {
 
   const handleViewQuestions = () => {
     router.push('/profile/questions');
+  };
+
+  const handleSettings = () => {
+    router.push('/profile/settings');
+  };
+
+  const handlePrivacyTerms = () => {
+    router.push('/profile/privacy-terms');
+  };
+
+  const handleContactUs = () => {
+    router.push('/profile/contact-us');
+  };
+
+  const handleRateUs = () => {
+    router.push('/profile/rate-us');
   };
 
   if (loading) {
@@ -109,139 +143,110 @@ export default function ProfileScreen() {
           <Ionicons name="arrow-back" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
         
-        
         <View style={styles.headerButton} />
       </View>
 
       <View style={layoutStyles.content}>
-        {/* User Info Card */}
-        <View style={styles.userCard}>
-          <View style={styles.avatarContainer}>
-            <Ionicons 
-              name={isAnonymous ? "person-circle-outline" : "person-circle"}
-              size={80} 
-              color={isAnonymous ? colors.gray400 : colors.primary} 
-            />
-            {isAnonymous && (
-              <View style={styles.anonymousBadge}>
-                <Ionicons name="eye-off" size={16} color={colors.white} />
-              </View>
-            )}
-          </View>
+        {/* User Info Card - Only show for authenticated users */}
+        {!isAnonymous && (
+          <View style={styles.userCard}>
+            <View style={styles.avatarContainer}>
+              <Ionicons 
+                name="person-circle"
+                size={80} 
+                color={colors.primary} 
+              />
+            </View>
 
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>
-              {isAnonymous 
-                ? 'Anonymous Player' 
-                : (profile?.display_name || user?.user_metadata?.full_name || 'Player')
-              }
-            </Text>
-            
-            <Text style={styles.userEmail}>
-              {isAnonymous 
-                ? 'Playing anonymously' 
-                : (user?.email || 'No email')
-              }
-            </Text>
-
-            {isAnonymous && (
-              <Text style={styles.upgradeHint}>
-                Sign in to save your progress permanently
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>
+                {profile?.display_name || user?.user_metadata?.full_name || 'Player'}
               </Text>
-            )}
+              
+              <Text style={styles.userEmail}>
+                {user?.email || 'No email'}
+              </Text>
+            </View>
           </View>
-        </View>
+        )}
 
-        {/* Stats Cards */}
+        {/* Stats Cards - Show for all users but with different data */}
         {stats && (
           <View style={styles.statsSection}>
             <Text style={styles.sectionTitle}>Your Content</Text>
             
             <View style={styles.statsGrid}>
+              <TouchableOpacity 
+                style={styles.statCard}
+                onPress={handleViewThemes}
+              >
+                <Ionicons name="list-outline" size={24} color={colors.primary} />
+                <Text style={styles.statNumber}>{stats.themes_created}</Text>
+                <Text style={styles.statLabel}>Custom Themes</Text>
+              </TouchableOpacity>
 
               <TouchableOpacity 
-                  style={styles.statCard}
-                  onPress={handleViewThemes}
-                  disabled={stats.themes_created === 0}
-                >
-                  <Ionicons name="list-outline" size={24} color={colors.primary} />
-                  <Text style={styles.statNumber}>{stats.themes_created}</Text>
-                  <Text style={styles.statLabel}>Custom Themes</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={styles.statCard}
-                  onPress={handleViewPairs}
-                  disabled={stats.pairs_created === 0}
-                >
-                  <Ionicons name="swap-horizontal-outline" size={24} color={colors.secondary} />
-                  <Text style={styles.statNumber}>{stats.pairs_created}</Text>
-                  <Text style={styles.statLabel}>Word Pairs</Text>
-                </TouchableOpacity>
-
-              <View style={styles.statCard}>
-                <Ionicons name="game-controller-outline" size={24} color={colors.success} />
-                <Text style={styles.statNumber}>{stats.games_played}</Text>
-                <Text style={styles.statLabel}>Games Played</Text>
-              </View>
+                style={styles.statCard}
+                onPress={handleViewPairs}
+              >
+                <Ionicons name="swap-horizontal-outline" size={24} color={colors.secondary} />
+                <Text style={styles.statNumber}>{stats.pairs_created}</Text>
+                <Text style={styles.statLabel}>Word Pairs</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
 
-        {/* Quick Actions */}
-        <View style={styles.actionsSection}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          
-          <TouchableOpacity style={styles.actionButton} onPress={handleViewThemes}>
-            <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-            <Text style={styles.actionButtonText}>Your Custom Themes</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton} onPress={handleViewPairs}>
-            <Ionicons name="duplicate-outline" size={20} color={colors.secondary} />
-            <Text style={styles.actionButtonText}>Your Custom Pairs</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Account Actions */}
+        {/* Account Actions - Show for all users */}
         <View style={styles.accountSection}>
           <Text style={styles.sectionTitle}>Account</Text>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={handleSettings}>
             <Ionicons name="settings-outline" size={20} color={colors.gray600} />
             <Text style={styles.actionButtonText}>Settings</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={handlePrivacyTerms}>
             <Ionicons name="help-outline" size={20} color={colors.gray600} />
             <Text style={styles.actionButtonText}>Privacy & Terms</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={handleContactUs}>
             <Ionicons name="call-outline" size={20} color={colors.gray600} />
             <Text style={styles.actionButtonText}>Contact Us</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={handleRateUs}>
             <Ionicons name="star-outline" size={20} color={colors.gray600} />
             <Text style={styles.actionButtonText}>Rate Us</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
           </TouchableOpacity>
         </View>
 
-        {/* Sign Out Button */}
-        {!isAnonymous && (
+        {/* Authentication Button */}
+        {isAnonymous ? (
+          <View style={styles.signInSection}>
+            <Text style={styles.signInHint}>
+              Sign in to save your progress permanently and sync across devices
+            </Text>
+            <Button
+              title="Sign In with Google"
+              variant="primary"
+              size="lg"
+              onPress={handleSignIn}
+              style={styles.authButton}
+            />
+          </View>
+        ) : (
           <Button
             title="Sign Out"
             variant="outline"
             size="lg"
             onPress={handleSignOut}
-            style={styles.signOutButton}
+            style={styles.authButton}
           />
         )}
 
@@ -249,6 +254,9 @@ export default function ProfileScreen() {
         <View style={styles.versionInfo}>
           <Text style={styles.versionText}>Among Y'all v1.0.0</Text>
           <Text style={styles.versionText}>User ID: {user?.id?.slice(0, 8)}...</Text>
+          {isAnonymous && (
+            <Text style={styles.versionText}>Anonymous Session</Text>
+          )}
         </View>
       </View>
     </ScrollView>
@@ -284,14 +292,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginBottom: spacing.md,
   },
-  anonymousBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: colors.warning,
-    borderRadius: 12,
-    padding: 4,
-  },
   userInfo: {
     alignItems: 'center',
   },
@@ -305,11 +305,6 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     color: colors.gray600,
     marginBottom: spacing.xs,
-  },
-  upgradeHint: {
-    fontSize: typography.fontSize.xs,
-    color: colors.primary,
-    fontStyle: 'italic',
   },
   statsSection: {
     marginBottom: spacing.lg,
@@ -350,9 +345,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xs,
   },
-  actionsSection: {
-    marginBottom: spacing.lg,
-  },
   accountSection: {
     marginBottom: spacing.lg,
   },
@@ -375,7 +367,17 @@ const styles = StyleSheet.create({
     color: colors.gray900,
     marginLeft: spacing.sm,
   },
-  signOutButton: {
+  signInSection: {
+    marginBottom: spacing.lg,
+  },
+  signInHint: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray600,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  authButton: {
     marginTop: spacing.md,
     marginBottom: spacing.lg,
   },

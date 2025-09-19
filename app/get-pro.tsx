@@ -142,7 +142,6 @@ export default function GetProScreen() {
           <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
             <Ionicons name="arrow-back" size={24} color="#374151" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Upgrade to Pro</Text>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -153,9 +152,6 @@ export default function GetProScreen() {
               <Ionicons name="diamond" size={40} color="#FFFFFF" />
             </View>
             <Text style={styles.badgeTitle}>Go Pro</Text>
-            <Text style={styles.badgeSubtitle}>
-              Unlock unlimited games and premium features
-            </Text>
           </View>
 
           {/* Features List */}
@@ -233,8 +229,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     backgroundColor: '#FEF3E2',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   backButton: {
     padding: 8,

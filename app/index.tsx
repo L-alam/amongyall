@@ -1,4 +1,4 @@
-// app/index.tsx
+// app/index.tsx - Fixed Authentication Logic
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
@@ -145,6 +145,7 @@ try {
 }
 
 export default function Index() {
+  // FIXED: Changed from isPermanentUser to user for the authentication logic
   const { user, isAnonymous, isPermanentUser, isLoading, anonymousEnabled } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const { isPro, isLoading: proLoading } = useProStatus();
@@ -169,14 +170,14 @@ export default function Index() {
     }
   };
 
-  // AUTH HANDLERS
+  // FIXED AUTH HANDLERS - Now checks for any user (anonymous OR permanent)
   const handleAuthButtonPress = () => {
     try {
-      if (isPermanentUser) {
-        // Navigate to profile screen - CORRECTED PATH
+      if (user) {
+        // Any user (anonymous or permanent) should go to profile
         router.push('/profile');
       } else {
-        // Show login modal
+        // No user at all - show login modal
         setShowLoginModal(true);
       }
     } catch (error) {
@@ -186,12 +187,18 @@ export default function Index() {
 
   const getAuthButtonIcon = () => {
     if (isLoading) return 'ellipsis-horizontal-outline';
-    if (isPermanentUser) return 'person-circle';
+    if (user) {
+      // Show different icons for anonymous vs permanent users
+      return isPermanentUser ? 'person-circle' : 'person-circle-outline';
+    }
     return 'log-in-outline';
   };
 
   const getAuthButtonColor = () => {
-    if (isPermanentUser) return colors.secondary;
+    if (user) {
+      // Different colors for permanent vs anonymous users
+      return isPermanentUser ? colors.secondary : colors.primary;
+    }
     return colors.primary;
   };
 
@@ -216,7 +223,7 @@ export default function Index() {
 
       {/* Header with auth button */}
       <View style={layoutStyles.header}>
-        {/* Auth Button (Sign In / Profile) */}
+        {/* Auth Button (Sign In / Profile) - FIXED LOGIC */}
         <TouchableOpacity 
           style={[styles.headerButton, styles.authButton]} 
           onPress={handleAuthButtonPress}
@@ -227,13 +234,13 @@ export default function Index() {
             size={layout.iconSize.md} 
             color={getAuthButtonColor()} 
           />
-          {isAnonymous && (
+          {/* Show anonymous badge only for anonymous users, not when no user */}
+          {user && isAnonymous && (
             <View style={styles.anonymousBadge}>
               <Ionicons name="eye-off" size={12} color={colors.white} />
             </View>
           )}
         </TouchableOpacity>
-
 
         {/* Spacer to push pro button to the right */}
         <View style={{ flex: 1 }} />
@@ -250,7 +257,6 @@ export default function Index() {
             color={isPro ? "#3B82F6" : (colors.amber || '#F59E0B')} 
           />
         </TouchableOpacity>
-
       </View>
 
       {/* Main content */}
@@ -270,8 +276,8 @@ export default function Index() {
           <Text style={[textStyles.subtitle || styles.subtitle]}>Select a game mode</Text>
         </View>
 
-        {/* User Status (if anonymous) */}
-        {isAnonymous && anonymousEnabled && (
+        {/* User Status - FIXED: Show only for anonymous users, not when no user */}
+        {user && isAnonymous && anonymousEnabled && (
           <View style={styles.userStatusContainer}>
             <Text style={styles.userStatusText}>
               You're playing anonymously.{' '}
@@ -309,37 +315,23 @@ export default function Index() {
             style={styles.gameButton}
           />
         </View>
-
       </View>
-
-      {/* Login Modal */}
-      <SocialLoginModal
-        visible={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-        title={isAnonymous ? "Save Your Progress" : "Sign In"}
-        subtitle={isAnonymous 
-          ? "Link your account to keep your data safe and sync across devices"
-          : "Choose your preferred sign-in method"
-        }
-      />
-
 
       {/* Banner Ad at the bottom */}
       <View style={styles.adContainer}>
         <AdBanner />
       </View>
 
-      {/* Login Modal */}
+      {/* Login Modal - FIXED: Updated condition and messaging */}
       <SocialLoginModal
         visible={showLoginModal}
         onClose={() => setShowLoginModal(false)}
-        title={isAnonymous ? "Save Your Progress" : "Sign In"}
-        subtitle={isAnonymous 
+        title={user && isAnonymous ? "Save Your Progress" : "Sign In"}
+        subtitle={user && isAnonymous 
           ? "Link your account to keep your data safe and sync across devices"
           : "Choose your preferred sign-in method"
         }
       />
-
     </View>
   );
 }
@@ -430,7 +422,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors?.background || '#ffffff',
     paddingVertical: spacing?.xs || 4,
   },
-
   proButton: {
     width: 40,
     height: 40,
