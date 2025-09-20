@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -56,6 +57,58 @@ export default function GetProScreen() {
       setProLoading(false);
     }
   };
+
+  
+  const handleSubscribeCheck = async () => {
+    try {
+      console.log('Checking user authentication status...');
+      
+      // Check if user is signed in
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        Alert.alert(
+          "Sign In Required",
+          "You must sign in to continue",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+  
+      // The key fix: Check the auth user's is_anonymous property directly
+      // This is the authoritative source from Supabase Auth
+      const isAnonymousUser = user.is_anonymous === true;
+      
+      console.log('Auth check results:', {
+        userId: user.id,
+        isAnonymous: isAnonymousUser,
+        userEmail: user.email,
+        userMetadata: user.user_metadata
+      });
+  
+      if (isAnonymousUser) {
+        Alert.alert(
+          "Sign In Required",
+          "You must sign in to continue",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+      
+      // If we get here, user is properly authenticated, proceed with subscription
+      console.log('User authentication passed, proceeding with subscription');
+      await handleSubscribe();
+    } catch (error) {
+      console.error('Error checking authentication:', error);
+      Alert.alert(
+        "Error",
+        "Something went wrong. Please try again.",
+        [{ text: "OK" }]
+      );
+    }
+  };
+  
+  
 
   const handleSubscribe = async () => {
     setIsLoading(true);
@@ -165,7 +218,7 @@ export default function GetProScreen() {
             
             <View style={styles.feature}>
               <Ionicons name="checkmark-circle" size={24} color="#10B981" />
-              <Text style={styles.featureText}>Premium themes & questions</Text>
+              <Text style={styles.featureText}>Unlimited themes & questions</Text>
             </View>
             
             <View style={styles.feature}>
@@ -194,7 +247,7 @@ export default function GetProScreen() {
           {/* Subscribe Button */}
           <TouchableOpacity
             style={[styles.subscribeButton, isLoading && styles.subscribeButtonDisabled]}
-            onPress={handleSubscribe}
+            onPress={handleSubscribeCheck}
             disabled={isLoading}
           >
             {isLoading ? (

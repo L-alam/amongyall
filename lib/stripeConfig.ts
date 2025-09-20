@@ -2,7 +2,7 @@
 import { initStripe } from '@stripe/stripe-react-native';
 
 // Your Stripe publishable key (from Stripe Dashboard)
-const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_...'; // Replace with your key
+const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_live_51S6fTDHCGWxH2Kw44ULkPj0sVfSXCoBLEKs8RoQTlBoec5cDoCFEBfQWAFl1lng77HALUM86ibFdgQozWszP0Xai00vNUX9zk2'; // Replace with your key
 
 export const initializeStripe = async () => {
   try {

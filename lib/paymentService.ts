@@ -9,7 +9,7 @@ export interface PaymentService {
 }
 
 // Replace this with your actual Price ID from Stripe Dashboard
-const PRO_SUBSCRIPTION_PRICE_ID = "price_1S8mpCHCGWxH2Kw4LWeqCmP9";
+const PRO_SUBSCRIPTION_PRICE_ID = "price_1S99dHHCGWxH2Kw4YywerHsy"; 
 
 export const usePaymentService = (): PaymentService => {
   const { initPaymentSheet, presentPaymentSheet, confirmPayment } = useStripe();
@@ -65,7 +65,7 @@ export const usePaymentService = (): PaymentService => {
         },
         googlePay: {
           merchantCountryCode: 'US',
-          testEnv: true, // Set to false for production
+          testEnv: false, 
           currencyCode: 'USD',
         },
       });

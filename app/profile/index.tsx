@@ -280,21 +280,9 @@ export default function ProfileScreen() {
         <View style={styles.accountSection}>
           <Text style={styles.sectionTitle}>Account</Text>
 
-          <TouchableOpacity style={styles.actionButton} onPress={handleSettings}>
-            <Ionicons name="settings-outline" size={20} color={colors.gray600} />
-            <Text style={styles.actionButtonText}>Settings</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
-          </TouchableOpacity>
-
           <TouchableOpacity style={styles.actionButton} onPress={handlePrivacyTerms}>
             <Ionicons name="help-outline" size={20} color={colors.gray600} />
             <Text style={styles.actionButtonText}>Privacy & Terms</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton} onPress={handleContactUs}>
-            <Ionicons name="call-outline" size={20} color={colors.gray600} />
-            <Text style={styles.actionButtonText}>Contact Us</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.gray400} />
           </TouchableOpacity>
 
@@ -307,14 +295,14 @@ export default function ProfileScreen() {
           {/* Cancel Subscription Button - Only for signed-in Pro users */}
           {!isAnonymous && isPro && (
             <TouchableOpacity 
-              style={[styles.actionButton, styles.cancelButton]} 
+              style={[styles.actionButton]} 
               onPress={handleCancelSubscription}
               disabled={cancellingSubscription}
             >
               <Ionicons 
                 name="close-circle-outline" 
                 size={20} 
-                color={colors.red || '#EF4444'} 
+                color={colors.gray600} 
               />
               <Text style={[styles.actionButtonText, styles.cancelButtonText]}>
                 {cancellingSubscription ? 'Cancelling...' : 'Cancel Subscription'}
@@ -323,6 +311,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           )}
         </View>
+
 
         {/* Authentication Button */}
         {isAnonymous ? (
@@ -480,12 +469,8 @@ const styles = StyleSheet.create({
     color: colors.gray900,
     marginLeft: spacing.sm,
   },
-  cancelButton: {
-    borderColor: colors.red || '#EF4444',
-    borderWidth: 1,
-  },
   cancelButtonText: {
-    color: colors.red || '#EF4444',
+    color: colors.gray600,
   },
   signInSection: {
     marginBottom: spacing.lg,
