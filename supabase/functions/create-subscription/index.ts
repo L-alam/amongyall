@@ -26,8 +26,8 @@ serve(async (req) => {
   }
 
   try {
-    const { priceId, userId } = await req.json()
-
+    const { priceId, userId, paymentMethod } = await req.json()
+    
     if (!priceId || !userId) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
@@ -37,6 +37,8 @@ serve(async (req) => {
         }
       )
     }
+
+    console.log(`Creating subscription for user ${userId} with payment method: ${paymentMethod || 'default'}`)
 
     // Get or create customer
     let customer
@@ -68,12 +70,12 @@ serve(async (req) => {
         .eq('id', userId)
     }
 
-    // Create subscription
-    const subscription = await stripe.subscriptions.create({
+    // Configure subscription based on payment method
+    const subscriptionParams: Stripe.SubscriptionCreateParams = {
       customer: customer.id,
       items: [
         {
-          price: priceId, // This should be your price_... ID from Stripe
+          price: priceId,
         },
       ],
       payment_behavior: 'default_incomplete',
@@ -81,10 +83,30 @@ serve(async (req) => {
       expand: ['latest_invoice.payment_intent'],
       metadata: {
         supabase_user_id: userId,
+        payment_method: paymentMethod || 'default',
       },
-    })
+    }
+
+    // For Apple Pay, add specific payment method types
+    if (paymentMethod === 'apple_pay') {
+      subscriptionParams.payment_settings = {
+        ...subscriptionParams.payment_settings,
+        payment_method_types: ['card'],
+      }
+      
+      // Add Apple Pay specific metadata
+      subscriptionParams.metadata = {
+        ...subscriptionParams.metadata,
+        apple_pay_enabled: 'true',
+      }
+    }
+
+    // Create subscription
+    const subscription = await stripe.subscriptions.create(subscriptionParams)
 
     const paymentIntent = subscription.latest_invoice?.payment_intent
+
+    console.log(`Subscription created: ${subscription.id}, Payment Intent: ${paymentIntent?.id}`)
 
     return new Response(
       JSON.stringify({
@@ -92,6 +114,7 @@ serve(async (req) => {
         clientSecret: paymentIntent?.client_secret,
         ephemeralKey: null, // Not needed for subscriptions
         customer: customer.id,
+        paymentMethod: paymentMethod || 'default',
       }),
       { 
         status: 200,
@@ -101,10 +124,14 @@ serve(async (req) => {
         }
       }
     )
+
   } catch (error) {
     console.error('Error creating subscription:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: 'Check server logs for more information'
+      }),
       { 
         status: 500,
         headers: { 'Content-Type': 'application/json' }
