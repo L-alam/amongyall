@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, Animated, Dimensions, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { WavelengthHowToPlayModal } from '../../components/WavelengthHowToPlayModal';
 import { playerStorageService } from '../../lib/playerStorageService';
 
 import { Button } from '../../components/Button';
@@ -176,6 +177,7 @@ export default function WavelengthSetup() {
   const [players, setPlayers] = useState<string[]>([]);
   const [firstPlayerMode, setFirstPlayerMode] = useState<'random' | 'selected'>('random');
   const [selectedFirstPlayer, setSelectedFirstPlayer] = useState('');
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
 
   // Get screen dimensions for responsive design
   const { width: screenWidth } = Dimensions.get('window');
@@ -192,6 +194,10 @@ export default function WavelengthSetup() {
 
   const handleCancel = () => {
     router.push('/');
+  };
+
+  const handleShowHowToPlay = () => {
+    setShowHowToPlay(true);
   };
 
   const handleNext = async () => {
@@ -291,12 +297,8 @@ export default function WavelengthSetup() {
           />
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.headerButton} onPress={handleCancel}>
-          <Ionicons 
-            name="close" 
-            size={isSmallScreen ? layout.iconSize.md : layout.iconSize.lg} 
-            color={colors.primary} 
-          />
+        <TouchableOpacity style={styles.headerButton} onPress={handleShowHowToPlay}>
+            <Ionicons name="help-circle-outline" size={layout.iconSize.md} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -487,6 +489,11 @@ export default function WavelengthSetup() {
       <View style={styles.adContainer}>
           <AdBanner />
         </View>
+
+        <WavelengthHowToPlayModal 
+          visible={showHowToPlay} 
+          onClose={() => setShowHowToPlay(false)} 
+        />
 
     </SafeAreaView>
   );
