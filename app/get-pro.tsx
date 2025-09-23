@@ -79,7 +79,7 @@ export default function GetProScreen() {
       // Check the auth user's is_anonymous property directly
       const isAnonymousUser = user.is_anonymous === true;
       
-      console.log('Auth check results: User authenticated successfully');c
+      console.log('Auth check results: User authenticated successfully');
 
       if (isAnonymousUser) {
         Alert.alert(
