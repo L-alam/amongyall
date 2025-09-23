@@ -3,6 +3,8 @@ import { useStripe } from '@stripe/stripe-react-native';
 import { Alert } from 'react-native';
 import { supabase } from './supabase';
 
+//import { StripeProvider, usePlatformPay, PlatformPayButton, PlatformPay } from '@stripe/stripe-react-native';
+
 
 export interface PaymentService {
   createSubscription: (priceId?: string) => Promise<boolean>;
