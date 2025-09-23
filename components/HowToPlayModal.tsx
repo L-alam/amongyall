@@ -1,10 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
-    Animated,
     Dimensions,
     Modal,
-    PanResponder,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -37,84 +35,29 @@ const SLIDES = [
   },
   {
     title: "Vote & Win",
-    content: "Discuss then vote on who the spy is. If the spy is found they can still win if they can correctly guess the secret word. Have Fun!!",
+    content: "Discuss then vote on who the spy is. Then give the spy one last chance to guess the word. Have Fun!!",
     icon: "trophy" as const,
   },
 ];
 
 export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ visible, onClose }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const slideAnim = useRef(new Animated.Value(0)).current;
-
-  const panResponder = PanResponder.create({
-    onMoveShouldSetPanResponder: (evt, gestureState) => {
-      return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 20;
-    },
-    onPanResponderMove: (evt, gestureState) => {
-      slideAnim.setValue(gestureState.dx);
-    },
-    onPanResponderRelease: (evt, gestureState) => {
-      const { dx } = gestureState;
-      const shouldSwipe = Math.abs(dx) > screenWidth * 0.3;
-
-      if (shouldSwipe) {
-        if (dx > 0 && currentSlide > 0) {
-          // Swipe right - go to previous slide
-          animateToSlide(currentSlide - 1);
-        } else if (dx < 0 && currentSlide < SLIDES.length - 1) {
-          // Swipe left - go to next slide
-          animateToSlide(currentSlide + 1);
-        } else {
-          // Snap back
-          Animated.spring(slideAnim, {
-            toValue: 0,
-            useNativeDriver: true,
-          }).start();
-        }
-      } else {
-        // Snap back
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          useNativeDriver: true,
-        }).start();
-      }
-    },
-  });
-
-  const animateToSlide = (slideIndex: number) => {
-    const direction = slideIndex > currentSlide ? -screenWidth : screenWidth;
-    
-    Animated.timing(slideAnim, {
-      toValue: direction,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      setCurrentSlide(slideIndex);
-      slideAnim.setValue(-direction);
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    });
-  };
 
   const goToSlide = (slideIndex: number) => {
-    if (slideIndex === currentSlide) return;
-    animateToSlide(slideIndex);
-  };
-
-  const handleNext = () => {
-    if (currentSlide < SLIDES.length - 1) {
-      animateToSlide(currentSlide + 1);
-    } else {
-      onClose();
+    if (slideIndex >= 0 && slideIndex < SLIDES.length) {
+      setCurrentSlide(slideIndex);
     }
   };
 
-  const handlePrevious = () => {
+  const goToPrevious = () => {
     if (currentSlide > 0) {
-      animateToSlide(currentSlide - 1);
+      setCurrentSlide(currentSlide - 1);
+    }
+  };
+
+  const goToNext = () => {
+    if (currentSlide < SLIDES.length - 1) {
+      setCurrentSlide(currentSlide + 1);
     }
   };
 
@@ -137,16 +80,23 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ visible, onClose
             </TouchableOpacity>
           </View>
 
-          {/* Slide Content */}
-          <View style={styles.slideContainer} {...panResponder.panHandlers}>
-            <Animated.View
-              style={[
-                styles.slideContent,
-                {
-                  transform: [{ translateX: slideAnim }],
-                },
-              ]}
-            >
+          {/* Slide Content with Navigation Arrows */}
+          <View style={styles.slideContainer}>
+            {/* Left Arrow */}
+            <View style={styles.leftArrowContainer}>
+              {currentSlide > 0 && (
+                <TouchableOpacity style={styles.arrowButton} onPress={goToPrevious}>
+                  <Ionicons 
+                    name="chevron-back" 
+                    size={layout.iconSize.lg} 
+                    color={colors.primary} 
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Slide Content */}
+            <View style={styles.slideContent}>
               <View style={styles.iconContainer}>
                 <Ionicons
                   name={currentSlideData.icon}
@@ -157,7 +107,20 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ visible, onClose
               
               <Text style={styles.slideTitle}>{currentSlideData.title}</Text>
               <Text style={styles.slideText}>{currentSlideData.content}</Text>
-            </Animated.View>
+            </View>
+
+            {/* Right Arrow */}
+            <View style={styles.rightArrowContainer}>
+              {currentSlide < SLIDES.length - 1 && (
+                <TouchableOpacity style={styles.arrowButton} onPress={goToNext}>
+                  <Ionicons 
+                    name="chevron-forward" 
+                    size={layout.iconSize.lg} 
+                    color={colors.primary} 
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
           {/* Dot Indicators */}
@@ -174,27 +137,6 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ visible, onClose
             ))}
           </View>
 
-          {/* Navigation Buttons */}
-          <View style={styles.buttonContainer}>
-            {currentSlide > 0 && (
-              <TouchableOpacity style={styles.navButton} onPress={handlePrevious}>
-                <Ionicons name="chevron-back" size={layout.iconSize.md} color={colors.primary} />
-                <Text style={styles.navButtonText}>Previous</Text>
-              </TouchableOpacity>
-            )}
-            
-            <TouchableOpacity 
-              style={[styles.navButton, styles.nextButton]} 
-              onPress={handleNext}
-            >
-              <Text style={styles.nextButtonText}>
-                {currentSlide === SLIDES.length - 1 ? 'Got It!' : 'Next'}
-              </Text>
-              {currentSlide < SLIDES.length - 1 && (
-                <Ionicons name="chevron-forward" size={layout.iconSize.md} color={colors.white} />
-              )}
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
     </Modal>
@@ -244,23 +186,41 @@ const styles = StyleSheet.create({
   },
 
   slideContainer: {
-    height: 280,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.xl,
+    height: 280,
+    paddingHorizontal: spacing.sm,
+  },
+
+  leftArrowContainer: {
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  rightArrowContainer: {
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  arrowButton: {
+    padding: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   slideContent: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    width: screenWidth - (spacing.xl * 4), // Account for modal and slide padding
+    paddingHorizontal: spacing.md,
   },
 
   iconContainer: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colors.primaryLight || colors.surface || colors.gray100,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.xl,
@@ -279,7 +239,6 @@ const styles = StyleSheet.create({
     color: colors.gray700,
     textAlign: 'center',
     lineHeight: typography.fontSize.base * 1.5,
-    paddingHorizontal: spacing.sm,
   },
 
   dotsContainer: {
@@ -302,38 +261,15 @@ const styles = StyleSheet.create({
     width: 24,
   },
 
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  navigationHint: {
     paddingHorizontal: spacing.xl,
-    gap: spacing.md,
+    paddingBottom: spacing.lg,
   },
 
-  navButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 8,
-    gap: spacing.xs,
-  },
-
-  nextButton: {
-    backgroundColor: colors.primary,
-    flex: 1,
-    justifyContent: 'center',
-  },
-
-  navButtonText: {
-    fontSize: typography.fontSize.base,
-    color: colors.primary,
-    fontWeight: typography.fontWeight.medium,
-  },
-
-  nextButtonText: {
-    fontSize: typography.fontSize.base,
-    color: colors.white,
-    fontWeight: typography.fontWeight.medium,
+  navigationHintText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray500,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

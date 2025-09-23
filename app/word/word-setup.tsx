@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { playerStorageService } from '../../lib/playerStorageService';
 
 import { Button } from '../../components/Button';
+import { HowToPlayModal } from '../../components/HowToPlayModal';
 import { colors, layout, spacing, typography } from '../../constants/theme';
 import {
   createInputStyle
@@ -180,6 +181,7 @@ export default function WordSetup() {
   const [players, setPlayers] = useState<string[]>([]);
   const [selectedTheme, setSelectedTheme] = useState('Hobbies');
   const [numCards, setNumCards] = useState(8);
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
 
   // Constraints for numCards
   const MIN_CARDS = 4;
@@ -196,6 +198,11 @@ export default function WordSetup() {
   // Go back to the home screen
   const handleBack = () => {
     router.back();
+  };
+
+  // Show How to Play modal
+  const handleShowHowToPlay = () => {
+    setShowHowToPlay(true);
   };
 
   const handleTheme = async () => {
@@ -303,7 +310,7 @@ export default function WordSetup() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Fixed Header - Higher on screen */}
+      {/* Fixed Header - Changed close to question mark */}
       <View style={[styles.header, isSmallScreen && styles.headerSmall]}>
         <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
           <Ionicons 
@@ -313,9 +320,9 @@ export default function WordSetup() {
           />
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+        <TouchableOpacity style={styles.headerButton} onPress={handleShowHowToPlay}>
           <Ionicons 
-            name="close" 
+            name="help-circle-outline" 
             size={isSmallScreen ? layout.iconSize.md : layout.iconSize.lg} 
             color={colors.primary} 
           />
@@ -417,11 +424,16 @@ export default function WordSetup() {
         />
       </View>
 
+      {/* ADD THE BANNER HERE */}
+      <View style={styles.adContainer}>
+        <AdBanner />
+      </View>
 
-        {/* ADD THE BANNER HERE */}
-        <View style={styles.adContainer}>
-          <AdBanner />
-        </View>
+      {/* How to Play Modal */}
+      <HowToPlayModal 
+        visible={showHowToPlay} 
+        onClose={() => setShowHowToPlay(false)} 
+      />
 
     </SafeAreaView>
   );
