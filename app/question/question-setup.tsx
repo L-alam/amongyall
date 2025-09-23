@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, Animated, Dimensions, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { QuestionHowToPlayModal } from '../../components/QuestionHowToPlayModal';
 import { playerStorageService } from '../../lib/playerStorageService';
 
 import { Button } from '../../components/Button';
@@ -175,6 +176,7 @@ export default function QuestionSetup() {
   const [playerName, setPlayerName] = useState('');
   const [players, setPlayers] = useState<string[]>([]);
   const [gameQuestions, setGameQuestions] = useState(["How old is your best friend?", "How many bones have you broken?"]);
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
 
   // Get screen dimensions for responsive design
   const { width: screenWidth } = Dimensions.get('window');
@@ -187,6 +189,10 @@ export default function QuestionSetup() {
   // Go back to the home screen
   const handleBack = () => {
     router.back();
+  };
+
+  const handleShowHowToPlay = () => {
+    setShowHowToPlay(true);
   };
 
   const handleSet = async () => {
@@ -265,9 +271,9 @@ export default function QuestionSetup() {
           />
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+        <TouchableOpacity style={styles.headerButton} onPress={handleShowHowToPlay}>
           <Ionicons 
-            name="close" 
+            name="help-circle-outline" 
             size={isSmallScreen ? layout.iconSize.md : layout.iconSize.lg} 
             color={colors.primary} 
           />
@@ -373,6 +379,11 @@ export default function QuestionSetup() {
       <View style={styles.adContainer}>
           <AdBanner />
         </View>
+
+        <QuestionHowToPlayModal 
+          visible={showHowToPlay} 
+          onClose={() => setShowHowToPlay(false)} 
+        />
 
     </SafeAreaView>
   );

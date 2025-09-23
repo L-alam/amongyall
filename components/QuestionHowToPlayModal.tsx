@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { colors, layout, spacing, typography } from '../constants/theme';
 
-interface HowToPlayModalProps {
+interface QuestionHowToPlayModalProps {
   visible: boolean;
   onClose: () => void;
 }
@@ -20,27 +20,27 @@ const { width: screenWidth } = Dimensions.get('window');
 const SLIDES = [
   {
     title: "Setup Players",
-    content: "Add all the players of the group (max 8). Then pick a theme or create your own",
+    content: "Add all the players of the group (max 8). Then pick a question category",
     icon: "people" as const,
   },
   {
-    title: "Pass the Phone",
-    content: "Pass the phone around. All players will get the same word except one. That player will be the spy!",
-    icon: "phone-portrait" as const,
+    title: "Answer Questions",
+    content: "Pass the phone around and answer the question. All players will get the same question, except one. That player is the spy!",
+    icon: "help-circle" as const,
   },
   {
-    title: "Give Clues",
-    content: "Take turns saying a clue related to the shared word. Don't be too obvious! The spy can win the game if they correctly guess the secret word",
+    title: "Reveal & Discuss",
+    content: "Reveal the main question and all the answers.\nThen Discuss!\nTry to figure out who was given a different question",
     icon: "eye" as const,
   },
   {
     title: "Vote & Win",
-    content: "Discuss then vote on who the spy is. Then give the spy one last chance to guess the word. Have Fun!!",
+    content: "Vote on who the spy is. If the group is wrong the spy wins. Have Fun!!",
     icon: "trophy" as const,
   },
 ];
 
-export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ visible, onClose }) => {
+export const QuestionHowToPlayModal: React.FC<QuestionHowToPlayModalProps> = ({ visible, onClose }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const goToSlide = (slideIndex: number) => {
@@ -259,17 +259,5 @@ const styles = StyleSheet.create({
   dotActive: {
     backgroundColor: colors.primary,
     width: 24,
-  },
-
-  navigationHint: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.lg,
-  },
-
-  navigationHintText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.gray500,
-    textAlign: 'center',
-    fontStyle: 'italic',
   },
 });
