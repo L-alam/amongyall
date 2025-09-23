@@ -1,11 +1,12 @@
 // app/get-pro.tsx
 import { Ionicons } from '@expo/vector-icons';
-import { StripeProvider } from '@stripe/stripe-react-native';
+import { StripeProvider, useApplePay } from '@stripe/stripe-react-native';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -14,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { PaymentMethodModal } from '../components/PaymentMethodModal';
 import { usePaymentService } from '../lib/paymentService';
 import { STRIPE_CONFIG } from '../lib/stripeConfig';
 import { supabase } from '../lib/supabase';
@@ -23,7 +25,9 @@ export default function GetProScreen() {
   const [proLoading, setProLoading] = useState(true);
   const [isAlreadyPro, setIsAlreadyPro] = useState(false);
   const [proExpiresAt, setProExpiresAt] = useState<string | null>(null);
-  const { createSubscription } = usePaymentService();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const { createSubscription, createApplePaySubscription } = usePaymentService();
+  const { presentApplePay, confirmApplePayPayment } = useApplePay();
 
   useEffect(() => {
     checkProStatus();
@@ -58,7 +62,6 @@ export default function GetProScreen() {
     }
   };
 
-  
   const handleSubscribeCheck = async () => {
     try {
       console.log('Checking user authentication status...');
@@ -74,9 +77,8 @@ export default function GetProScreen() {
         );
         return;
       }
-  
-      // The key fix: Check the auth user's is_anonymous property directly
-      // This is the authoritative source from Supabase Auth
+
+      // Check the auth user's is_anonymous property directly
       const isAnonymousUser = user.is_anonymous === true;
       
       console.log('Auth check results:', {
@@ -85,7 +87,7 @@ export default function GetProScreen() {
         userEmail: user.email,
         userMetadata: user.user_metadata
       });
-  
+
       if (isAnonymousUser) {
         Alert.alert(
           "Sign In Required",
@@ -95,9 +97,9 @@ export default function GetProScreen() {
         return;
       }
       
-      // If we get here, user is properly authenticated, proceed with subscription
-      console.log('User authentication passed, proceeding with subscription');
-      await handleSubscribe();
+      // If we get here, user is properly authenticated, show payment modal
+      console.log('User authentication passed, showing payment modal');
+      setShowPaymentModal(true);
     } catch (error) {
       console.error('Error checking authentication:', error);
       Alert.alert(
@@ -107,18 +109,16 @@ export default function GetProScreen() {
       );
     }
   };
-  
-  
 
-  const handleSubscribe = async () => {
+  const handleStripePayment = async () => {
     setIsLoading(true);
     try {
-      console.log('Starting subscription process...');
+      console.log('Starting Stripe subscription process...');
       
       const success = await createSubscription();
       
       if (success) {
-        console.log('Subscription successful, refreshing status...');
+        console.log('Stripe subscription successful, refreshing status...');
         // Wait a moment for webhook to process
         setTimeout(async () => {
           await checkProStatus();
@@ -126,7 +126,54 @@ export default function GetProScreen() {
         }, 2000);
       }
     } catch (error) {
-      console.error('Subscription error:', error);
+      console.error('Stripe subscription error:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleApplePayment = async () => {
+    if (Platform.OS !== 'ios') {
+      Alert.alert('Error', 'Apple Pay is only available on iOS devices');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      console.log('Starting Apple Pay subscription process...');
+      
+      // Check if Apple Pay is available
+      const { isApplePaySupported } = await presentApplePay({
+        cartItems: [{
+          label: 'Pro Subscription',
+          amount: '3.00',
+          paymentType: 'Immediate',
+        }],
+        country: 'US',
+        currency: 'USD',
+        merchantIdentifier: 'merchant.com.lalam.amongyall',
+      });
+
+      if (!isApplePaySupported) {
+        Alert.alert('Error', 'Apple Pay is not supported on this device');
+        return;
+      }
+
+      // If you have a separate Apple Pay subscription method
+      const success = await createApplePaySubscription();
+      
+      if (success) {
+        console.log('Apple Pay subscription successful, refreshing status...');
+        // Wait a moment for webhook to process
+        setTimeout(async () => {
+          await checkProStatus();
+          router.push('/');
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Apple Pay subscription error:', error);
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -255,7 +302,7 @@ export default function GetProScreen() {
             ) : (
               <>
                 <Ionicons name="diamond" size={20} color="#FFFFFF" />
-                <Text style={styles.subscribeButtonText}>Start Subscription</Text>
+                <Text style={styles.subscribeButtonText}>Get Pro Now</Text>
               </>
             )}
           </TouchableOpacity>
@@ -265,6 +312,17 @@ export default function GetProScreen() {
             You can cancel anytime in your account settings.
           </Text>
         </ScrollView>
+
+        {/* Payment Method Modal */}
+        <PaymentMethodModal
+          visible={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          onStripePayment={handleStripePayment}
+          onApplePayment={handleApplePayment}
+          title="Choose Payment Method"
+          subtitle="Select how you'd like to pay for your Pro subscription"
+          price="$3.00/month"
+        />
       </SafeAreaView>
     </StripeProvider>
   );
