@@ -1,19 +1,18 @@
 // app/get-pro.tsx
 import { Ionicons } from '@expo/vector-icons';
-import { StripeProvider, useApplePay } from '@stripe/stripe-react-native';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { PaymentMethodModal } from '../components/PaymentMethodModal';
 import { usePaymentService } from '../lib/paymentService';
@@ -27,7 +26,6 @@ export default function GetProScreen() {
   const [proExpiresAt, setProExpiresAt] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const { createSubscription, createApplePaySubscription } = usePaymentService();
-  const { presentApplePay, confirmApplePayPayment } = useApplePay();
 
   useEffect(() => {
     checkProStatus();
@@ -81,12 +79,7 @@ export default function GetProScreen() {
       // Check the auth user's is_anonymous property directly
       const isAnonymousUser = user.is_anonymous === true;
       
-      console.log('Auth check results:', {
-        userId: user.id,
-        isAnonymous: isAnonymousUser,
-        userEmail: user.email,
-        userMetadata: user.user_metadata
-      });
+      console.log('Auth check results: User authenticated successfully');c
 
       if (isAnonymousUser) {
         Alert.alert(
@@ -134,33 +127,10 @@ export default function GetProScreen() {
   };
 
   const handleApplePayment = async () => {
-    if (Platform.OS !== 'ios') {
-      Alert.alert('Error', 'Apple Pay is only available on iOS devices');
-      return;
-    }
-
     setIsLoading(true);
     try {
       console.log('Starting Apple Pay subscription process...');
       
-      // Check if Apple Pay is available
-      const { isApplePaySupported } = await presentApplePay({
-        cartItems: [{
-          label: 'Pro Subscription',
-          amount: '3.00',
-          paymentType: 'Immediate',
-        }],
-        country: 'US',
-        currency: 'USD',
-        merchantIdentifier: 'merchant.com.lalam.amongyall',
-      });
-
-      if (!isApplePaySupported) {
-        Alert.alert('Error', 'Apple Pay is not supported on this device');
-        return;
-      }
-
-      // If you have a separate Apple Pay subscription method
       const success = await createApplePaySubscription();
       
       if (success) {

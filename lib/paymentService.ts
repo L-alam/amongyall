@@ -1,5 +1,5 @@
 // lib/paymentService.ts
-import { PlatformPay, usePlatformPay, useStripe } from '@stripe/stripe-react-native';
+import { PlatformPay, confirmPlatformPayPayment, isPlatformPaySupported, useStripe } from '@stripe/stripe-react-native';
 import { Alert, Platform } from 'react-native';
 import { supabase } from './supabase';
 
@@ -14,7 +14,6 @@ const PRO_SUBSCRIPTION_PRICE_ID = "price_1S99dHHCGWxH2Kw4YywerHsy";
 
 export const usePaymentService = (): PaymentService => {
   const { initPaymentSheet, presentPaymentSheet, confirmPayment } = useStripe();
-  const { isPlatformPaySupported, confirmPlatformPayPayment } = usePlatformPay();
 
   const createSubscription = async (priceId: string = PRO_SUBSCRIPTION_PRICE_ID): Promise<boolean> => {
     try {
@@ -142,7 +141,7 @@ export const usePaymentService = (): PaymentService => {
         return false;
       }
 
-      console.log('Apple Pay subscription created, presenting Apple Pay...', data);
+      console.log('Apple Pay subscription created, confirming with Apple Pay...', data);
 
       const { clientSecret, subscriptionId } = data;
 
@@ -152,30 +151,8 @@ export const usePaymentService = (): PaymentService => {
         return false;
       }
 
-      // Present Apple Pay using PlatformPay
-      const { error: platformPayError } = await PlatformPay.presentApplePay({
-        cartItems: [
-          {
-            label: 'AmongYall Pro - Monthly',
-            amount: '3.00',
-            paymentType: PlatformPay.PaymentType.Immediate,
-          },
-        ],
-        country: 'US',
-        currency: 'USD',
-        merchantIdentifier: 'merchant.com.lalam.amongyall',
-      });
-
-      if (platformPayError) {
-        console.error('Apple Pay presentation error:', platformPayError);
-        if (platformPayError.code !== 'Canceled') {
-          Alert.alert('Apple Pay Error', platformPayError.message);
-        }
-        return false;
-      }
-
-      // Confirm the Apple Pay payment
-      const { error: confirmError } = await confirmPlatformPayPayment(
+      // Use confirmPlatformPayPayment directly to present and confirm Apple Pay
+      const { error: confirmError, paymentIntent } = await confirmPlatformPayPayment(
         clientSecret,
         {
           applePay: {
@@ -186,16 +163,17 @@ export const usePaymentService = (): PaymentService => {
                 paymentType: PlatformPay.PaymentType.Immediate,
               },
             ],
-            merchantIdentifier: 'merchant.com.lalam.amongyall',
-            country: 'US',
-            currency: 'USD',
+            merchantCountryCode: 'US',
+            currencyCode: 'USD',
           },
         }
       );
 
       if (confirmError) {
         console.error('Apple Pay confirmation error:', confirmError);
-        Alert.alert('Payment Error', confirmError.message);
+        if (confirmError.code !== 'Canceled') {
+          Alert.alert('Apple Pay Error', confirmError.message);
+        }
         return false;
       }
 
@@ -223,7 +201,7 @@ export const usePaymentService = (): PaymentService => {
         return false;
       }
 
-      const isSupported = await isPlatformPaySupported({ applePay: true });
+      const isSupported = await isPlatformPaySupported();
       console.log('Apple Pay supported:', isSupported);
       return isSupported;
     } catch (error) {
