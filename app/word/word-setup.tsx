@@ -234,6 +234,10 @@ export default function WordSetup() {
     alert('Player name already exists');
   }
   
+  const handleCancel = () => {
+    router.push('/');
+  };
+
   const handleAddPlayer = () => {
     const trimmedName = playerName.trim().toUpperCase();
     
@@ -319,14 +323,18 @@ export default function WordSetup() {
             color={colors.primary} 
           />
         </TouchableOpacity>
+
+        <View style={styles.rightButtons}>
+            <TouchableOpacity style={styles.howToPlayButton} onPress={handleShowHowToPlay}>
+              <Ionicons name="help-circle-outline" size={16} color="#6B7280" />
+              <Text style={styles.howToPlayText}>How to Play</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.headerButton} onPress={handleCancel}>
+              <Ionicons name="close-outline" size={layout.iconSize.md} color={colors.primary} />
+            </TouchableOpacity>
+          </View> 
         
-        <TouchableOpacity style={styles.headerButton} onPress={handleShowHowToPlay}>
-          <Ionicons 
-            name="help-circle-outline" 
-            size={isSmallScreen ? layout.iconSize.md : layout.iconSize.lg} 
-            color={colors.primary} 
-          />
-        </TouchableOpacity>
       </View>
 
       {/* Scrollable Content */}
@@ -670,4 +678,25 @@ const styles = StyleSheet.create({
     borderTopColor: colors.gray200,
   },
 
+  howToPlayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  howToPlayText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  rightButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
 });
