@@ -1,5 +1,6 @@
-// lib/authService.ts (Fixed for Safari/WebBrowser issues)
+// lib/authService.ts - Updated with native Apple Sign In
 import { Session, User } from '@supabase/supabase-js';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
@@ -249,7 +250,7 @@ class AuthService {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectUrl, // Add this line!
+          redirectTo: redirectUrl,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -266,7 +267,6 @@ class AuthService {
         return { user: null, error: new Error('No OAuth URL returned') };
       }
   
-  
       const browserOptions: WebBrowser.AuthSessionOptions = {
         showInRecents: false,
       };
@@ -277,7 +277,7 @@ class AuthService {
   
       const result = await WebBrowser.openAuthSessionAsync(
         data.url,
-        redirectUrl, // Add the redirect URL here too
+        redirectUrl,
         browserOptions
       );
   
@@ -301,40 +301,72 @@ class AuthService {
     }
   } 
 
+  // Updated native Sign in with Apple implementation
   async signInWithApple(): Promise<{ user: User | null; error: any }> {
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
+      // Check if Apple Authentication is available
+      const isAvailable = await AppleAuthentication.isAvailableAsync();
+      if (!isAvailable) {
+        return { 
+          user: null, 
+          error: new Error('Apple Sign In is not available on this device') 
+        };
+      }
+
+      // Request Apple authentication
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
       });
 
-      if (error || !data.url) {
-        return { user: null, error: error || new Error('No OAuth URL returned') };
+      console.log('Apple credential received:', {
+        identityToken: !!credential.identityToken,
+        user: credential.user,
+        email: credential.email,
+        fullName: credential.fullName
+      });
+
+      if (!credential.identityToken) {
+        return { 
+          user: null, 
+          error: new Error('No identity token received from Apple') 
+        };
       }
 
-      const browserOptions: WebBrowser.AuthSessionOptions = {
-        showInRecents: false,
-      };
+      // Sign in with Supabase using the identity token
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken,
+        nonce: credential.nonce, // Include nonce if available
+      });
 
-      if (Platform.OS === 'ios') {
-        browserOptions.preferEphemeralSession = false;
+      if (error) {
+        console.error('Error signing in with Apple:', error);
+        return { user: null, error };
       }
 
-      const result = await WebBrowser.openAuthSessionAsync(
-        data.url,
-        undefined,
-        browserOptions
-      );
+      console.log('Apple sign-in successful:', data.user?.email);
 
-      if (result.type === 'success' && result.url) {
-        await this.handleDeepLink({ url: result.url });
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return { user: this.getCurrentUser(), error: null };
+      // Migrate anonymous content to the new user account
+      try {
+        await this.migrateAnonymousContent();
+      } catch (migrationError) {
+        console.error('Failed to migrate anonymous content:', migrationError);
+        // Don't throw here - login should still succeed even if migration fails
       }
 
-      return { user: null, error: new Error('OAuth flow failed') };
+      return { user: data.user, error: null };
+
     } catch (error) {
-      console.error('Error in signInWithApple:', error);
-      return { user: null, error };
+      if (error.code === 'ERR_REQUEST_CANCELED') {
+        console.log('User cancelled Apple sign-in');
+        return { user: null, error: new Error('User cancelled sign-in') };
+      } else {
+        console.error('Error in signInWithApple:', error);
+        return { user: null, error };
+      }
     }
   }
 
@@ -459,6 +491,15 @@ class AuthService {
 
   isAnonymousEnabled(): boolean {
     return this.currentState.anonymousEnabled;
+  }
+
+  // Check if Apple Sign In is available
+  async isAppleSignInAvailable(): Promise<boolean> {
+    try {
+      return await AppleAuthentication.isAvailableAsync();
+    } catch {
+      return false;
+    }
   }
 }
 
