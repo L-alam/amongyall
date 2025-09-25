@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "usesAppleSignIn": true,
       "supportsTablet": true,
       "bundleIdentifier": "com.lalam.amongyall",
       "infoPlist": {
@@ -31,6 +32,7 @@
     },
     "plugins": [
       "./plugins/withInfoPlist",
+      "expo-apple-authentication",
       "expo-router",
       [
         "expo-splash-screen",

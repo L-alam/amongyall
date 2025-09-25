@@ -1,9 +1,11 @@
 // app/profile/index.tsx
 import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -20,13 +22,33 @@ import { UserProfile, UserStats, userProfileService } from '../../lib/userProfil
 import { layoutStyles, textStyles } from '../../utils/styles';
 
 export default function ProfileScreen() {
-  const { user, isAnonymous, signOut, signInWithGoogle } = useAuth();
+  const { 
+    user, 
+    isAnonymous, 
+    signOut, 
+    signInWithGoogle, 
+    signInWithApple, 
+    isAppleSignInAvailable 
+  } = useAuth();
   const { isPro } = useProStatus();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
+  const [appleSignInAvailable, setAppleSignInAvailable] = useState(false);
+
+  useEffect(() => {
+    // Check if Apple Sign In is available
+    const checkAppleSignIn = async () => {
+      if (Platform.OS === 'ios') {
+        const available = await isAppleSignInAvailable();
+        setAppleSignInAvailable(available);
+      }
+    };
+    
+    checkAppleSignIn();
+  }, [isAppleSignInAvailable]);
 
   const loadProfileData = async () => {
     try {
@@ -87,7 +109,7 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleSignIn = async () => {
+  const handleSignInWithGoogle = async () => {
     try {
       const result = await signInWithGoogle();
       if (result.error) {
@@ -95,6 +117,17 @@ export default function ProfileScreen() {
       }
     } catch (error) {
       Alert.alert('Sign In Failed', 'Could not sign in with Google. Please try again.');
+    }
+  };
+
+  const handleSignInWithApple = async () => {
+    try {
+      const result = await signInWithApple();
+      if (result.error) {
+        Alert.alert('Sign In Failed', 'Could not sign in with Apple. Please try again.');
+      }
+    } catch (error) {
+      Alert.alert('Sign In Failed', 'Could not sign in with Apple. Please try again.');
     }
   };
 
@@ -231,12 +264,24 @@ export default function ProfileScreen() {
 
             <View style={styles.userInfo}>
               <Text style={styles.userName}>
-                {profile?.display_name || user?.user_metadata?.full_name || 'Player'}
+                {user?.email?.includes('@privaterelay.appleid.com') 
+                  ? 'Welcome!' 
+                  : (profile?.display_name || user?.user_metadata?.full_name || 'Player')}
               </Text>
-              
-              <Text style={styles.userEmail}>
-                {user?.email || 'No email'}
-              </Text>
+
+              {/* Only show email if it's not a private relay email */}
+              {user?.email && !user.email.includes('@privaterelay.appleid.com') && (
+                <Text style={styles.userEmail}>
+                  {user.email}
+                </Text>
+              )}
+
+              {/* Show signed in status instead of cryptic email */}
+              {user?.email?.includes('@privaterelay.appleid.com') && (
+                <Text style={styles.userEmail}>
+                  Signed in with Apple
+                </Text>
+              )}
 
               {/* Pro Status Badge */}
               {isPro && (
@@ -312,19 +357,31 @@ export default function ProfileScreen() {
           )}
         </View>
 
-
-        {/* Authentication Button */}
+        {/* Authentication Section */}
         {isAnonymous ? (
           <View style={styles.signInSection}>
             <Text style={styles.signInHint}>
               Sign in to save your progress permanently and sync across devices
             </Text>
+            
+            {/* Apple Sign In Button - Show on iOS if available */}
+            {Platform.OS === 'ios' && appleSignInAvailable && (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={16}
+                style={styles.appleButton}
+                onPress={handleSignInWithApple}
+              />
+            )}
+            
+            {/* Google Sign In Button */}
             <Button
               title="Sign In with Google"
               variant="primary"
               size="lg"
-              onPress={handleSignIn}
-              style={styles.authButton}
+              onPress={handleSignInWithGoogle}
+              style={styles.googleButton}
             />
           </View>
         ) : (
@@ -481,6 +538,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: spacing.md,
     paddingHorizontal: spacing.md,
+  },
+  appleButton: {
+    width: '100%',
+    height: 50,
+    marginBottom: spacing.md,
+  },
+  googleButton: {
+    marginTop: 0,
   },
   authButton: {
     marginTop: spacing.md,

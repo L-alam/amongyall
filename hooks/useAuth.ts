@@ -1,49 +1,16 @@
-// hooks/useAuth.ts
-import { useState, useEffect } from 'react';
-import { authService, AuthState } from '../lib/authService';
-import { User } from '@supabase/supabase-js';
+// hooks/useAuth.ts - Updated with Apple Sign In
+import { useEffect, useState } from 'react';
+import { AuthState, authService } from '../lib/authService';
 
-export const useAuth = () => {
+export function useAuth() {
   const [authState, setAuthState] = useState<AuthState>(authService.getAuthState());
 
   useEffect(() => {
     // Subscribe to auth state changes
-    const unsubscribe = authService.onAuthStateChange((newState) => {
-      setAuthState(newState);
-    });
-
+    const unsubscribe = authService.onAuthStateChange(setAuthState);
+    
     return unsubscribe;
   }, []);
-
-  const signInWithGoogle = async () => {
-    const { user, error } = await authService.signInWithGoogle();
-    return { user, error };
-  };
-
-  const signInWithApple = async () => {
-    const { user, error } = await authService.signInWithApple();
-    return { user, error };
-  };
-
-  const signInWithFacebook = async () => {
-    const { user, error } = await authService.signInWithFacebook();
-    return { user, error };
-  };
-
-  const linkToSocial = async (provider: 'google' | 'apple' | 'facebook') => {
-    const { user, error } = await authService.linkAnonymousToSocial(provider);
-    return { user, error };
-  };
-
-  const signOut = async () => {
-    const { error } = await authService.signOut();
-    return { error };
-  };
-
-  const createAnonymousSession = async () => {
-    const { user, error } = await authService.createAnonymousSession();
-    return { user, error };
-  };
 
   return {
     // Auth state
@@ -51,19 +18,20 @@ export const useAuth = () => {
     session: authState.session,
     isAnonymous: authState.isAnonymous,
     isLoading: authState.isLoading,
-    anonymousEnabled: authState.anonymousEnabled,
-    
-    // Computed values
     isAuthenticated: authService.isAuthenticated(),
     isPermanentUser: authService.isPermanentUser(),
-    userId: authService.getUserId(),
+    isAnonymousEnabled: authState.anonymousEnabled,
+
+    // Auth methods
+    signInWithGoogle: authService.signInWithGoogle.bind(authService),
+    signInWithApple: authService.signInWithApple.bind(authService),
+    signInWithFacebook: authService.signInWithFacebook.bind(authService),
+    signOut: authService.signOut.bind(authService),
+    createAnonymousSession: authService.createAnonymousSession.bind(authService),
+    linkAnonymousToSocial: authService.linkAnonymousToSocial.bind(authService),
     
-    // Actions
-    signInWithGoogle,
-    signInWithApple,
-    signInWithFacebook,
-    linkToSocial,
-    signOut,
-    createAnonymousSession,
+    // Utility methods
+    getUserId: authService.getUserId.bind(authService),
+    isAppleSignInAvailable: authService.isAppleSignInAvailable.bind(authService),
   };
-};
+}
