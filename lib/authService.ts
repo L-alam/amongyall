@@ -303,6 +303,7 @@ class AuthService {
 
   // Updated native Sign in with Apple implementation
   async signInWithApple(): Promise<{ user: User | null; error: any }> {
+    console.log("I am calling the signinwithapple func")
     try {
       // Check if Apple Authentication is available
       const isAvailable = await AppleAuthentication.isAvailableAsync();
