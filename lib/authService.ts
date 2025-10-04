@@ -210,7 +210,7 @@ class AuthService {
         return;
       }
 
-      console.log('Anonymous session created:', data.user?.id);
+      console.log('Anonymous session created:');
       
     } catch (error) {
       console.error('Error creating anonymous session:', error);
@@ -233,7 +233,7 @@ class AuthService {
         return { user: null, error };
       }
 
-      console.log('Anonymous session created:', data.user?.id);
+      console.log('Anonymous session created:');
       return { user: data.user, error: null };
 
     } catch (error) {
@@ -303,17 +303,23 @@ class AuthService {
 
   // Updated native Sign in with Apple implementation
   async signInWithApple(): Promise<{ user: User | null; error: any }> {
-    console.log("I am calling the signinwithapple func")
+    console.log("Starting Apple sign in process");
+    console.log("App bundle identifier:", await import('expo-constants').then(c => c.default.expoConfig?.ios?.bundleIdentifier));
+    
     try {
       // Check if Apple Authentication is available
       const isAvailable = await AppleAuthentication.isAvailableAsync();
+      console.log("Apple Sign In available:", isAvailable);
+      
       if (!isAvailable) {
         return { 
           user: null, 
           error: new Error('Apple Sign In is not available on this device') 
         };
       }
-
+  
+      console.log("Requesting Apple authentication with scopes...");
+      
       // Request Apple authentication
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
@@ -321,35 +327,41 @@ class AuthService {
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
-
+  
       console.log('Apple credential received:', {
-        identityToken: !!credential.identityToken,
         user: credential.user,
         email: credential.email,
-        fullName: credential.fullName
+        identityToken: credential.identityToken ? 'present' : 'missing',
+        authorizationCode: credential.authorizationCode ? 'present' : 'missing',
+        realUserStatus: credential.realUserStatus,
+        state: credential.state,
+        nonce: credential.nonce ? 'present' : 'missing'
       });
-
+  
       if (!credential.identityToken) {
+        console.error('No identity token received from Apple');
         return { 
           user: null, 
           error: new Error('No identity token received from Apple') 
         };
       }
-
+  
+      console.log('Attempting to sign in with Supabase...');
+      
       // Sign in with Supabase using the identity token
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
         token: credential.identityToken,
         nonce: credential.nonce, // Include nonce if available
       });
-
+  
       if (error) {
-        console.error('Error signing in with Apple:', error);
+        console.error('Supabase Apple sign-in error:', error);
         return { user: null, error };
       }
-
+  
       console.log('Apple sign-in successful:', data.user?.email);
-
+  
       // Migrate anonymous content to the new user account
       try {
         await this.migrateAnonymousContent();
@@ -357,15 +369,23 @@ class AuthService {
         console.error('Failed to migrate anonymous content:', migrationError);
         // Don't throw here - login should still succeed even if migration fails
       }
-
+  
       return { user: data.user, error: null };
-
+  
     } catch (error) {
+      console.error('Detailed Apple sign-in error:', {
+        message: error.message,
+        code: error.code,
+        nativeErrorCode: error.nativeErrorCode,
+        localizedDescription: error.localizedDescription,
+        userInfo: error.userInfo,
+        stack: error.stack
+      });
+      
       if (error.code === 'ERR_REQUEST_CANCELED') {
         console.log('User cancelled Apple sign-in');
         return { user: null, error: new Error('User cancelled sign-in') };
       } else {
-        console.error('Error in signInWithApple:', error);
         return { user: null, error };
       }
     }
