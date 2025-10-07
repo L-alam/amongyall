@@ -373,3 +373,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/cancel-subscription/deno.json"
 entrypoint = "./functions/cancel-subscription/index.ts"
+
+[functions.verify-apple-receipt]
+enabled = true
+verify_jwt = false
+import_map = "./functions/verify-apple-receipt/deno.json"
+entrypoint = "./functions/verify-apple-receipt/index.ts"

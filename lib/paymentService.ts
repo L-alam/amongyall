@@ -1,23 +1,81 @@
 // lib/paymentService.ts
-import { PlatformPay, confirmPlatformPayPayment, isPlatformPaySupported, useStripe } from '@stripe/stripe-react-native';
+import { useStripe } from '@stripe/stripe-react-native';
 import { Alert, Platform } from 'react-native';
+import { storeKitService } from './storeKitService';
 import { supabase } from './supabase';
 
 export interface PaymentService {
-  createSubscription: (priceId?: string) => Promise<boolean>;
-  createApplePaySubscription: (priceId?: string) => Promise<boolean>;
+  createSubscription: () => Promise<boolean>;
   isApplePaySupported: () => Promise<boolean>;
 }
 
-// Replace this with your actual Price ID from Stripe Dashboard
 const PRO_SUBSCRIPTION_PRICE_ID = "price_1S99dHHCGWxH2Kw4YywerHsy"; 
 
 export const usePaymentService = (): PaymentService => {
-  const { initPaymentSheet, presentPaymentSheet, confirmPayment } = useStripe();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
-  const createSubscription = async (priceId: string = PRO_SUBSCRIPTION_PRICE_ID): Promise<boolean> => {
+  // iOS uses StoreKit, web/Android uses Stripe
+  const createSubscription = async (): Promise<boolean> => {
+    // On iOS, use StoreKit (Apple's IAP)
+    if (Platform.OS === 'ios') {
+      return await createAppleSubscription();
+    }
+    
+    // On web/Android, use Stripe
+    return await createStripeSubscription();
+  };
+
+  const createAppleSubscription = async (): Promise<boolean> => {
     try {
-      console.log('Starting subscription creation...');
+      console.log('Starting Apple subscription...');
+      
+      // Initialize StoreKit if not already done
+      const initialized = await storeKitService.initialize();
+      if (!initialized) {
+        Alert.alert('Error', 'Failed to initialize payment system');
+        return false;
+      }
+
+      // Get product info to show price
+      const product = await storeKitService.getSubscriptionProduct();
+      if (!product) {
+        Alert.alert('Error', 'Subscription not available');
+        return false;
+      }
+
+      console.log('Product found:', product);
+
+      // Show confirmation with price
+      return new Promise((resolve) => {
+        Alert.alert(
+          'Subscribe to Pro',
+          `Unlock all premium features for ${product.localizedPrice}/month`,
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => resolve(false),
+            },
+            {
+              text: 'Subscribe',
+              onPress: async () => {
+                const success = await storeKitService.purchaseSubscription();
+                resolve(success);
+              },
+            },
+          ]
+        );
+      });
+    } catch (error) {
+      console.error('Error creating Apple subscription:', error);
+      Alert.alert('Error', 'Failed to start subscription');
+      return false;
+    }
+  };
+
+  const createStripeSubscription = async (): Promise<boolean> => {
+    try {
+      console.log('Starting Stripe subscription...');
       
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
@@ -30,7 +88,7 @@ export const usePaymentService = (): PaymentService => {
       // Call your backend to create a subscription
       const { data, error } = await supabase.functions.invoke('create-subscription', {
         body: {
-          priceId,
+          priceId: PRO_SUBSCRIPTION_PRICE_ID,
           userId: user.id,
         },
       });
@@ -43,7 +101,7 @@ export const usePaymentService = (): PaymentService => {
   
       console.log('Subscription created, initializing payment sheet...', data);
   
-      const { clientSecret, subscriptionId } = data;
+      const { clientSecret } = data;
   
       if (!clientSecret) {
         console.error('No client secret received');
@@ -51,24 +109,23 @@ export const usePaymentService = (): PaymentService => {
         return false;
       }
   
-      // Initialize payment sheet with the subscription's client secret
+      // Initialize payment sheet
       const { error: initError } = await initPaymentSheet({
         merchantDisplayName: 'AmongYall Pro',
         paymentIntentClientSecret: clientSecret,
         allowsDelayedPaymentMethods: true,
-        returnURL: 'amongyall://stripe-redirect', 
         defaultBillingDetails: {
           name: user.user_metadata?.full_name || user.email,
           email: user.email,
         },
-        applePay: {
+        applePay: Platform.OS === 'ios' ? {
           merchantCountryCode: 'US',
-        },
-        googlePay: {
+        } : undefined,
+        googlePay: Platform.OS === 'android' ? {
           merchantCountryCode: 'US',
-          testEnv: false, 
+          testEnv: false,
           currencyCode: 'USD',
-        },
+        } : undefined,
       });
   
       if (initError) {
@@ -91,149 +148,28 @@ export const usePaymentService = (): PaymentService => {
       }
   
       console.log('Payment confirmed successfully!');
-  
-      Alert.alert(
-        'Subscription Active!', 
-        'Welcome to AmongYall Pro! Your monthly subscription is now active and will renew automatically for $3/month.',
-        [{ text: 'OK' }]
-      );
-  
-      await refreshUserProStatus();
+      Alert.alert('Success', 'Your Pro subscription is now active!');
       return true;
-  
-    } catch (error) {
-      console.error('Subscription error:', error);
-      Alert.alert('Error', 'Subscription failed');
-      return false;
-    }
-  };
-
-  const createApplePaySubscription = async (priceId: string = PRO_SUBSCRIPTION_PRICE_ID): Promise<boolean> => {
-    try {
-      console.log('Starting Apple Pay subscription...');
-
-      // Check if Apple Pay is supported
-      if (Platform.OS !== 'ios') {
-        Alert.alert('Error', 'Apple Pay is only available on iOS devices');
-        return false;
-      }
-
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        Alert.alert('Error', 'You must be logged in to subscribe');
-        return false;
-      }
-
-      console.log('Creating Apple Pay subscription for user:', user.id);
-
-      // Call your backend to create a subscription with Apple Pay intent
-      const { data, error } = await supabase.functions.invoke('create-subscription', {
-        body: {
-          priceId,
-          userId: user.id,
-          paymentMethod: 'apple_pay',
-        },
-      });
-
-      if (error) {
-        console.error('Error creating Apple Pay subscription:', error);
-        Alert.alert('Error', `Failed to create subscription: ${error.message || 'Unknown error'}`);
-        return false;
-      }
-
-      console.log('Apple Pay subscription created, confirming with Apple Pay...', data);
-
-      const { clientSecret, subscriptionId } = data;
-
-      if (!clientSecret) {
-        console.error('No client secret received for Apple Pay');
-        Alert.alert('Error', 'Invalid response from server');
-        return false;
-      }
-
-      // Use confirmPlatformPayPayment directly to present and confirm Apple Pay
-      const { error: confirmError, paymentIntent } = await confirmPlatformPayPayment(
-        clientSecret,
-        {
-          applePay: {
-            cartItems: [
-              {
-                label: 'AmongYall Pro - Monthly',
-                amount: '3.00',
-                paymentType: PlatformPay.PaymentType.Immediate,
-              },
-            ],
-            merchantCountryCode: 'US',
-            currencyCode: 'USD',
-          },
-        }
-      );
-
-      if (confirmError) {
-        console.error('Apple Pay confirmation error:', confirmError);
-        if (confirmError.code !== 'Canceled') {
-          Alert.alert('Apple Pay Error', confirmError.message);
-        }
-        return false;
-      }
-
-      console.log('Apple Pay subscription confirmed successfully!');
-
-      Alert.alert(
-        'Subscription Active!', 
-        'Welcome to AmongYall Pro! Your monthly subscription is now active and will renew automatically for $3/month.',
-        [{ text: 'OK' }]
-      );
-
-      await refreshUserProStatus();
-      return true;
-
-    } catch (error) {
-      console.error('Apple Pay subscription error:', error);
-      Alert.alert('Error', 'Apple Pay subscription failed');
+    } catch (error: any) {
+      console.error('Unexpected error:', error);
+      Alert.alert('Error', error.message || 'An unexpected error occurred');
       return false;
     }
   };
 
   const isApplePaySupported = async (): Promise<boolean> => {
-    try {
-      if (Platform.OS !== 'ios') {
-        return false;
-      }
-
-      const isSupported = await isPlatformPaySupported();
-      console.log('Apple Pay supported:', isSupported);
-      return isSupported;
-    } catch (error) {
-      console.error('Error checking Apple Pay support:', error);
-      return false;
+    // On iOS, always return true since we use StoreKit
+    if (Platform.OS === 'ios') {
+      return true;
     }
-  };
-
-  const refreshUserProStatus = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // Trigger a refresh of user metadata or pro status
-        await supabase.auth.refreshSession();
-        
-        // Fetch updated user profile data
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-          
-        console.log('Updated user profile after subscription:', profile);
-      }
-    } catch (error) {
-      console.error('Error refreshing user status:', error);
-    }
+    
+    // On other platforms, check Stripe's Apple Pay support
+    // (This would be for web users on Safari)
+    return false;
   };
 
   return {
     createSubscription,
-    createApplePaySubscription,
     isApplePaySupported,
   };
 };
