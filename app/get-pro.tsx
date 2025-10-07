@@ -1,11 +1,11 @@
 // app/get-pro.tsx
 import { Ionicons } from '@expo/vector-icons';
-import { StripeProvider } from '@stripe/stripe-react-native';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -14,27 +14,50 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { PaymentMethodModal } from '../components/PaymentMethodModal';
-import { usePaymentService } from '../lib/paymentService';
-import { STRIPE_CONFIG } from '../lib/stripeConfig';
 import { supabase } from '../lib/supabase';
+
+// Dynamically import StoreKit to avoid crashes in Expo Go
+let storeKitService: any = null;
+try {
+  const storeKit = require('../lib/storeKitService');
+  storeKitService = storeKit.storeKitService;
+} catch (error) {
+  console.log('StoreKit not available (Expo Go mode)');
+}
 
 export default function GetProScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [proLoading, setProLoading] = useState(true);
   const [isAlreadyPro, setIsAlreadyPro] = useState(false);
   const [proExpiresAt, setProExpiresAt] = useState<string | null>(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const { createSubscription, createApplePaySubscription } = usePaymentService();
+  const [productPrice, setProductPrice] = useState<string>('$2.99');
 
   useEffect(() => {
     checkProStatus();
+    loadProductPrice();
   }, []);
+
+  const loadProductPrice = async () => {
+    if (Platform.OS === 'ios' && storeKitService) {
+      try {
+        await storeKitService.initialize();
+        const product = await storeKitService.getSubscriptionProduct();
+        if (product?.localizedPrice) {
+          setProductPrice(product.localizedPrice);
+        }
+      } catch (error) {
+        console.error('Error loading product price:', error);
+      }
+    }
+  };
 
   const checkProStatus = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setProLoading(false);
+        return;
+      }
 
       const { data: profile } = await supabase
         .from('user_profiles')
@@ -48,9 +71,12 @@ export default function GetProScreen() {
         // Check if pro subscription is still valid
         const now = new Date();
         const expiresAt = profile.pro_expires_at ? new Date(profile.pro_expires_at) : null;
-        const isProValid = profile.is_pro && (!expiresAt || expiresAt > now);
         
-        setIsAlreadyPro(isProValid);
+        const isActive = profile.is_pro && 
+                        profile.subscription_status === 'active' &&
+                        (!expiresAt || expiresAt > now);
+        
+        setIsAlreadyPro(isActive);
         setProExpiresAt(profile.pro_expires_at);
       }
     } catch (error) {
@@ -60,90 +86,95 @@ export default function GetProScreen() {
     }
   };
 
-  const handleSubscribeCheck = async () => {
-    try {
-      console.log('Checking user authentication status...');
-      
-      // Check if user is signed in
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError || !user) {
-        Alert.alert(
-          "Sign In Required",
-          "You must sign in to continue",
-          [{ text: "OK" }]
-        );
-        return;
-      }
+  const handleSubscribePress = async () => {
+    // Check if user is logged in
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to subscribe to Pro.');
+      return;
+    }
 
-      // Check the auth user's is_anonymous property directly
-      const isAnonymousUser = user.is_anonymous === true;
-      
-      console.log('Auth check results: User authenticated successfully');
-
-      if (isAnonymousUser) {
-        Alert.alert(
-          "Sign In Required",
-          "You must sign in to continue",
-          [{ text: "OK" }]
-        );
-        return;
-      }
-      
-      // If we get here, user is properly authenticated, show payment modal
-      console.log('User authentication passed, showing payment modal');
-      setShowPaymentModal(true);
-    } catch (error) {
-      console.error('Error checking authentication:', error);
+    // Check if we're in Expo Go or StoreKit not available
+    if (!storeKitService) {
       Alert.alert(
-        "Error",
-        "Something went wrong. Please try again.",
-        [{ text: "OK" }]
+        'Development Mode',
+        'In-App Purchases require a development or production build. This feature is not available in Expo Go.\n\nPlease build the app with:\nnpx expo prebuild\neas build',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // iOS - Use Apple IAP
+    if (Platform.OS === 'ios') {
+      handleAppleIAP();
+    } else {
+      // Android/Web - you can add Stripe here or show message
+      Alert.alert(
+        'Coming Soon',
+        'Subscriptions on this platform are coming soon. Please use the iOS app to subscribe.',
+        [{ text: 'OK' }]
       );
     }
   };
 
-  const handleStripePayment = async () => {
+  const handleAppleIAP = async () => {
     setIsLoading(true);
     try {
-      console.log('Starting Stripe subscription process...');
-      
-      const success = await createSubscription();
+      // Initialize StoreKit
+      const initialized = await storeKitService.initialize();
+      if (!initialized) {
+        Alert.alert('Error', 'Failed to initialize payment system. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Get product to verify it exists
+      const product = await storeKitService.getSubscriptionProduct();
+      if (!product) {
+        Alert.alert('Error', 'Subscription not available. Please try again later.');
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('Purchasing product:', product);
+
+      // Purchase the subscription
+      const success = await storeKitService.purchaseSubscription();
       
       if (success) {
-        console.log('Stripe subscription successful, refreshing status...');
-        // Wait a moment for webhook to process
+        console.log('Apple IAP subscription successful');
+        // Wait for receipt verification to complete
         setTimeout(async () => {
           await checkProStatus();
           router.push('/');
         }, 2000);
       }
-    } catch (error) {
-      console.error('Stripe subscription error:', error);
-      throw error;
+    } catch (error: any) {
+      console.error('Apple IAP error:', error);
+      Alert.alert(
+        'Subscription Error',
+        error.message || 'Failed to process your subscription. Please try again.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleApplePayment = async () => {
+  const handleRestorePurchases = async () => {
+    if (!storeKitService) {
+      Alert.alert('Error', 'Restore is only available in production builds.');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      console.log('Starting Apple Pay subscription process...');
-      
-      const success = await createApplePaySubscription();
-      
-      if (success) {
-        console.log('Apple Pay subscription successful, refreshing status...');
-        // Wait a moment for webhook to process
-        setTimeout(async () => {
-          await checkProStatus();
-          router.push('/');
-        }, 2000);
-      }
+      await storeKitService.restorePurchases();
+      await checkProStatus();
+      Alert.alert('Success', 'Purchases restored successfully!');
     } catch (error) {
-      console.error('Apple Pay subscription error:', error);
-      throw error;
+      console.error('Restore error:', error);
+      Alert.alert('Error', 'Failed to restore purchases. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -187,114 +218,128 @@ export default function GetProScreen() {
           </Text>
           {proExpiresAt && (
             <Text style={styles.expiryText}>
-              Next billing: {new Date(proExpiresAt).toLocaleDateString()}
+              Renews: {new Date(proExpiresAt).toLocaleDateString()}
             </Text>
           )}
-          
           <TouchableOpacity style={styles.continueButton} onPress={() => router.push('/')}>
-            <Text style={styles.continueButtonText}>Continue to App</Text>
+            <Text style={styles.continueButtonText}>Continue</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
+  // Main subscription screen
   return (
-    <StripeProvider 
-      publishableKey={STRIPE_CONFIG.publishableKey}
-      merchantIdentifier="merchant.com.lalam.amongyall"
-    >
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FEF3E2" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FEF3E2" />
       
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-            <Ionicons name="arrow-back" size={24} color="#374151" />
-          </TouchableOpacity>
-          <View style={styles.headerSpacer} />
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
+          <Ionicons name="arrow-back" size={24} color="#374151" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Upgrade to Pro</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Pro Badge */}
+        <View style={styles.badgeContainer}>
+          <View style={styles.diamondBadge}>
+            <Ionicons name="diamond" size={48} color="#FFFFFF" />
+          </View>
+          <Text style={styles.badgeTitle}>Go Pro</Text>
+          <Text style={styles.badgeSubtitle}>Unlock all premium features</Text>
         </View>
 
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Pro Badge */}
-          <View style={styles.badgeContainer}>
-            <View style={styles.diamondBadge}>
-              <Ionicons name="diamond" size={40} color="#FFFFFF" />
-            </View>
-            <Text style={styles.badgeTitle}>Go Pro</Text>
+        {/* Features List */}
+        <View style={styles.featuresContainer}>
+          <Text style={styles.featuresTitle}>What You Get:</Text>
+          
+          <View style={styles.feature}>
+            <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+            <Text style={styles.featureText}>Unlimited custom themes</Text>
           </View>
-
-          {/* Features List */}
-          <View style={styles.featuresContainer}>
-            <Text style={styles.featuresTitle}>What's Included:</Text>
-            
-            <View style={styles.feature}>
-              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
-              <Text style={styles.featureText}>Unlimited custom games</Text>
-            </View>
-            
-            <View style={styles.feature}>
-              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
-              <Text style={styles.featureText}>Unlimited themes & questions</Text>
-            </View>
-            
-            <View style={styles.feature}>
-              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
-              <Text style={styles.featureText}>No ads</Text>
-            </View>
-            
-            <View style={styles.feature}>
-              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
-              <Text style={styles.featureText}>Priority support</Text>
-            </View>
+          
+          <View style={styles.feature}>
+            <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+            <Text style={styles.featureText}>Create your own word lists</Text>
           </View>
-
-          {/* Pricing */}
-          <View style={styles.pricingContainer}>
-            <Text style={styles.pricingTitle}>Monthly Subscription</Text>
-            <View style={styles.priceRow}>
-              <Text style={styles.priceAmount}>$3.00</Text>
-              <Text style={styles.pricePeriod}>/month</Text>
-            </View>
-            <Text style={styles.pricingSubtitle}>
-              Renews automatically • Cancel anytime
-            </Text>
+          
+          <View style={styles.feature}>
+            <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+            <Text style={styles.featureText}>AI-generated game themes</Text>
           </View>
+          
+          <View style={styles.feature}>
+            <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+            <Text style={styles.featureText}>Offline game mode</Text>
+          </View>
+          
+          <View style={styles.feature}>
+            <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+            <Text style={styles.featureText}>No ads</Text>
+          </View>
+          
+          <View style={styles.feature}>
+            <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+            <Text style={styles.featureText}>Priority support</Text>
+          </View>
+        </View>
 
-          {/* Subscribe Button */}
+        {/* Pricing */}
+        <View style={styles.pricingContainer}>
+          <Text style={styles.pricingTitle}>Monthly Subscription</Text>
+          <View style={styles.priceRow}>
+            <Text style={styles.priceAmount}>{productPrice}</Text>
+            <Text style={styles.pricePeriod}>/month</Text>
+          </View>
+          <Text style={styles.pricingSubtitle}>
+            Renews automatically • Cancel anytime
+          </Text>
+          <Text style={styles.paymentNote}>
+            Payment will be charged to your Apple ID
+          </Text>
+        </View>
+
+        {/* Subscribe Button */}
+        <TouchableOpacity
+          style={[styles.subscribeButton, isLoading && styles.subscribeButtonDisabled]}
+          onPress={handleSubscribePress}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <Ionicons name="diamond" size={20} color="#FFFFFF" />
+              <Text style={styles.subscribeButtonText}>Subscribe Now</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        {/* Restore Purchases Button */}
+        {Platform.OS === 'ios' && (
           <TouchableOpacity
-            style={[styles.subscribeButton, isLoading && styles.subscribeButtonDisabled]}
-            onPress={handleSubscribeCheck}
+            style={styles.restoreButton}
+            onPress={handleRestorePurchases}
             disabled={isLoading}
           >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons name="diamond" size={20} color="#FFFFFF" />
-                <Text style={styles.subscribeButtonText}>Get Pro Now</Text>
-              </>
-            )}
+            <Text style={styles.restoreButtonText}>Restore Purchases</Text>
           </TouchableOpacity>
+        )}
 
-          <Text style={styles.disclaimer}>
-            By subscribing, you agree to automatic monthly billing of $3.00. 
-            You can cancel anytime in your account settings.
-          </Text>
-        </ScrollView>
-
-        {/* Payment Method Modal */}
-        <PaymentMethodModal
-          visible={showPaymentModal}
-          onClose={() => setShowPaymentModal(false)}
-          onStripePayment={handleStripePayment}
-          onApplePayment={handleApplePayment}
-          title="Choose Payment Method"
-          subtitle="Select how you'd like to pay for your Pro subscription"
-          price="$3.00/month"
-        />
-      </SafeAreaView>
-    </StripeProvider>
+        <Text style={styles.disclaimer}>
+          Subscription automatically renews unless auto-renew is turned off at least 24 hours before the end of the current period. 
+          Your account will be charged for renewal within 24 hours prior to the end of the current period. 
+          You can manage and cancel your subscriptions in your App Store account settings.
+        </Text>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -307,19 +352,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FEF3E2',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
   backButton: {
     padding: 8,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
   },
   headerTitle: {
     fontSize: 18,
@@ -331,11 +371,13 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    paddingHorizontal: 20,
+  },
+  scrollContent: {
+    padding: 20,
   },
   badgeContainer: {
     alignItems: 'center',
-    paddingVertical: 40,
+    marginBottom: 24,
   },
   diamondBadge: {
     width: 80,
@@ -427,6 +469,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
+    marginBottom: 8,
+  },
+  paymentNote: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
   },
   subscribeButton: {
     backgroundColor: '#F59E0B',
@@ -436,7 +484,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
     shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -452,8 +500,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
+  restoreButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  restoreButtonText: {
+    color: '#F59E0B',
+    fontSize: 16,
+    fontWeight: '500',
+  },
   disclaimer: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B7280',
     textAlign: 'center',
     marginBottom: 40,
