@@ -62,7 +62,8 @@
           "merchantIdentifier": "merchant.com.lalam.amongyall",
           "enableGooglePay": true
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

@@ -41,4 +41,6 @@ yarn-error.*
 app-example
 package-lock.json
 
-.expo/
+.expo//ios
+/ios
+/android
