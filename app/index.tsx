@@ -1,5 +1,4 @@
 // app/index.tsx - Fixed Authentication Logic
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -216,6 +215,36 @@ export default function Index() {
     router.push('/downloads');
   }
   
+//   <TouchableOpacity 
+//   style={[styles.headerButton, styles.authButton]} 
+//   onPress={handleAuthButtonPress}
+//   disabled={isLoading}
+// >
+//   <Ionicons 
+//     name={getAuthButtonIcon()}
+//     size={layout.iconSize.md} 
+//     color={getAuthButtonColor()} 
+//   />
+//   {/* Show anonymous badge only for anonymous users, not when no user */}
+//   {user && isAnonymous && (
+//     <View style={styles.anonymousBadge}>
+//       <Ionicons name="eye-off" size={12} color={colors.white} />
+//     </View>
+//   )}
+// </TouchableOpacity>
+
+
+{/* <TouchableOpacity 
+style={styles.headerButton} 
+onPress={handleGoToProScreen}
+disabled={proLoading}
+>
+<Ionicons 
+  name={isPro ? "star" : "diamond-outline"}
+  size={layout.iconSize.md} 
+  color={isPro ? "#3B82F6" : (colors.amber || '#F59E0B')} 
+/>
+</TouchableOpacity> */}
 
   return (
     <View style={layoutStyles.container}>
@@ -223,40 +252,10 @@ export default function Index() {
 
       {/* Header with auth button */}
       <View style={layoutStyles.header}>
-        {/* Auth Button (Sign In / Profile) - FIXED LOGIC */}
-        <TouchableOpacity 
-          style={[styles.headerButton, styles.authButton]} 
-          onPress={handleAuthButtonPress}
-          disabled={isLoading}
-        >
-          <Ionicons 
-            name={getAuthButtonIcon()}
-            size={layout.iconSize.md} 
-            color={getAuthButtonColor()} 
-          />
-          {/* Show anonymous badge only for anonymous users, not when no user */}
-          {user && isAnonymous && (
-            <View style={styles.anonymousBadge}>
-              <Ionicons name="eye-off" size={12} color={colors.white} />
-            </View>
-          )}
-        </TouchableOpacity>
 
         {/* Spacer to push pro button to the right */}
         <View style={{ flex: 1 }} />
 
-        {/* Go Pro Button */}
-        <TouchableOpacity 
-          style={styles.headerButton} 
-          onPress={handleGoToProScreen}
-          disabled={proLoading}
-        >
-          <Ionicons 
-            name={isPro ? "star" : "diamond-outline"}
-            size={layout.iconSize.md} 
-            color={isPro ? "#3B82F6" : (colors.amber || '#F59E0B')} 
-          />
-        </TouchableOpacity>
       </View>
 
       {/* Main content */}
